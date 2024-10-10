@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/berniwal.github.io/static/css/main.f855e6bc.css",
+    "main.js": "/berniwal.github.io/static/js/main.2eb6ab24.js",
+    "static/js/453.71dfa449.chunk.js": "/berniwal.github.io/static/js/453.71dfa449.chunk.js",
+    "static/media/logo.svg": "/berniwal.github.io/static/media/logo.6ce24c58023cc2f8fd88fe9d219db6c6.svg",
+    "index.html": "/berniwal.github.io/index.html",
+    "main.f855e6bc.css.map": "/berniwal.github.io/static/css/main.f855e6bc.css.map",
+    "main.2eb6ab24.js.map": "/berniwal.github.io/static/js/main.2eb6ab24.js.map",
+    "453.71dfa449.chunk.js.map": "/berniwal.github.io/static/js/453.71dfa449.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f855e6bc.css",
+    "static/js/main.2eb6ab24.js"
+  ]
+}
