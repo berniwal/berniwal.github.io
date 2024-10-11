@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Afacad+Flux:wght@100..1000&display=swap');
+
+html {
+  overflow-y: scroll; /* Forces the vertical scrollbar to always be visible */
+}
+
+body {
+  font-family: 'Afacad Flux', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f0f0f0;
+}
+
+button {
+  font-family: 'Afacad Flux', sans-serif;
+}
+
+.app-container {
+  text-align: center;
+}
+
+.navbar {
+  background-color: #333;
+  display: flex;
+  justify-content: center; /* Center the navigation items */
+  align-items: center;
+  padding: 20px 20px;
+  position: relative; /* Allows for absolute positioning of the logo */
+}
+
+.logo-link {
+  display: flex; /* Make the link a flex container */
+  align-items: center; /* Vertically center its content */
+  text-decoration: none; /* Remove the default link underline */
+  color: inherit; /* Keep the text color the same as the logo */
+}
+
+.logo {
+  position: absolute; /* Decouple the logo from the flexbox layout */
+  left: 20px; /* Position it on the left */
+  font-weight: 300;
+  font-size: 1.5rem;
+  color: white;
+  display: flex; /* Use flex to align the favicon and text */
+  align-items: center; /* Vertically align the items */
+}
+
+.logo-icon {
+  width: 24px; /* Set the size of the favicon image */
+  height: 24px;
+  margin-right: 8px; /* Add space between the favicon and the text */
+}
+
+.navbar ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+}
+
+.navbar li {
+  margin: 0 15px;
+  font-size: 1.2rem;
+}
+
+.navbar a {
+  color: white;
+  text-decoration: none;
+}
+
+.navbar a:hover {
+  color: #ddd;
+}
+
+/* Below 800 pixels, hide the logo text */
+@media (max-width: 800px) {
+  .logo-text {
+    display: none;
+  }
+}

@@ -1,0 +1,22 @@
+.project-page {
+    padding: 40px;
+    background-color: #fff;
+    color: #333;
+  }
+  
+  .project-page h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  
+  .project-list {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .project-list li {
+    font-size: 1.2rem;
+    margin: 10px 0;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+  }
