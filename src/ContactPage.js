@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './ContactPage.css';
+import { FaEnvelope } from 'react-icons/fa';
 
 function ContactPage() {
   const [name, setName] = useState('');
@@ -8,14 +9,15 @@ function ContactPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const subject = `[Walser Tech Contact] New message from  ${name}`;
+    const subject = `[Website Contact] New message from  ${name}`;
     const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
-    window.location.href = `mailto:berniwal1997@hotmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:bernhardwalser@outlook.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
     <div className="contact-page">
-      <h2>Contact Us</h2>
+      <h2>Contact Me</h2>
+      <p>bernhardwalser@outlook.com</p>
       <form className="contact-form" onSubmit={handleSubmit}>
         <label htmlFor="name">Name:</label>
         <input 

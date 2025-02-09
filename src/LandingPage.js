@@ -1,18 +1,37 @@
+// src/LandingPage.js
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { FaLinkedin, FaGithub, FaEnvelope } from 'react-icons/fa';
+import { HashLink } from 'react-router-hash-link';
 import './LandingPage.css';
 
-
-function LandingPage() {
+const LandingPage = () => {
   return (
     <div className="landing-page">
-      <h1>Welcome to Walser Tech</h1>
-      <p>We develop innovative web-based applications and AI tools to solve modern problems.</p>
-      <Link to="/projects">
-        <button className="cta-button">Our projects.</button>
-      </Link>
+      <div className="intro">
+        <h1>Bernhard Walser</h1>
+        <p>Machine Learning Engineer</p>
+      </div>
+      <div className="social-links">
+        <a
+          href="https://www.linkedin.com/in/bernhardwalser/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="LinkedIn"
+        >
+          <FaLinkedin className="social-icon" />
+        </a>
+        <a
+          href="https://github.com/berniwal"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub"
+        >
+          <FaGithub className="social-icon" />
+        </a>
+        <HashLink smooth to="/#contact"><FaEnvelope className="social-icon" /></HashLink>
+      </div>
     </div>
   );
-}
+};
 
 export default LandingPage;

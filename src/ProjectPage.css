@@ -1,22 +1,125 @@
+/* src/ProjectPage.css */
 .project-page {
-    padding: 40px;
-    background-color: #fff;
-    color: #333;
+  width: 100%;
+  padding: 40px;
+  background-color: #fff;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.project-page h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Container for timeline items */
+.experience-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Each timeline row */
+.row.experience {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+/* Left column: timeline marker */
+.timeline-col {
+  width: 150px; /* Adjust width as needed */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Timeline marker container */
+.timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* The date above the dot */
+.timeline-date {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #325ea8;
+  margin-bottom: 4px;
+}
+
+/* Small dot marker */
+.timeline-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #325ea8;
+  border-radius: 50%;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Right column: experience details */
+.experience-details {
+  flex: 1;
+  padding-left: 10px;
+}
+
+/* Card styling for experience details */
+.card {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  box-shadow: none;
+}
+
+.card-body {
+  padding: 15px;
+}
+
+.exp-title {
+  font-size: 1.2rem;
+  margin-bottom: 5px;
+}
+
+.exp-company {
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.exp-company a {
+  text-decoration: none;
+  color: #325ea8;
+}
+
+.exp-meta {
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  color: #777;
+}
+
+.middot-divider {
+  margin: 0 5px;
+}
+
+/* Responsive: On extra small screens, you might hide the timeline column */
+@media (max-width: 576px) {
+  .row.experience {
+    flex-direction: column;
   }
-  
-  .project-page h2 {
-    font-size: 2rem;
-    margin-bottom: 20px;
+  .timeline-col {
+    display: none;
   }
-  
-  .project-list {
-    list-style-type: none;
-    padding: 0;
+  .experience-details {
+    width: 100%;
+    padding-left: 0;
   }
-  
-  .project-list li {
-    font-size: 1.2rem;
-    margin: 10px 0;
-    border-bottom: 1px solid #ddd;
-    padding: 10px 0;
+
+  .card {
+    width: 100%;
   }
+}

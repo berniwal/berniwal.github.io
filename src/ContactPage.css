@@ -1,9 +1,8 @@
 .contact-page {
+    width: 100%;
     padding: 40px;
     background-color: #fff;
     color: #333;
-    max-width: 600px;
-    margin: 0 auto;
     text-align: left;
   }
   

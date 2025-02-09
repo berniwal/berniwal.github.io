@@ -1,36 +1,41 @@
+/* src/LandingPage.css */
 .landing-page {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-color: #f8f9fa;
-    padding: 0 20px;
-  }
-  
-  .landing-page h1 {
-    font-size: 2.5rem;
-    color: #333;
-  }
-  
-  .landing-page p {
-    font-size: 1.2rem;
-    color: #666;
-    margin: 20px 0px;
-  }
-  
-  .cta-button {
-    padding: 10px 20px;
-    background-color: #333;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    font-size: 1.2rem;
-    margin: 20px 0px;
-  }
-  
-  .cta-button:hover {
-    background-color: #555;
-  }
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #fff;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.intro h1 {
+  font-size: 3rem;
+  color: #333;
+  margin-bottom: 0.5em;
+}
+
+.intro p {
+  font-size: 1.5rem;
+  color: #666;
+  margin-bottom: 1.5em;
+}
+
+.social-links {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.social-icon {
+  font-size: 2rem;
+  color: #333;
+  transition: color 0.3s ease;
+}
+
+.social-icon:hover {
+  /* You can customize each icon’s hover color if desired */
+  color: #0077b5; /* Example: LinkedIn blue */
+}

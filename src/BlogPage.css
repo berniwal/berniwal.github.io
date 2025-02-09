@@ -1,0 +1,227 @@
+/* Existing styles */
+.blog-page, .blog-post {
+  display: flex;
+  width: 80%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: start;
+  padding: 0 10%;
+  max-width: 800px;
+}
+
+.blog-page h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.landing-page h1 {
+  font-size: 2.5rem;
+  color: #333;
+}
+
+.landing-page p {
+  font-size: 1.2rem;
+  color: #666;
+  margin: 20px 0;
+}
+
+.cta-button {
+  padding: 10px 20px;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.5s ease, opacity 0.5s ease;
+  font-size: 1.2rem;
+  margin: 20px 5px;
+  width: 200px;
+}
+
+.cta-button:hover {
+  opacity: 0.8;
+}
+
+.blog-categories-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 800px;
+  max-height: 10%;
+  justify-content: space-evenly;
+}
+
+/* New styles for Blog Post Preview Cards */
+.blog-preview-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  max-height: 80%;
+  max-width: 1200px;
+  margin: 20px auto;
+}
+
+.blog-preview-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.blog-preview-card {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  width: 300px;
+  height: 200px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  text-align: left;
+}
+
+/* Below 800 pixels, hide the logo text */
+@media (max-width: 800px) {
+  .blog-preview-card {
+    width: inherit;
+  }
+  .blog-preview-container {
+    flex-direction: column;
+  }
+}
+
+.blog-preview-card h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.blog-preview-card p {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.blog-preview-card span {
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.blog-preview-card:hover {
+  transform: translateY(-5px);
+}
+
+.blog-post h1 {
+  font-size: 2.5rem;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.blog-post p {
+  font-size: 1.2rem;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.blog-post img {
+  max-width: 100%;
+  display: block;
+  margin: 20px auto;
+  border-radius: 8px;
+}
+
+/* Optional: Ensure Markdown content follows the landing page typography */
+.blog-post h2,
+.blog-post h3,
+.blog-post h4 {
+  color: #333;
+  margin: 20px 0 10px;
+}
+
+.blog-post ul,
+.blog-post ol {
+  margin-left: 20px;
+  margin-bottom: 20px;
+}
+
+.blog-post blockquote {
+  border-left: 4px solid #ddd;
+  margin: 20px 0;
+  padding-left: 16px;
+  font-style: italic;
+  color: #555;
+}
+
+
+/* Existing styles... */
+
+/* Pagination container styling */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+  max-height: 10%;
+}
+
+/* Style for all pagination buttons */
+.pagination button {
+  padding: 8px 12px;
+  border: none;
+  background-color: #333;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+/* Hover effect */
+.pagination button:hover:not(:disabled) {
+  background-color: #555;
+}
+
+/* Disabled button style */
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Highlight active page */
+.pagination-button.active {
+  background-color: #325ea8;
+}
+
+/* Style for the code block wrapper */
+.code-block-wrapper {
+  position: relative;
+  margin: 20px 0;
+}
+
+/* Style for the copy button */
+.copy-button {
+  font-family: "Afacad Flux", sans-serif;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #325ea8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+  z-index: 2;
+}
+
+.copy-button:hover {
+  opacity: 1;
+}
+
+/* Optional: Adjust the pre tag style (if needed) */
+pre {
+  border-radius: 4px;
+  overflow: auto;
+  max-width: 90%;
+}
