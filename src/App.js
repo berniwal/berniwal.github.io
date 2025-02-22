@@ -26,7 +26,7 @@ function App() {
               <HashLink smooth to="/#blog">Blog</HashLink>
             </li>
             <li>
-              <HashLink smooth to="/#projects">Projects</HashLink>
+              <HashLink smooth to="/#projects">Experience</HashLink>
             </li>
             <li>
               <HashLink smooth to="/#contact">Contact</HashLink>

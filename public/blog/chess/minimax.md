@@ -1,4 +1,4 @@
-Imagine a game of chess where you are playing against an opponent. You want to win the game, however you don't know what moves your opponent will make and which moves will lead to a win.
+Imagine a game of chess where you are playing against an opponent. You want to win the game, however you don't know what moves your opponent will make and which moves will lead to a win. In this blog series we will explore different algorithms that can be used to make decisions in games like chess. We will start with the minimax algorithm, move on to the alpha-beta pruning algorithm, and finally discuss the Monte Carlo Tree Search algorithm which was used in the AlphaGo program to beat the world champion in the game of Go. So let us first ask the question:
  
  ## How can we win the game?
  
@@ -122,11 +122,9 @@ if __name__ == "__main__":
 Try to adjust the depth and see how the number of nodes created grows exponentially. The more nodes are created the more computation time is needed to evaluate the game tree. 
 
 ## Can we improve?
-While the minimax algorithm is a powerful tool for decision-making in two-player games, it has some limitations. One of the main limitations is that it can be computationally expensive, especially for games with a large branching factor and depth. To address this issue, we can use the alpha-beta pruning algorithm, which is an extension of the minimax algorithm that reduces the number of nodes that need to be evaluated.
+While the minimax algorithm is a powerful tool for decision-making in two-player games, it has some limitations. One of the main limitations is that it can be computationally expensive, especially for games with a large branching factor and depth. To address this issue, we can use the [alpha-beta pruning algorithm](/#/blog/alpha-beta), which is an extension of the minimax algorithm that reduces the number of nodes that need to be evaluated.
 
 ##  References
 [Wikipedia - Minimax](https://en.wikipedia.org/wiki/Minimax) - Wikipedia article on Minimax.
 
 [Chess Programming](https://www.chessprogramming.org/Minimax) - Chess Programming Wiki on Minimax.
-
-[//]: # ([alpha-beta pruning algorithm]/#/blog/alpha-beta)

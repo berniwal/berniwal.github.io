@@ -28,7 +28,8 @@
 
 /* Left column: timeline marker */
 .timeline-col {
-  width: 150px; /* Adjust width as needed */
+  width: 150px;
+  /* Adjust width as needed */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -111,9 +112,11 @@
   .row.experience {
     flex-direction: column;
   }
+
   .timeline-col {
     display: none;
   }
+
   .experience-details {
     width: 100%;
     padding-left: 0;

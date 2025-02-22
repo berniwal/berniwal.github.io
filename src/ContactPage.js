@@ -20,33 +20,33 @@ function ContactPage() {
       <p>bernhardwalser@outlook.com</p>
       <form className="contact-form" onSubmit={handleSubmit}>
         <label htmlFor="name">Name:</label>
-        <input 
-          type="text" 
-          id="name" 
-          name="name" 
-          required 
-          value={name} 
-          onChange={(e) => setName(e.target.value)} 
+        <input
+          type="text"
+          id="name"
+          name="name"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         />
 
         <label htmlFor="email">Email:</label>
-        <input 
-          type="email" 
-          id="email" 
-          name="email" 
-          required 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         <label htmlFor="message">Message:</label>
-        <textarea 
-          id="message" 
-          name="message" 
-          rows="4" 
-          required 
-          value={message} 
-          onChange={(e) => setMessage(e.target.value)} 
+        <textarea
+          id="message"
+          name="message"
+          rows="4"
+          required
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
         ></textarea>
 
         <button type="submit">Send Message</button>

@@ -2,7 +2,8 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap');
 
 html {
-  overflow-y: scroll; /* Forces the vertical scrollbar to always be visible */
+  overflow-y: scroll;
+  /* Forces the vertical scrollbar to always be visible */
 }
 
 body {
@@ -30,35 +31,47 @@ button {
 .navbar {
   background-color: #333;
   display: flex;
-  justify-content: center; /* Center the navigation items */
+  justify-content: center;
+  /* Center the navigation items */
   align-items: center;
-  position: relative; /* Allows for absolute positioning of the logo */
+  position: relative;
+  /* Allows for absolute positioning of the logo */
   max-width: 100%;
   width: 1200px;
   padding: 20px 0px;
 }
 
 .logo-link {
-  display: flex; /* Make the link a flex container */
-  align-items: center; /* Vertically center its content */
-  text-decoration: none; /* Remove the default link underline */
-  color: inherit; /* Keep the text color the same as the logo */
+  display: flex;
+  /* Make the link a flex container */
+  align-items: center;
+  /* Vertically center its content */
+  text-decoration: none;
+  /* Remove the default link underline */
+  color: inherit;
+  /* Keep the text color the same as the logo */
 }
 
 .logo {
-  position: absolute; /* Decouple the logo from the flexbox layout */
-  left: 20px; /* Position it on the left */
+  position: absolute;
+  /* Decouple the logo from the flexbox layout */
+  left: 20px;
+  /* Position it on the left */
   font-weight: 300;
   font-size: 1.5rem;
   color: white;
-  display: flex; /* Use flex to align the favicon and text */
-  align-items: center; /* Vertically align the items */
+  display: flex;
+  /* Use flex to align the favicon and text */
+  align-items: center;
+  /* Vertically align the items */
 }
 
 .logo-icon {
-  width: 24px; /* Set the size of the favicon image */
+  width: 24px;
+  /* Set the size of the favicon image */
   height: 24px;
-  margin-right: 8px; /* Add space between the favicon and the text */
+  margin-right: 8px;
+  /* Add space between the favicon and the text */
   display: none;
 }
 
@@ -88,6 +101,7 @@ button {
   .logo-text {
     display: none;
   }
+
   .logo-icon {
     display: block;
   }

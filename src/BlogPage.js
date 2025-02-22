@@ -90,8 +90,8 @@ function BlogPage() {
           Algorithm
         </button>
       </div>
-        {/* Pagination Controls */}
-        <div className="pagination">
+      {/* Pagination Controls */}
+      <div className="pagination">
         <button onClick={handlePrevPage} disabled={currentPage === 1}>
           Prev
         </button>

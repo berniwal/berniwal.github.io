@@ -1,5 +1,6 @@
 /* Existing styles */
-.blog-page, .blog-post {
+.blog-page,
+.blog-post {
   display: flex;
   width: 80%;
   flex-direction: column;
@@ -83,6 +84,7 @@
   .blog-preview-card {
     width: inherit;
   }
+
   .blog-preview-container {
     flex-direction: column;
   }
