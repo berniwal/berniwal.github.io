@@ -73,10 +73,23 @@
   border-radius: 8px;
   padding: 20px;
   width: 300px;
-  height: 200px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
   text-align: left;
+}
+
+.blog-preview-card h2 {
+  /* Ensure long titles wrap cleanly within the card */
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.blog-preview-card span {
+  /* Pin category to the bottom edge regardless of title length */
+  margin-top: auto;
 }
 
 /* Below 800 pixels, hide the logo text */
