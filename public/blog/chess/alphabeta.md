@@ -104,7 +104,7 @@ If you compare this algorithm to the number of nodes created and the computation
 In the worst case scenario, the alpha-beta pruning algorithm will still need to evaluate all nodes in the game tree - therefore O(b^d) nodes, where b is the branching factor and d is the depth of the tree. However, in the best case scenario, the algorithm will only need to evaluate O(b^(d/2)) or equivalently O(sqrt(b^d)) nodes, so it essentially halves the depth of the tree. A mathematical analysis for this scenario you will find in the references. This is a significant improvement over the O(b^d) nodes that the minimax algorithm would need to evaluate in every case.
 
 ## What’s Next?
-In the next post, we will explore Monte Carlo Tree Search (MCTS), an algorithm that helped AlphaGo defeat the world champion in Go.
+In the next post, we will explore [Monte Carlo Tree Search (MCTS)](/#/blog/monte-carlo), an algorithm that helped AlphaGo defeat the world champion in Go.
 
  ##  References
  [Wikipedia - Alpha Beta Pruning](https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning) - Wikipedia article on Alpha-Beta Pruning.

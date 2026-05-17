@@ -89,6 +89,13 @@ function BlogPage() {
         >
           Algorithm
         </button>
+        <button
+          className="cta-button"
+          style={{ backgroundColor: chosenCategory === 'Visualizing ML' ? '#325ea8' : '#333' }}
+          onClick={() => handleCategoryClick('Visualizing ML')}
+        >
+          Visualizing ML
+        </button>
       </div>
       {/* Pagination Controls */}
       <div className="pagination">

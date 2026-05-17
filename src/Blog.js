@@ -6,7 +6,12 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 // You can choose any style you like; here we use 'tomorrow'
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { blogPosts } from './blogPosts';
+import VisualizingAttention from './posts/VisualizingAttention';
 import './BlogPage.css';
+
+const componentRegistry = {
+  VisualizingAttention,
+};
 
 function CodeBlock({ node, inline, className, children, ...props }) {
   const [isCopied, setCopied] = useState(false);
@@ -52,8 +57,7 @@ function Blog() {
   const [content, setContent] = useState('');
 
   useEffect(() => {
-    if (postMeta) {
-      // Fetch the markdown file from the public/blog folder
+    if (postMeta && postMeta.file) {
       fetch(`/blog/${postMeta.file}`)
         .then((res) => res.text())
         .then((text) => setContent(text))
@@ -62,6 +66,12 @@ function Blog() {
   }, [postMeta]);
 
   if (!postMeta) return <div>Post not found</div>;
+
+  if (postMeta.component) {
+    const PostComponent = componentRegistry[postMeta.component];
+    if (!PostComponent) return <div>Post component not found</div>;
+    return <PostComponent />;
+  }
 
   return (
     <div className="main-page">
