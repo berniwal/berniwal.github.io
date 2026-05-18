@@ -1,6 +1,13 @@
 // src/blogPosts.js
 export const blogPosts = [
   {
+    slug: 'visualizing-kv-cache',
+    title: 'Visualizing the KV Cache: Prefill, Decode, and Why Inference Is Bandwidth-Bound',
+    category: 'Visualizing ML',
+    excerpt: 'Why the first token takes 500 ms and the rest stream at 20 ms each — the KV cache, arithmetic intensity, GQA, PagedAttention, and continuous batching, every number small enough to read.',
+    component: 'VisualizingKVCache'
+  },
+  {
     slug: 'visualizing-attention',
     title: 'Visualizing Attention: Q/K/V, Multi-Head, and Causal Masking',
     category: 'Visualizing ML',

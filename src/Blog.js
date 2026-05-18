@@ -7,10 +7,12 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { blogPosts } from './blogPosts';
 import VisualizingAttention from './posts/VisualizingAttention';
+import VisualizingKVCache from './posts/VisualizingKVCache';
 import './BlogPage.css';
 
 const componentRegistry = {
   VisualizingAttention,
+  VisualizingKVCache,
 };
 
 function CodeBlock({ node, inline, className, children, ...props }) {
