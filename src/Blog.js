@@ -8,11 +8,13 @@ import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { blogPosts } from './blogPosts';
 import VisualizingAttention from './posts/VisualizingAttention';
 import VisualizingKVCache from './posts/VisualizingKVCache';
+import VisualizingRoPE from './posts/VisualizingRoPE';
 import './BlogPage.css';
 
 const componentRegistry = {
   VisualizingAttention,
   VisualizingKVCache,
+  VisualizingRoPE,
 };
 
 function CodeBlock({ node, inline, className, children, ...props }) {
