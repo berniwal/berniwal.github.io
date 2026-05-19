@@ -1,14 +1,28 @@
 // src/App.js
-import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { HashLink } from 'react-router-hash-link';
 import './App.css';
 import MainPage from './MainPage';
 import Blog from './Blog';
 
+// Reset window scroll on every route change so a new page doesn't inherit the
+// previous route's scroll position (e.g. clicking a blog card from a scrolled
+// blog list on the main page).
+function ScrollToTopOnRoute() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    // Skip if the user is navigating to a hash anchor on the same page —
+    // HashLink already handles smooth-scroll in that case.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <ScrollToTopOnRoute />
       <div className="app-container">
         <nav className="navbar">
           <HashLink smooth to="/#landing" className="logo-link">
