@@ -935,24 +935,59 @@ function SectionPermutation() {
    §2 — Position encoding zoo
    ========================================================= */
 
-// Toy bias matrices for a 4-token sequence (or 2×2 patch grid in the Swin case).
-function biasFor(mode) {
-  const T = 4;
+// Hand-picked vectors per relative offset for Shaw Key (a^K) and Shaw Value (a^V).
+// d_k = d_v = 4 to match the Q/K dimension of our toy model.
+const A_K = {
+  '-3': [-0.20,  0.10,  0.00, -0.10],
+  '-2': [-0.10, -0.05,  0.15, -0.10],
+  '-1': [ 0.05, -0.10,  0.00,  0.15],
+  '0':  [ 0.25,  0.00,  0.00,  0.20],
+  '1':  [-0.05,  0.10, -0.10,  0.00],
+  '2':  [-0.10,  0.05,  0.15, -0.10],
+  '3':  [-0.20,  0.10,  0.00, -0.10],
+};
+const A_V = {
+  '-3': [ 0.10, -0.20,  0.05,  0.00],
+  '-2': [ 0.15, -0.10,  0.00,  0.05],
+  '-1': [ 0.10, -0.05, -0.10,  0.00],
+  '0':  [ 0.00,  0.20,  0.20,  0.00],
+  '1':  [-0.05, -0.10,  0.10,  0.00],
+  '2':  [-0.10,  0.00, -0.05,  0.15],
+  '3':  [-0.20,  0.05,  0.10,  0.00],
+};
+function aK(off) { return A_K[String(off)] ?? [0, 0, 0, 0]; }
+function aV(off) { return A_V[String(off)] ?? [0, 0, 0, 0]; }
+
+// T5 scalar bias per relative offset.
+const T5_BIAS = { '-3': -0.4, '-2': -0.2, '-1': 0.1, '0': 0.5, '1': 0.1, '2': -0.2, '3': -0.4 };
+
+// Build the effective bias matrix added to scores under each mode (or null when
+// the mode doesn't add a score-level bias — that's Shaw Value).
+function effectiveBias(mode, Q) {
+  const T = Q.length;
   const M = Array.from({ length: T }, () => new Array(T).fill(0));
-  if (mode === 'absolute') {
-    // No bias on scores; the position info has already been added to embeddings.
+  if (mode === 'shaw-key') {
+    // B[i][j] = q_i · a^K_{i-j}   (the bias *is* content-aware via the dot with q)
+    for (let i = 0; i < T; i++) {
+      for (let j = 0; j < T; j++) {
+        const a = aK(i - j);
+        let s = 0;
+        for (let k = 0; k < Q[i].length; k++) s += Q[i][k] * a[k];
+        M[i][j] = s;
+      }
+    }
     return M;
   }
-  if (mode === 'shaw') {
-    // Learnable bias indexed by (i - j); we sketch a plausible 1D shape.
-    const b = { '-3': -0.4, '-2': -0.2, '-1': 0.1, '0': 0.5, '1': 0.1, '2': -0.2, '3': -0.4 };
+  if (mode === 'shaw-value') {
+    // No bias on scores under Shaw Value.
+    return null;
+  }
+  if (mode === 't5') {
     for (let i = 0; i < T; i++)
-      for (let j = 0; j < T; j++) M[i][j] = b[String(i - j)] ?? 0;
+      for (let j = 0; j < T; j++) M[i][j] = T5_BIAS[String(i - j)] ?? 0;
     return M;
   }
   if (mode === 'swin') {
-    // 2D relative bias on a 2×2 patch grid; index = (Δi, Δj).
-    // We use position p = 2*ri + rj where (ri, rj) is the (row, col) in the 2×2 grid.
     const lookup = {
       '0,0': 0.6,
       '0,1': 0.0, '0,-1': 0.0,
@@ -968,74 +1003,120 @@ function biasFor(mode) {
       }
     return M;
   }
-  // RoPE: no separate additive bias — rotations live on Q and K themselves.
   return M;
 }
 
-function SectionPosEncodingZoo() {
-  const [mode, setMode] = useState('shaw');
-  const T = 4;
-  const B = biasFor(mode);
+// Small heatmap of an arbitrary numeric matrix (diverging blue/red for signed, single-hue for [0,1]).
+function MiniMatrix({ data, title, cellSize = 50, diverging = true, range = 0.6, vmax }) {
+  const T = data.length;
+  const cols = data[0].length;
+  return (
+    <div>
+      {title && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--ink-faint)', marginBottom: 6 }}>
+          {title}
+        </div>
+      )}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+        gap: 2,
+        background: 'var(--rule)',
+        padding: 2,
+        borderRadius: 4,
+      }}>
+        {data.flatMap((row, i) =>
+          row.map((v, j) => {
+            let bg;
+            if (diverging) {
+              const a = Math.min(1, Math.abs(v) / range);
+              bg = v >= 0
+                ? `hsl(218, ${20 + a * 60}%, ${96 - a * 40}%)`
+                : `hsl(8, ${20 + a * 60}%, ${96 - a * 40}%)`;
+            } else {
+              const norm = Math.min(1, Math.max(0, v / (vmax || 1)));
+              const sat = 18 + Math.round(norm * 60);
+              const light = 96 - Math.round(norm * 50);
+              bg = `hsl(218, ${sat}%, ${light}%)`;
+            }
+            const ink = !diverging && v / (vmax || 1) > 0.55 ? '#fff' : 'var(--ink)';
+            return (
+              <div key={`mm-${i}-${j}`} style={{
+                background: bg,
+                color: ink,
+                fontFamily: 'var(--mono)',
+                fontSize: '0.72rem',
+                padding: '4px 4px',
+                textAlign: 'right',
+                width: cellSize,
+              }}>
+                {v.toFixed(2)}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
 
-  // Fixed q, k base scores (so the user sees how the bias changes the pattern).
-  // Take the first 4 tokens of the PROMPT.
+function SectionPosEncodingZoo() {
+  const [mode, setMode] = useState('shaw-key');
+  const T = 4;
   const tokens = PROMPT.slice(0, T);
   const X = tokens.map((t) => EMB[t]);
   const Q = matmul2(X, W_Q);
   const K = matmul2(X, W_K);
   const raw = matmul2(Q, transpose(K)).map((row) => row.map((v) => v / 2));
 
-  // For RoPE, apply rotations to Q and K rows before scoring.
-  let scores;
-  if (mode === 'rope') {
-    const dCols = Q[0].length;
-    const freqs = [];
-    for (let i = 0; i < dCols / 2; i++) freqs.push(Math.pow(10000, -(2 * i) / dCols));
-    const rotateRow = (row, pos) => {
-      const out = row.slice();
-      for (let i = 0; i < row.length / 2; i++) {
-        const theta = pos * freqs[i];
-        const [a, b] = [row[2 * i], row[2 * i + 1]];
-        const [ra, rb] = rotate2D(a, b, theta);
-        out[2 * i] = ra;
-        out[2 * i + 1] = rb;
-      }
-      return out;
-    };
-    const Qr = Q.map((r, i) => rotateRow(r, i));
-    const Kr = K.map((r, i) => rotateRow(r, i));
-    scores = matmul2(Qr, transpose(Kr)).map((row) => row.map((v) => v / 2));
-  } else {
-    scores = raw.map((row, i) => row.map((v, j) => v + B[i][j]));
-  }
+  const B = effectiveBias(mode, Q);
+  const scores = B
+    ? raw.map((row, i) => row.map((v, j) => v + B[i][j]))
+    : raw;
   const A = softmaxRows(scores);
 
+  // For Shaw Value: build the per-row "added value contribution" matrix
+  //   ΔV[i] = Σ_j α_ij · a^V_{i-j}    ∈ R^{d_v}
+  // Shows what gets *added* to each output row by the value-side relative term.
+  const dV = 4;
+  const deltaV = mode === 'shaw-value'
+    ? A.map((aRow, i) => {
+        const out = new Array(dV).fill(0);
+        for (let j = 0; j < T; j++) {
+          const a = aV(i - j);
+          for (let k = 0; k < dV; k++) out[k] += aRow[j] * a[k];
+        }
+        return out;
+      })
+    : null;
+
   const formulas = {
-    absolute: 'A_{ij} = \\mathrm{softmax}\\!\\left( (q_i + p_i) \\cdot (k_j + p_j) / \\sqrt{d_k} \\right)',
-    shaw:     'A_{ij} = \\mathrm{softmax}\\!\\left( q_i \\cdot k_j / \\sqrt{d_k} + b_{i-j} \\right)',
-    swin:     'A_{ij} = \\mathrm{softmax}\\!\\left( q_i \\cdot k_j / \\sqrt{d_k} + b_{\\Delta i, \\Delta j} \\right)',
-    rope:     'A_{ij} = \\mathrm{softmax}\\!\\left( (R_i q_i) \\cdot (R_j k_j) / \\sqrt{d_k} \\right)',
+    'shaw-key':   'e_{ij} = q_i \\cdot (k_j + a^K_{i-j})^\\top / \\sqrt{d}     \\;\\;\\Longleftrightarrow\\;\\; q_i \\!\\cdot\\! k_j + q_i \\!\\cdot\\! a^K_{i-j}',
+    'shaw-value': 'z_i = \\sum_{j} \\alpha_{ij}\\,(v_j + a^V_{i-j})    \\quad\\text{(scores unchanged; position added to values)}',
+    't5':         'e_{ij} = q_i \\cdot k_j / \\sqrt{d} + b_{i-j} \\quad\\text{(learned scalar per offset)}',
+    'swin':       'e_{ij} = q_i \\cdot k_j / \\sqrt{d} + b_{\\Delta i,\\,\\Delta j} \\quad\\text{(2D index for image patches)}',
   };
 
   const captions = {
-    absolute: 'Absolute: add a position embedding p_i to every token before attention. Learned or sinusoidal. Each position gets its own vector. Past the trained length, those vectors are undefined.',
-    shaw: 'Shaw 2018 (Self-Attention with Relative Position Representations): learn a small table indexed by (i − j) and add it to the score. Naturally encodes relative position, but the table only covers the trained window — past it, you fall back to the edge value.',
-    swin: 'Swin 2021 (Hierarchical Vision Transformer): extends Shaw to 2D image patches. Bias indexed by (Δi, Δj) within an M × M window. Same upside (relative), same downside (bounded by the trained window).',
-    rope: 'RoPE: no separate bias. Position lives multiplicatively on Q and K themselves via rotations. The relative-position dependence (n − m) emerges from the dot product. No extra learned params; naturally extrapolates (until the rotation angles drift far out of the trained range — see §7).',
+    'shaw-key':
+      'Shaw 2018 eq (4) — the relative-position info is a *vector* a^K_{i-j} added to k_j *before* the dot product. The contribution to the score is q_i · a^K_{i-j}, which depends on the query, so different queries weight the same relative offset differently. Notice in the bias matrix below: each *row* looks different even though the index pattern is Toeplitz — that\'s the content dependence.',
+    'shaw-value':
+      'Shaw 2018 eq (3) — the relative-position info is a vector a^V_{i-j} added to the *value* during the weighted sum. Attention scores (and the attention pattern) are completely unchanged: it\'s pure positional information flowing into the output. The right panel shows ΔV_i, the per-row positional vector added to each output row.',
+    't5':
+      'T5 2019 (and Swin in 2D) simplified Shaw\'s vector bias to a *learned scalar* per relative offset. Same Toeplitz indexing as Shaw, but the bias is content-independent — the same value gets added regardless of which q, k are involved. Cheap, effective, and the form most people think of as "relative position bias".',
+    'swin':
+      'Swin 2021 ports T5\'s scalar bias to 2D image patches: index by (Δi, Δj) within an M × M window. Same upside as T5 (relative, simple), same downside (bounded by the trained window — anything past the M × M window falls off the table).',
   };
-
-  const showBias = mode === 'shaw' || mode === 'swin';
-  const cellSize = 52;
 
   return (
     <div className="viz-panel">
       <div className="viz-controls">
         <div className="viz-tabs" role="tablist">
           {[
-            { id: 'absolute', label: 'Absolute' },
-            { id: 'shaw',     label: 'Shaw 1D' },
-            { id: 'swin',     label: 'Swin 2D' },
-            { id: 'rope',     label: 'RoPE' },
+            { id: 'shaw-key',   label: 'Shaw Key' },
+            { id: 'shaw-value', label: 'Shaw Value' },
+            { id: 't5',         label: 'T5 Scalar' },
+            { id: 'swin',       label: 'Swin 2D' },
           ].map((opt) => (
             <button
               key={opt.id}
@@ -1058,84 +1139,48 @@ function SectionPosEncodingZoo() {
       </p>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-        {showBias && (
-          <div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--ink-faint)', marginBottom: 6 }}>
-              bias matrix B  (4 × 4)
-            </div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${T}, ${cellSize}px)`,
-              gap: 2,
-              background: 'var(--rule)',
-              padding: 2,
-              borderRadius: 4,
-            }}>
-              {B.flatMap((row, i) =>
-                row.map((v, j) => {
-                  // Diverging color: blue for positive, red for negative
-                  const a = Math.min(1, Math.abs(v) / 0.6);
-                  const bg = v >= 0
-                    ? `hsl(218, ${20 + a * 60}%, ${96 - a * 40}%)`
-                    : `hsl(8, ${20 + a * 60}%, ${96 - a * 40}%)`;
-                  return (
-                    <div key={`b-${i}-${j}`} style={{
-                      background: bg,
-                      fontFamily: 'var(--mono)',
-                      fontSize: '0.72rem',
-                      padding: '4px 4px',
-                      textAlign: 'right',
-                      width: cellSize,
-                    }}>
-                      {v.toFixed(2)}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
+        {/* Left panel: bias matrix (or value-side contribution for Shaw Value) */}
+        {mode === 'shaw-value' ? (
+          <MiniMatrix
+            data={deltaV}
+            title="ΔV_i = Σ_j α_ij · a^V_{i-j}  (added to each output row)"
+            diverging
+            range={0.15}
+          />
+        ) : B ? (
+          <MiniMatrix
+            data={B}
+            title={
+              mode === 'shaw-key'
+                ? 'effective bias  q_i · a^K_{i-j}  (content-aware)'
+                : 'bias matrix B  (constant per relative offset)'
+            }
+            diverging
+            range={mode === 'shaw-key' ? 0.4 : 0.6}
+          />
+        ) : null}
 
-        <div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--ink-faint)', marginBottom: 6 }}>
-            resulting attention pattern A  (rows sum to 1)
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${T}, ${cellSize}px)`,
-            gap: 2,
-            background: 'var(--rule)',
-            padding: 2,
-            borderRadius: 4,
-          }}>
-            {A.flatMap((row, i) =>
-              row.map((v, j) => {
-                const sat = 18 + Math.round(v * 60);
-                const light = 96 - Math.round(v * 50);
-                return (
-                  <div key={`a-${i}-${j}`} style={{
-                    background: `hsl(218, ${sat}%, ${light}%)`,
-                    color: v > 0.55 ? '#fff' : 'var(--ink)',
-                    fontFamily: 'var(--mono)',
-                    fontSize: '0.72rem',
-                    padding: '4px 4px',
-                    textAlign: 'right',
-                    width: cellSize,
-                  }}>
-                    {v.toFixed(2)}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+        {/* Right panel: resulting attention pattern */}
+        <MiniMatrix
+          data={A}
+          title={
+            mode === 'shaw-value'
+              ? 'attention pattern A  (unchanged — no bias on scores)'
+              : 'resulting attention pattern A  (rows sum to 1)'
+          }
+          diverging={false}
+          vmax={1}
+        />
       </div>
 
-      <p className="viz-caption" style={{ marginTop: 12 }}>
-        Shaw and Swin are <strong>additive</strong> — a learned bias term is
-        glued onto the score. RoPE is <strong>multiplicative</strong> — Q and
-        K are <em>rotated</em>, and the relative-position dependence emerges
-        from the dot product itself. That's the conceptual jump §3 sets up.
+      <p className="viz-caption" style={{ marginTop: 14 }}>
+        Three of these are <strong>additive on scores</strong> (Shaw Key, T5,
+        Swin) — they reshape the attention pattern itself. One is{' '}
+        <strong>additive on values</strong> (Shaw Value) — the attention
+        pattern is untouched; position flows into the output through a
+        different door. None of them rotate Q or K. RoPE will be different on
+        every axis: <em>multiplicative</em>, <em>on Q and K directly</em>,
+        and <em>zero learned parameters</em>. That's §3.
       </p>
     </div>
   );
@@ -1234,30 +1279,40 @@ export default function VisualizingRoPE() {
           next section makes the contrast concrete.
         </p>
 
-        <h2>2. The predecessor: relative position bias (Shaw 2018, Swin 2021)</h2>
+        <h2>2. The predecessor family: relative position bias</h2>
         <p>
-          Between absolute embeddings and RoPE there's a family of methods
-          that encode position as an <strong>additive bias</strong> on the
-          attention score. The most influential are{' '}
+          Between absolute embeddings and RoPE there's a small family of
+          schemes that encode position as an <strong>additive term</strong>{' '}
+          somewhere inside attention. Four variants are worth seeing
+          side-by-side because each makes a slightly different design
+          choice:{' '}
           <a className="viz-link" href="https://arxiv.org/abs/1803.02155" target="_blank" rel="noreferrer">
             Shaw et al. 2018
           </a>{' '}
-          (1D relative bias for language) and{' '}
-          <a className="viz-link" href="https://arxiv.org/abs/2103.14030" target="_blank" rel="noreferrer">
-            Swin 2021
+          actually proposed two forms (one adds a vector to keys, one adds
+          a vector to values);{' '}
+          <a className="viz-link" href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noreferrer">
+            T5
           </a>{' '}
-          (2D relative bias for image patches). Toggle between them below and
-          watch what each does to a small 4×4 attention matrix.
+          (Raffel et al. 2019) simplified Shaw's key-vector to a learned
+          scalar per offset; and{' '}
+          <a className="viz-link" href="https://arxiv.org/abs/2103.14030" target="_blank" rel="noreferrer">
+            Swin
+          </a>{' '}
+          (Liu et al. 2021) lifted the T5 scalar to 2D image patches.
+          Toggle between them below — note the structural differences in the
+          bias panel as much as the result.
         </p>
         <SectionPosEncodingZoo />
         <p>
-          Notice the pattern: the additive schemes work, but the bias table is{' '}
-          <em>indexed by relative offset</em> and only defined for offsets
-          seen during training. RoPE replaces that table entirely with a
-          rotation — same relative-position story, no extra parameters, and
-          (with §7's tweaks) it extrapolates beyond the trained range. The
-          next four sections build that machinery up from a single 2D
-          rotation.
+          Three of these add a bias to the attention <em>scores</em>; one
+          adds it to the <em>values</em>. None of them touch Q or K directly.
+          And all of them depend on a table indexed by relative offset that
+          is bounded by the trained range. RoPE breaks both habits at once:
+          it modifies Q and K themselves (<em>multiplicatively</em>, via a
+          rotation), and the relative-position dependence falls out of the
+          dot product without any extra learned parameters. The next four
+          sections build that idea up from a single 2D rotation.
         </p>
 
         <h2>3. The geometric core: rotation in a 2D plane</h2>
