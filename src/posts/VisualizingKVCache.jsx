@@ -484,6 +484,11 @@ function TransformerLayerDiagram({ mode = 'forward' }) {
   const flopsUp  = 8 * d * d;
   const flopsDn  = 8 * d * d;
   const totalFlops = flopsQ + flopsK + flopsV + flopsAtt + flopsO + flopsUp + flopsDn;
+  // Naive (no-cache) decode would re-project K and V for ALL T tokens every step,
+  // turning the K, V terms into 2T·d·d_kv each (the T-factor blow-up).
+  const naiveFlops = flopsQ + flopsAtt + flopsO + flopsUp + flopsDn
+                   + 2 * T * d * dkv + 2 * T * d * dkv;
+  const savings = naiveFlops / totalFlops;
 
   // Weight bytes per op (params × dtype, read once per step).
   const bytesQ   = d * d * dtype;
@@ -578,14 +583,39 @@ function TransformerLayerDiagram({ mode = 'forward' }) {
       <ArchBlock name="Output" shape="(1, d)" kind="io" />
 
       <div className="viz-arch-total">
-        <div className="viz-arch-total-line">
-          <span className="viz-arch-total-key">Compute</span>
-          <span className="viz-arch-total-formula">
-            4d² + 4·d·d_kv + 16d² + 4T·d
-            {cacheMode && <em className="viz-arch-same">  · unchanged vs §1</em>}
-          </span>
-          <span className="viz-arch-total-value">≈ <strong>{num(totalFlops)}</strong></span>
-        </div>
+        {cacheMode ? (
+          <>
+            <div className="viz-arch-total-line viz-arch-total-naive">
+              <span className="viz-arch-total-key">Naive compute</span>
+              <span className="viz-arch-total-formula">
+                4d² +{' '}
+                <span className="viz-arch-bad-term">4T·d·d_kv <em>← K,V × T tokens (redundant)</em></span>
+                {' '}+ 16d² + 4T·d
+              </span>
+              <span className="viz-arch-total-value">≈ <strong>{num(naiveFlops)}</strong></span>
+            </div>
+            <div className="viz-arch-total-line viz-arch-total-cached">
+              <span className="viz-arch-total-key">Cached compute</span>
+              <span className="viz-arch-total-formula">
+                4d² +{' '}
+                <span className="viz-arch-good-term">4·d·d_kv <em>← K,V × 1 token (saved!)</em></span>
+                {' '}+ 16d² + 4T·d
+              </span>
+              <span className="viz-arch-total-value">
+                ≈ <strong>{num(totalFlops)}</strong>
+                <span className="viz-arch-savings">
+                  {savings >= 100 ? Math.round(savings).toLocaleString() : savings.toFixed(1)}× less
+                </span>
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="viz-arch-total-line">
+            <span className="viz-arch-total-key">Compute</span>
+            <span className="viz-arch-total-formula">4d² + 4·d·d_kv + 16d² + 4T·d</span>
+            <span className="viz-arch-total-value">≈ <strong>{num(totalFlops)}</strong></span>
+          </div>
+        )}
         <div className="viz-arch-total-line viz-arch-total-mem">
           <span className="viz-arch-total-key">Memory{cacheMode ? ' (weights + KV read)' : ' (weights)'}</span>
           <span className="viz-arch-total-formula">
@@ -608,12 +638,16 @@ function TransformerLayerDiagram({ mode = 'forward' }) {
 
       {cacheMode && (
         <p className="viz-caption" style={{ marginTop: 14 }}>
-          <strong>What changed vs §1:</strong> the K and V boxes still cost{' '}
-          2·d·d_kv FLOPs each because we only project the <em>one new</em> token.
-          Without the cache you'd pay 2T·d·d_kv per step (that's the T-factor
-          this diagram saves). The price: the orange <strong>KV cache</strong>{' '}
-          block on the right is now live in HBM, growing by{' '}
-          {fmtNum(cacheBytes, 'B')} per layer per request.
+          The two compute lines above are the whole story of caching at a
+          glance: every term is identical except K, V — without the cache
+          you'd re-project them for all <strong>T</strong> tokens every step,
+          with it you project them for the one new token. The single boxed
+          term shrinks by a factor of T; the FFN, attention compute, Q and O
+          projections are untouched. The cost: the orange{' '}
+          <strong>KV cache</strong> block on the right is now live in HBM,
+          adding {fmtNum(cacheBytes, 'B')} per layer per request to the
+          memory bill — which is exactly the "+ 2·d_kv·T" term in the memory
+          line below.
         </p>
       )}
     </div>
@@ -637,9 +671,22 @@ function CostBreakdown() {
   const T = COST_T_OPTIONS[tIdx];
   const N = COST_N_OPTIONS[nIdx];
 
-  // Per-step FLOPs (treating T as the current context length)
-  const perStepNoCache  = 2 * T * d * d + d * d + 2 * T * d;
-  const perStepCache    = 3 * d * d + 2 * T * d;
+  // Per-step FLOPs (treating T as the current context length).
+  // Matches the §1 diagram exactly: matmul = 2·M·N·P FLOPs, includes Q+O+K+V,
+  // FFN (16d²), and attention compute (4T·d). MHA is assumed (d_kv = d).
+  //
+  //   per-op FLOPs (one new token):
+  //     Q proj           : 2d²
+  //     O proj           : 2d²
+  //     K proj (cache)   : 2d²              | K proj (no cache) : 2T·d²
+  //     V proj (cache)   : 2d²              | V proj (no cache) : 2T·d²
+  //     FFN up + down    : 16d²
+  //     attention q·Kᵀ+A·V: 4T·d
+  //
+  //   total cached   = 24d² + 4T·d
+  //   total no-cache = 20d² + 4T·d² + 4T·d
+  const perStepCache    = 24 * d * d + 4 * T * d;
+  const perStepNoCache  = 20 * d * d + 4 * T * d * d + 4 * T * d;
   const cumNoCache      = N * perStepNoCache;
   const cumCache        = N * perStepCache;
   const ratio           = perStepNoCache / perStepCache;
@@ -666,27 +713,36 @@ function CostBreakdown() {
           </div>
           <div className="viz-cost-row">
             <span>Recompute K for <strong>all T tokens</strong></span>
-            <span className="viz-cost-mag">T · d²</span>
+            <span className="viz-cost-mag">2T · d²</span>
           </div>
           <div className="viz-cost-row">
             <span>Recompute V for <strong>all T tokens</strong></span>
-            <span className="viz-cost-mag">T · d²</span>
+            <span className="viz-cost-mag">2T · d²</span>
           </div>
           <div className="viz-cost-row">
             <span>Project Q for the 1 new token</span>
-            <span className="viz-cost-mag">d²</span>
+            <span className="viz-cost-mag">2d²</span>
+          </div>
+          <div className="viz-cost-row">
+            <span>Project O for the 1 new token</span>
+            <span className="viz-cost-mag">2d²</span>
           </div>
           <div className="viz-cost-row">
             <span>Attention scores  q · Kᵀ</span>
-            <span className="viz-cost-mag">T · d</span>
+            <span className="viz-cost-mag">2T · d</span>
           </div>
           <div className="viz-cost-row">
             <span>Weighted sum  A · V</span>
-            <span className="viz-cost-mag">T · d</span>
+            <span className="viz-cost-mag">2T · d</span>
+          </div>
+          <div className="viz-cost-row">
+            <span>FFN up + down  (8d² each)</span>
+            <span className="viz-cost-mag">16d²</span>
           </div>
           <div className="viz-cost-total">
-            per step = 2·T·d² + d² + 2·T·d ≈{' '}
+            per step ≈ <strong>20d² + 4T·d² + 4T·d</strong> ≈{' '}
             <strong>{fmtNum(perStepNoCache, 'FLOP')}</strong>
+            <em> · the 4T·d² term is the redundant K, V projections</em>
           </div>
           <div className="viz-cost-cumulative">
             over N = {N.toLocaleString()} tokens:{' '}
@@ -701,27 +757,36 @@ function CostBreakdown() {
           </div>
           <div className="viz-cost-row">
             <span>Project K for the <strong>1 new token</strong>, append to cache</span>
-            <span className="viz-cost-mag">d²</span>
+            <span className="viz-cost-mag">2d²</span>
           </div>
           <div className="viz-cost-row">
             <span>Project V for the <strong>1 new token</strong>, append to cache</span>
-            <span className="viz-cost-mag">d²</span>
+            <span className="viz-cost-mag">2d²</span>
           </div>
           <div className="viz-cost-row">
             <span>Project Q for the 1 new token</span>
-            <span className="viz-cost-mag">d²</span>
+            <span className="viz-cost-mag">2d²</span>
+          </div>
+          <div className="viz-cost-row">
+            <span>Project O for the 1 new token</span>
+            <span className="viz-cost-mag">2d²</span>
           </div>
           <div className="viz-cost-row">
             <span>Attention scores  q · Kᵀ <em>(read whole cache)</em></span>
-            <span className="viz-cost-mag">T · d</span>
+            <span className="viz-cost-mag">2T · d</span>
           </div>
           <div className="viz-cost-row">
             <span>Weighted sum  A · V <em>(read whole cache)</em></span>
-            <span className="viz-cost-mag">T · d</span>
+            <span className="viz-cost-mag">2T · d</span>
+          </div>
+          <div className="viz-cost-row">
+            <span>FFN up + down  (8d² each)</span>
+            <span className="viz-cost-mag">16d²</span>
           </div>
           <div className="viz-cost-total">
-            per step = 3·d² + 2·T·d ≈{' '}
+            per step ≈ <strong>24d² + 4T·d</strong> ≈{' '}
             <strong>{fmtNum(perStepCache, 'FLOP')}</strong>
+            <em> · the T-factor on K, V projections is gone</em>
           </div>
           <div className="viz-cost-cumulative">
             over N = {N.toLocaleString()} tokens:{' '}
@@ -814,12 +879,15 @@ function CostBreakdown() {
       </div>
 
       <p className="viz-caption" style={{ marginTop: 14 }}>
-        The cache moves the <strong>T factor</strong> off the projection rows (the
-        big-d² ones) and onto attention only (the small-d rows). Drag T up and
-        watch the left column blow up while the right column barely twitches —
-        but the orange "Memory it costs" panel climbs in lockstep. That's the
-        trade we keep paying: more compute saved → more memory consumed. §3
-        and §4 are how the field tries to keep that bill bounded.
+        The cache moves the <strong>T factor</strong> off the K and V
+        projection rows (the big-d² ones) and onto attention only (the
+        small-d rows). Drag T up and watch the left column blow up while the
+        right column barely twitches — but the orange "Memory it costs"
+        panel climbs in lockstep. That's the trade we keep paying: more
+        compute saved → more memory consumed. §7 (GQA) and §8 (PagedAttention)
+        are how the field keeps that memory bill bounded. <em>(MHA assumed
+        here for clean numbers — d_kv = d. GQA shrinks K and V row costs by{' '}
+        n_q / n_kv.)</em>
       </p>
     </div>
   );
@@ -1075,47 +1143,103 @@ function SectionAICalc() {
   // training produces B·T tokens per forward pass.
   const throughputDenom = isTraining ? `${B} × ${T.toLocaleString()}` : `${B}`;
 
+  // Attention-type quick selector. The three canonical regimes set n_kv to:
+  //   MHA: n_kv = n_q (full multi-head, biggest cache)
+  //   GQA: n_kv = 8 (or n_q/4 if smaller) — Llama-2-70B / Mistral style
+  //   MQA: n_kv = 1 (one shared K/V head)
+  const attentionType =
+    n_kv === n_q_heads ? 'MHA' :
+    n_kv === 1         ? 'MQA' :
+                         'GQA';
+  const setAttentionType = (t) => {
+    if (t === 'MHA') setKvHeads(n_q_heads);
+    else if (t === 'MQA') setKvHeads(1);
+    else /* GQA */ {
+      // Pick a sensible group size: target 8, but clamp to be smaller than n_q
+      // and at least 2 (otherwise it'd be MQA).
+      const target = Math.min(8, Math.max(2, Math.floor(n_q_heads / 4)));
+      setKvHeads(target);
+    }
+  };
+
   return (
     <div className="viz-panel">
-      <div className="viz-controls">
-        <label>
-          context T
-          <select value={seqIdx} onChange={(e) => setSeqIdx(+e.target.value)}>
-            {SEQ_LENS.map((v, i) => <option key={i} value={i}>{v}</option>)}
-          </select>
-        </label>
-        <label>
-          batch B
-          <select value={batchIdx} onChange={(e) => setBatchIdx(+e.target.value)}>
-            {BATCH_SIZES.map((v, i) => <option key={i} value={i}>{v}</option>)}
-          </select>
-        </label>
-        <label>
-          d_model
-          <select value={dmIdx} onChange={(e) => { setDmIdx(+e.target.value); setKvHeads(N_Q_HEADS_FOR_DM[D_MODELS[+e.target.value]] || 32); }}>
-            {D_MODELS.map((v, i) => <option key={i} value={i}>{v}</option>)}
-          </select>
-        </label>
-        <label>
-          n_layers
-          <select value={layIdx} onChange={(e) => setLayIdx(+e.target.value)}>
-            {N_LAYERS.map((v, i) => <option key={i} value={i}>{v}</option>)}
-          </select>
-        </label>
-        <label>
-          n_kv_heads
-          <select value={n_kv} onChange={(e) => setKvHeads(+e.target.value)}>
-            {[1, 2, 4, 8, 16, 32, 64, 96].filter((h) => h <= n_q_heads).map((h) => (
-              <option key={h} value={h}>{h}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          precision
-          <select value={precId} onChange={(e) => setPrecId(e.target.value)}>
-            {PRECISIONS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
-        </label>
+      <div className="viz-sim-controls-grid">
+        <div className="viz-sim-control-col">
+          <div className="viz-sim-col-label">Workload</div>
+          <label>
+            <span>context T</span>
+            <select value={seqIdx} onChange={(e) => setSeqIdx(+e.target.value)}>
+              {SEQ_LENS.map((v, i) => <option key={i} value={i}>{v}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>batch B</span>
+            <select value={batchIdx} onChange={(e) => setBatchIdx(+e.target.value)}>
+              {BATCH_SIZES.map((v, i) => <option key={i} value={i}>{v}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>precision</span>
+            <select value={precId} onChange={(e) => setPrecId(e.target.value)}>
+              {PRECISIONS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="viz-sim-control-col">
+          <div className="viz-sim-col-label">Model</div>
+          <label>
+            <span>d_model</span>
+            <select
+              value={dmIdx}
+              onChange={(e) => {
+                setDmIdx(+e.target.value);
+                setKvHeads(N_Q_HEADS_FOR_DM[D_MODELS[+e.target.value]] || 32);
+              }}
+            >
+              {D_MODELS.map((v, i) => <option key={i} value={i}>{v}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>n_layers</span>
+            <select value={layIdx} onChange={(e) => setLayIdx(+e.target.value)}>
+              {N_LAYERS.map((v, i) => <option key={i} value={i}>{v}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="viz-sim-control-col">
+          <div className="viz-sim-col-label">Attention</div>
+          <label>
+            <span>type</span>
+            <div className="viz-tabs viz-sim-attn-tabs" role="tablist">
+              {['MHA', 'GQA', 'MQA'].map((t) => (
+                <button
+                  key={t}
+                  role="tab"
+                  className={`viz-tab ${attentionType === t ? 'active' : ''}`}
+                  onClick={() => setAttentionType(t)}
+                  title={
+                    t === 'MHA' ? `n_kv = n_q = ${n_q_heads}` :
+                    t === 'GQA' ? `n_kv ∈ (1, n_q) — sets n_kv = ${Math.min(8, Math.max(2, Math.floor(n_q_heads / 4)))}` :
+                                  'n_kv = 1 (one shared K/V head)'
+                  }
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </label>
+          <label>
+            <span>n_kv_heads</span>
+            <select value={n_kv} onChange={(e) => setKvHeads(+e.target.value)}>
+              {[1, 2, 4, 8, 16, 32, 64, 96].filter((h) => h <= n_q_heads).map((h) => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {/* Preset buttons — each shows live tok/s */}
@@ -1847,7 +1971,9 @@ export default function VisualizingKVCache() {
           the foundation of every inference optimization at the frontier.
         </p>
         <div className="viz-byline">
-          By <strong>Bernhard Walser</strong> · Senior ML Engineer ·{' '}
+          By <strong>Bernhard Walser</strong> &amp;{' '}
+          <a className="viz-link" href="https://www.anthropic.com/claude" target="_blank" rel="noreferrer"><strong>Claude</strong></a>
+          {' '}(Anthropic) · co-written and co-designed ·{' '}
           <a className="viz-link" href="https://www.linkedin.com/in/bernhardwalser/" target="_blank" rel="noreferrer">LinkedIn</a>
           {' · '}
           <a className="viz-link" href="https://github.com/berniwal" target="_blank" rel="noreferrer">GitHub</a>
@@ -2020,9 +2146,9 @@ export default function VisualizingKVCache() {
         <h2>5. The total cost — and a number worth memorising</h2>
         <p>
           Add up the boxes in the cached decode diagram. A single decode step
-          on one Llama-7B-shaped layer costs about <strong>420 MFLOPs</strong>{' '}
-          of math and reads about <strong>400 MB</strong> of weights from HBM.
-          Across 32 layers that's <strong>~13 GFLOPs</strong> of compute and{' '}
+          on one Llama-7B-shaped layer costs about <strong>~440 MFLOPs</strong>{' '}
+          of math and reads about <strong>~400 MB</strong> of weights from HBM.
+          Across 32 layers that's <strong>~14 GFLOPs</strong> of compute and{' '}
           <strong>~13 GB</strong> of reads per token at batch 1.
         </p>
         <p>
@@ -2045,6 +2171,23 @@ export default function VisualizingKVCache() {
         </p>
 
         <h2>6. Why decode is bandwidth-bound, not compute-bound</h2>
+        <p>
+          So decode lives at AI ≈ 1 against a ridge of ≈ 295. That's not
+          close. Most of the wall-clock time of a decode step is the GPU
+          waiting on <strong>HBM</strong> reads — model weights (gigabytes)
+          plus the KV cache (more gigabytes at long context). The math is so
+          much faster that it's nearly free in absolute terms.
+        </p>
+        <p>
+          This has two consequences. <strong>First</strong>, the levers that
+          actually buy throughput are the ones that reduce bytes moved per
+          token — smaller cache (§7), better memory allocation (§8),
+          interleaving requests so the same byte feeds more arithmetic
+          (§9). <strong>Second</strong>, latency at batch 1 is basically a
+          function of model size: roughly <em>weight bytes / HBM bandwidth</em>.
+          A 13 GB model on an H100 won't generate tokens faster than ~3.9 ms
+          each, no matter how clever your kernels are.
+        </p>
 
         <InfoBox title="What is HBM? (and where do I find one?)">
           <p>
@@ -2074,24 +2217,6 @@ export default function VisualizingKVCache() {
             of a typical per-token latency budget.
           </p>
         </InfoBox>
-
-        <p>
-          So decode lives at AI ≈ 1 against a ridge of ≈ 295. That's not
-          close. Most of the wall-clock time of a decode step is the GPU
-          waiting on HBM reads — model weights (gigabytes) plus the KV cache
-          (more gigabytes at long context). The math is so much faster that
-          it's nearly free in absolute terms.
-        </p>
-        <p>
-          This has two consequences. <strong>First</strong>, the levers that
-          actually buy throughput are the ones that reduce bytes moved per
-          token — smaller cache (§7), better memory allocation (§8),
-          interleaving requests so the same byte feeds more arithmetic
-          (§9). <strong>Second</strong>, latency at batch 1 is basically a
-          function of model size: roughly <em>weight bytes / HBM bandwidth</em>.
-          A 13 GB model on an H100 won't generate tokens faster than ~3.9 ms
-          each, no matter how clever your kernels are.
-        </p>
 
         <h2>7. Shrinking the cache: MHA → GQA → MQA</h2>
         <p>
@@ -2197,6 +2322,57 @@ export default function VisualizingKVCache() {
         </p>
         <SectionAICalc />
 
+        <h2>12. Back to the question</h2>
+        <p>
+          We started with a puzzle. Hit Enter on a 4000-token prompt, the
+          first token comes back in ~500 ms, the rest stream at ~20 ms each.
+          Why so different? Here's the answer assembled from every section
+          above.
+        </p>
+        <p>
+          The 500 ms is <strong>prefill</strong> (§3). The model processes
+          all 4000 prompt tokens in one parallel forward pass — same
+          per-layer arithmetic as one token (§1), but 4000 times as much of
+          it. That's about <Katex tex="4000 \times 14 \mathrm{\,GFLOPs} \approx 56 \mathrm{\,TFLOPs}" />{' '}
+          of math at fp16. An H100 sustains nearly 1 PFLOP/s, so the math
+          itself takes ~60 ms; the rest of the half-second is weight reads,
+          kernel launches, and the non-attention bits. Arithmetic intensity
+          is in the thousands of FLOPs/byte (§10) — the GPU's math units are
+          the bottleneck. Prefill is <strong>compute-bound</strong>.
+        </p>
+        <p>
+          The 20 ms is <strong>decode</strong> (§3). Each step processes one
+          new token: about <Katex tex="14 \mathrm{\,GFLOPs}" /> total, a
+          thousand times less than prefill, because the model only does its
+          forward pass <em>once</em> per token, not 4000 times. The KV cache
+          (§4) is what makes that possible — without it you'd re-project K
+          and V for the entire context every step and decode would cost as
+          much per token as prefill. But to score the new query against the
+          context, the GPU must read the entire cache plus all the weights
+          from HBM. At 3.35 TB/s, reading ~13 GB of state takes 3.9 ms, and
+          real-world overhead brings it to about 20 ms per token. Arithmetic
+          intensity is ~1 FLOP/byte. Decode is{' '}
+          <strong>memory-bandwidth-bound</strong> (§6).
+        </p>
+        <p>
+          That asymmetry is what every optimization later in the post is
+          attacking: <strong>GQA / MQA</strong> (§7) shrinks the bytes per
+          decode step by squeezing the cache; <strong>PagedAttention</strong>{' '}
+          (§8) packs more sequences into the same HBM so the bandwidth covers
+          more users; <strong>continuous batching</strong> (§9) reschedules
+          so each weight read feeds the maximum number of requests. None of
+          them deliver more FLOPs/s — they all deliver more decode tokens
+          per byte moved. Different lever, same goal.
+        </p>
+        <p>
+          The shape stays the same across model sizes and architectures.
+          Prefill is one big matmul, done once, compute-bound. Decode is a
+          long sequence of vector-matrix products against a growing cache,
+          done once per output token, memory-bound. The 500 ms / 20 ms gap
+          isn't a quirk of any particular implementation — it's the geometry
+          of the problem. Everything you build on top of an LLM inherits it.
+        </p>
+
         <h2>What comes next</h2>
         <p>
           <strong>MLA — multi-latent attention (DeepSeek-V2).</strong> GQA
@@ -2234,6 +2410,12 @@ export default function VisualizingKVCache() {
             <a className="viz-link" href="https://www.linkedin.com/in/bernhardwalser/" target="_blank" rel="noreferrer">LinkedIn</a>
             {' · '}
             <a className="viz-link" href="https://github.com/berniwal" target="_blank" rel="noreferrer">GitHub</a>
+          </p>
+          <p style={{ marginTop: 6, marginBottom: 0, fontSize: '0.88rem', color: 'var(--ink-faint)', fontStyle: 'italic' }}>
+            Co-authored with{' '}
+            <a className="viz-link" href="https://www.anthropic.com/claude" target="_blank" rel="noreferrer">Claude</a>
+            {' '}(Anthropic) — initial drafts and interactive scaffolding by Claude,
+            refined and co-designed by Bernhard.
           </p>
         </footer>
       </div>

@@ -1769,7 +1769,9 @@ export default function VisualizingAttention() {
           single most important idea in modern language models.
         </p>
         <div className="viz-byline">
-          By <strong>Bernhard Walser</strong> · Senior ML Engineer ·{' '}
+          By <strong>Bernhard Walser</strong> &amp;{' '}
+          <a className="viz-link" href="https://www.anthropic.com/claude" target="_blank" rel="noreferrer"><strong>Claude</strong></a>
+          {' '}(Anthropic) · co-written and co-designed ·{' '}
           <a className="viz-link" href="https://www.linkedin.com/in/bernhardwalser/" target="_blank" rel="noreferrer">LinkedIn</a>
           {' · '}
           <a className="viz-link" href="https://github.com/berniwal" target="_blank" rel="noreferrer">GitHub</a>
@@ -2036,6 +2038,12 @@ export default function VisualizingAttention() {
             <a className="viz-link" href="https://www.linkedin.com/in/bernhardwalser/" target="_blank" rel="noreferrer">LinkedIn</a>
             {' · '}
             <a className="viz-link" href="https://github.com/berniwal" target="_blank" rel="noreferrer">GitHub</a>
+          </p>
+          <p style={{ marginTop: 6, marginBottom: 0, fontSize: '0.88rem', color: 'var(--ink-faint)', fontStyle: 'italic' }}>
+            Co-authored with{' '}
+            <a className="viz-link" href="https://www.anthropic.com/claude" target="_blank" rel="noreferrer">Claude</a>
+            {' '}(Anthropic) — initial drafts and interactive scaffolding by Claude,
+            refined and co-designed by Bernhard.
           </p>
         </footer>
       </div>
