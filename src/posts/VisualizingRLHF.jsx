@@ -1221,6 +1221,186 @@ function SectionProcessRewards() {
 }
 
 /* =========================================================
+   §7 — RLVR: GRPO with a verifier vs a learned RM
+   ========================================================= */
+
+const RLVR_PROMPT = 'Solve for x:   2x + 5 = 13.';
+
+const RLVR_ROLLOUTS = [
+  {
+    id: 1,
+    text:
+      'Subtract 5 from both sides:  2x = 8.\n' +
+      'Divide by 2:  x = 4.',
+    finalAnswer: 4,
+    correct: true,
+    rmScore: 0.75,   // RM likes the clean structured derivation
+  },
+  {
+    id: 2,
+    text:
+      'Add 5 to both sides:  2x = 18.\n' +
+      'Divide by 2:  x = 9.',
+    finalAnswer: 9,
+    correct: false,
+    rmScore: 0.50,   // RM gives partial credit — looks like proper algebra
+  },
+  {
+    id: 3,
+    text: '2x = 8\nx = 4.',
+    finalAnswer: 4,
+    correct: true,
+    rmScore: 0.40,   // RM under-rates terseness even though correct
+  },
+  {
+    id: 4,
+    text:
+      'Reading the equation carefully, the answer is clearly x = 7. ' +
+      'This follows from standard algebraic manipulation, and the ' +
+      'reasoning is straightforward.',
+    finalAnswer: 7,
+    correct: false,
+    rmScore: 0.65,   // RM rewards confidence + length — reward hacking
+  },
+];
+
+function SectionRLVR() {
+  const [mode, setMode] = useState('verifier');
+
+  const rewards = RLVR_ROLLOUTS.map((r) =>
+    mode === 'verifier' ? (r.correct ? 1.0 : 0.0) : r.rmScore
+  );
+  const mean = rewards.reduce((s, x) => s + x, 0) / rewards.length;
+  const variance =
+    rewards.reduce((s, x) => s + (x - mean) ** 2, 0) / rewards.length;
+  const std = Math.sqrt(variance) || 1e-9;
+  const advantages = rewards.map((r) => (r - mean) / std);
+  const maxAbsA = Math.max(...advantages.map(Math.abs), 1e-9);
+
+  return (
+    <div className="viz-panel">
+      <div className="viz-controls">
+        <div className="viz-tabs" role="tablist">
+          <button
+            role="tab"
+            className={`viz-tab ${mode === 'verifier' ? 'active' : ''}`}
+            onClick={() => setMode('verifier')}
+          >
+            Reward = Verifier  (RLVR)
+          </button>
+          <button
+            role="tab"
+            className={`viz-tab ${mode === 'rm' ? 'active' : ''}`}
+            onClick={() => setMode('rm')}
+          >
+            Reward = Learned RM
+          </button>
+        </div>
+      </div>
+
+      <div className="viz-rlhf-prompt">{RLVR_PROMPT}</div>
+
+      <div className="viz-rlhf-rlvr-grid">
+        {RLVR_ROLLOUTS.map((rollout, i) => {
+          const r = rewards[i];
+          const a = advantages[i];
+          const passing = mode === 'verifier' && rollout.correct;
+          const failing = mode === 'verifier' && !rollout.correct;
+          const cardCls =
+            'viz-rlhf-rlvr-card' +
+            (passing ? ' pass' : '') +
+            (failing ? ' fail' : '');
+          return (
+            <div key={rollout.id} className={cardCls}>
+              <div className="viz-rlhf-rlvr-tag">
+                Rollout {rollout.id}{' '}
+                <span style={{ color: 'var(--ink-faint)' }}>
+                  · final x = {rollout.finalAnswer}
+                </span>
+              </div>
+              <div className="viz-rlhf-rlvr-text">{rollout.text}</div>
+              <div className="viz-rlhf-rlvr-badge">
+                {mode === 'verifier'
+                  ? rollout.correct ? '✓ verifier PASS' : '✗ verifier FAIL'
+                  : `RM score: ${rollout.rmScore.toFixed(2)}`}
+              </div>
+              <div className="viz-rlhf-rlvr-meta">
+                r = {r.toFixed(2)}{'  '}
+                Â = {a >= 0 ? '+' : ''}{a.toFixed(2)}
+              </div>
+              <div className="viz-rlhf-rlvr-bar-track">
+                <div className="center-line" />
+                <div
+                  className={`viz-rlhf-rlvr-bar-fill ${a >= 0 ? 'pos' : 'neg'}`}
+                  style={{
+                    width: `${(Math.abs(a) / maxAbsA) * 50}%`,
+                    transform: a >= 0 ? 'none' : 'translateX(-100%)',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="viz-rlhf-counters">
+        <Counter
+          label="Reward source"
+          value={mode === 'verifier' ? 'verifier' : 'learned RM'}
+          sub={mode === 'verifier' ? 'r ∈ {0, 1}' : 'r ∈ [0, 1]'}
+        />
+        <Counter
+          label="Group mean μ"
+          value={mean.toFixed(2)}
+        />
+        <Counter
+          label="Group std σ"
+          value={std.toFixed(2)}
+        />
+        <Counter
+          label="Sign(Â) = sign(correct)?"
+          value={
+            advantages.every((a, i) => (a >= 0) === RLVR_ROLLOUTS[i].correct)
+              ? 'yes'
+              : 'NO'
+          }
+          sub={
+            advantages.every((a, i) => (a >= 0) === RLVR_ROLLOUTS[i].correct)
+              ? 'gradients point right way'
+              : 'reward hacking — gradients lie'
+          }
+        />
+      </div>
+
+      <p className="viz-caption" style={{ marginTop: 14 }}>
+        {mode === 'verifier' ? (
+          <>
+            Rollouts <strong>1</strong> and <strong>3</strong> reach{' '}
+            <Katex tex="x = 4" /> (verifier PASS) and get a positive
+            advantage; the other two get a negative one. Notice rollout{' '}
+            <strong>4</strong> — a confidently-stated wrong answer — is
+            correctly penalised. Now switch to <em>Learned RM</em> above and
+            watch the counter at the bottom flip.
+          </>
+        ) : (
+          <>
+            Look at <strong>rollout 3</strong> (terse but correct) — the RM
+            scores it <em>lower</em> than rollout 4, which is wrong but
+            sounds confident. Rollout 3 gets a <em>negative</em> advantage;
+            rollout 4 gets a <em>positive</em> one. The gradient is now
+            pulling the policy <em>away</em> from a correct answer and{' '}
+            <em>toward</em> a wrong one. That's reward hacking from §3,
+            visible inside a single batch. A verifier doesn't have this
+            failure mode because it doesn't care how a rollout sounds —
+            only whether it's right.
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* =========================================================
    The post
    ========================================================= */
 
@@ -1360,7 +1540,9 @@ export default function VisualizingRLHF() {
             preferences</em>, and even then it generalises imperfectly. It
             will assign high scores to responses that <em>look like</em> the
             ones labellers preferred, including ones that game its biases.
-            This matters in stage 3.
+            This matters in stage 3 — and is what §7 (RLVR) eventually
+            sidesteps entirely, by replacing the learned proxy with a
+            deterministic verifier where there are no cracks to find.
           </p>
         </InfoBox>
 
@@ -1852,15 +2034,69 @@ export default function VisualizingRLHF() {
           DeepSeek-R1, and others).
         </p>
 
-        <h2>7. Related work</h2>
+        <h2>7. RLVR — when the reward doesn't need to be learned</h2>
         <p>
-          <strong>RLVR — RL with verifiable rewards.</strong> When the task
-          has a programmatic checker — math problems, unit tests, formal
-          proofs, code execution — you can skip the learned reward model
-          entirely. The reward is "did the test pass." Combined with GRPO,
-          this is the dominant recipe for training reasoning models on
-          math and code at the time of writing.
+          Every method so far has assumed the reward signal{' '}
+          <Katex tex="r_\varphi" /> comes from something <em>learned</em> —
+          from human preferences (§2), from a written constitution (§5),
+          from per-step labels (§6). For one large and important class of
+          tasks, that assumption is unnecessary: the reward is{' '}
+          <em>already available</em> from a deterministic grader.
         </p>
+        <ul>
+          <li>Math problems → check the numerical answer.</li>
+          <li>Code → run the unit tests.</li>
+          <li>Formal proofs → run the proof checker.</li>
+          <li>Anything else with a programmatic correctness criterion.</li>
+        </ul>
+        <p>
+          This is{' '}
+          <strong>RLVR — RL with Verifiable Rewards</strong>. The training
+          loop is exactly GRPO from §4, with the learned{' '}
+          <Katex tex="r_\varphi" /> swapped for a verifier that returns{' '}
+          <Katex tex="r_i \in \{0, 1\}" /> (pass / fail) or sometimes a
+          graded score. Sample <Katex tex="G" /> completions, grade each,
+          compute group-relative advantages, take the clipped-surrogate
+          step. No reward model. No preference data. No human labelers. The
+          only training data needed is{' '}
+          <Katex tex="(\text{problem}, \text{correct answer})" /> pairs,
+          which exist for huge libraries of math and code problems already.
+        </p>
+        <p>
+          The widget below makes the contrast concrete. Same prompt, same
+          four rollouts, two reward sources. With the verifier, advantages
+          line up cleanly with correctness. With a learned RM, the same
+          rollouts can produce advantages that <em>invert</em> the
+          correctness ordering — exactly the reward-hacking failure mode
+          §3 warned about, visible inside a single batch.
+        </p>
+        <SectionRLVR />
+        <p>
+          The §3 sweet-spot picture changes shape here. With a verifier as{' '}
+          <Katex tex="r" />, there is no proxy gap — the reward{' '}
+          <em>is</em> the truth. Reward-hacking in the §3 sense becomes
+          impossible. In practice this means <Katex tex="\beta" /> can be
+          set much lower (and in some recipes essentially to zero) without
+          the policy diverging into gibberish — the KL leash existed to
+          stop the policy from finding cracks in the proxy, and there are
+          no cracks to find.
+        </p>
+        <p>
+          RLVR is the recipe behind the recent generation of reasoning
+          models — DeepSeek-R1, OpenAI's o-series, and others all use it
+          for their reasoning capabilities. But it's not a wholesale
+          replacement for RLHF: there is no verifier for{' '}
+          <em>"is this email well-written,"</em>{' '}
+          <em>"is this response helpful,"</em> or{' '}
+          <em>"does this stay within the constitution."</em> Production
+          pipelines tend to be{' '}
+          <strong>hybrid</strong> — cold-start RL on verifiable tasks
+          (math, code) for sharp reasoning gains, then a separate RLHF /
+          RLAIF pass on preference and constitution data for general
+          helpfulness and safety.
+        </p>
+
+        <h2>8. Related work</h2>
         <p>
           <strong>Earlier in this series.</strong>{' '}
           <a className="viz-link" href="#/blog/visualizing-attention">Post #1 — Visualizing Attention</a>{' '}
@@ -1875,7 +2111,7 @@ export default function VisualizingRLHF() {
           which is unchanged through SFT and RLHF.
         </p>
 
-        <h2>8. Back to the question</h2>
+        <h2>9. Back to the question</h2>
         <p>
           Why does a base model that already "knows" everything still need
           three more stages to become useful? Because next-token prediction

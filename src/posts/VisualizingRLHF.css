@@ -56,7 +56,23 @@
 .viz-post h3 { font-size: 1.2rem; margin: 32px 0 12px; }
 .viz-post h4 { font-size: 1.05rem; margin: 0 0 6px; }
 
-.viz-post p { color: var(--ink); margin: 0 0 18px; }
+.viz-post p { color: var(--ink); margin: 0 0 18px; text-align: left; }
+
+.viz-post ul {
+  text-align: left;
+  margin: 4px 0 18px;
+  padding-left: 28px;
+  color: var(--ink-soft);
+}
+
+.viz-post ul li {
+  margin: 4px 0;
+  line-height: 1.6;
+}
+
+.viz-post ul li::marker {
+  color: var(--accent);
+}
 
 .viz-lede {
   font-size: 1.18rem;
@@ -675,6 +691,102 @@ a.viz-link:hover { border-bottom-color: var(--accent); }
     grid-template-columns: 1fr !important;
   }
 }
+
+/* --- §7: RLVR — GRPO + verifier --- */
+.viz-rlhf-rlvr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 14px 0;
+}
+
+@media (max-width: 720px) {
+  .viz-rlhf-rlvr-grid { grid-template-columns: 1fr; }
+}
+
+.viz-rlhf-rlvr-card {
+  border: 2px solid var(--rule);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+
+.viz-rlhf-rlvr-card.pass {
+  border-color: var(--pos);
+  background: var(--pos-soft);
+}
+
+.viz-rlhf-rlvr-card.fail {
+  border-color: var(--neg);
+  background: var(--neg-soft);
+}
+
+.viz-rlhf-rlvr-tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.viz-rlhf-rlvr-text {
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  color: var(--ink);
+  flex: 1 1 auto;
+}
+
+.viz-rlhf-rlvr-badge {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.viz-rlhf-rlvr-card.pass .viz-rlhf-rlvr-badge { color: var(--pos); }
+.viz-rlhf-rlvr-card.fail .viz-rlhf-rlvr-badge { color: var(--neg); }
+
+.viz-rlhf-rlvr-meta {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.viz-rlhf-rlvr-bar-track {
+  position: relative;
+  height: 12px;
+  background: hsl(var(--accent-h), 20%, 94%);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.viz-rlhf-rlvr-bar-track .center-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: hsl(var(--accent-h), 20%, 70%);
+}
+
+.viz-rlhf-rlvr-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transition: width 0.35s ease, transform 0.35s ease;
+  border-radius: 6px;
+}
+
+.viz-rlhf-rlvr-bar-fill.pos { background: var(--pos); }
+.viz-rlhf-rlvr-bar-fill.neg { background: var(--neg); }
 
 /* --- KPI counters (shared) --- */
 .viz-rlhf-counters {
