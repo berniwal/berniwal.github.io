@@ -461,6 +461,71 @@ a.viz-link:hover { border-bottom-color: var(--accent); }
   margin-top: 14px;
 }
 
+/* Invariance-check sub-block in §6 */
+.viz-rope-inv-row {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.viz-rope-inv-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.viz-rope-inv-header strong { color: var(--ink); }
+
+.viz-rope-inv-tag {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: hsl(var(--accent-h), 35%, 92%);
+  color: hsl(var(--accent-h), 50%, 30%);
+  border: 1px solid hsl(var(--accent-h), 40%, 75%);
+}
+
+.viz-rope-inv-tag.viz-rope-inv-tag-cur {
+  background: hsl(28, 65%, 92%);
+  color: hsl(28, 65%, 30%);
+  border-color: hsl(28, 65%, 70%);
+}
+
+.viz-rope-inv-arrow {
+  color: var(--ink-faint);
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+.viz-rope-inv-dot {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.viz-rope-inv-dot strong {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-rope-inv-dot strong.match {
+  background: hsl(148, 35%, 92%);
+  color: hsl(148, 35%, 25%);
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
 .viz-rope-pair-card {
   background: hsl(var(--accent-h), 30%, 98%);
   border: 1px solid hsl(var(--accent-h), 30%, 90%);

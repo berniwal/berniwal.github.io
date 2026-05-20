@@ -2373,13 +2373,12 @@ export default function VisualizingKVCache() {
           of the problem. Everything you build on top of an LLM inherits it.
         </p>
 
-        <h2>What comes next</h2>
+        <h2>Related work</h2>
         <p>
           <strong>MLA — multi-latent attention (DeepSeek-V2).</strong> GQA
           shares K and V across heads. MLA goes further: store a low-rank{' '}
-          <em>latent</em> projection and reconstruct K, V on the fly. Cache
-          shrinks by another order of magnitude, with comparable quality.{' '}
-          <em>Future post in this series.</em>
+          <em>latent</em> projection and reconstruct K, V on the fly — cache
+          shrinks by another order of magnitude with comparable quality.
         </p>
         <p>
           <strong>StreamingLLM — attention sinks.</strong>{' '}
@@ -2388,22 +2387,32 @@ export default function VisualizingKVCache() {
           </a>{' '}
           show that keeping just the first few tokens (the "attention sinks")
           plus a sliding window over recent tokens gives near-full-context
-          quality at bounded cache size. Crucial for very long contexts on
-          fixed memory. <em>Future post.</em>
+          quality at bounded cache size — crucial for very long contexts on
+          fixed memory.
         </p>
         <p>
           <strong>Speculative decoding.</strong> If decode is bandwidth-bound,
-          maybe we shouldn't decode one token at a time. Have a small "draft"
-          model propose <em>K</em> tokens, then verify them all in parallel
-          with the big model — same compute as one big step, but multiple
-          tokens accepted per round. <em>Post #7 in this series.</em>
+          one token at a time is wasteful. A small "draft" model proposes{' '}
+          <em>K</em> tokens, then the big model verifies them all in parallel —
+          same compute as one big step, but multiple tokens accepted per
+          round.
+        </p>
+        <p>
+          <strong>Elsewhere in this series.</strong>{' '}
+          <a className="viz-link" href="#/blog/visualizing-attention">Post #1 — Visualizing Attention</a>{' '}
+          covers the Q/K/V mechanics this cache is caching.{' '}
+          <a className="viz-link" href="#/blog/visualizing-rope">Post #3 — Visualizing RoPE</a>{' '}
+          unpacks the rotary positional embedding that every K vector in
+          modern caches carries, and shows how PI / YaRN stretch the rotation
+          schedule for long context.
         </p>
 
         <footer className="viz-footer">
           <p>
             <strong>Part 2 of Visualizing ML</strong> · Previous:{' '}
             <a className="viz-link" href="#/blog/visualizing-attention">Visualizing Attention</a>
-            . Next: <em>RoPE — Rotary Position Embeddings</em>.
+            {' · '}Next:{' '}
+            <a className="viz-link" href="#/blog/visualizing-rope">Visualizing RoPE</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

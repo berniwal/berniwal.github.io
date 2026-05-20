@@ -60,6 +60,33 @@ function tipBody(formula, values, result) {
   );
 }
 
+// Tooltip body for a dot product, showing each per-component term then the sum.
+function dotBreakdownTip(Q, K) {
+  const total = Q.reduce((s, q, i) => s + q * K[i], 0);
+  const termRow = (q, k, i) => (
+    <span key={i} style={{ display: 'block' }}>
+      Q<sub>{i}</sub>·K<sub>{i}</sub> = {q.toFixed(2)} · {k.toFixed(2)} ={' '}
+      <strong style={{ color: '#fff' }}>{(q * k).toFixed(3)}</strong>
+    </span>
+  );
+  return (
+    <>
+      <div className="viz-tip-row">
+        <span className="viz-tip-key">formula</span>
+        <span>Q · K = Σ<sub>i</sub> Q<sub>i</sub> · K<sub>i</sub></span>
+      </div>
+      <div className="viz-tip-row">
+        <span className="viz-tip-key">terms</span>
+        <span>{Q.map((q, i) => termRow(q, K[i], i))}</span>
+      </div>
+      <div className="viz-tip-row viz-tip-result">
+        <span className="viz-tip-key">=</span>
+        <span>{Q.map((q, i) => (q * K[i]).toFixed(3)).join(' + ').replace(/\+ -/g, '− ')} = <strong>{total.toFixed(3)}</strong></span>
+      </div>
+    </>
+  );
+}
+
 /* =========================================================
    Info box — reusable aside callout
    ========================================================= */
@@ -201,10 +228,13 @@ function AngleArc({ angle, radius = 0.32, color = 'hsl(218, 50%, 65%)' }) {
 }
 
 function RotationCanvas({ children, size = CANVAS_PX }) {
+  // The viewBox is always in math-space-pixel coords (CANVAS_PX); the SVG is
+  // rendered at `size` px and the browser scales the content to fit. This lets
+  // §5's smaller cards reuse the exact same toSvgX/toSvgY helpers as §3 / §4.
   return (
     <div className="viz-rope-canvas" style={{ width: size, height: size }}>
-      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
-        <RotationAxes size={size} />
+      <svg viewBox={`0 0 ${CANVAS_PX} ${CANVAS_PX}`} width={size} height={size}>
+        <RotationAxes />
         {children}
       </svg>
     </div>
@@ -431,6 +461,49 @@ const PAIR_VECTORS = [
   [0.6,  0.2],
 ];
 
+// One colour per pair, used both in the vector strips and the pair cards so
+// the connection between "two cells of Q" and "one 2D rotation card" is visual.
+const PAIR_PALETTE = [
+  { bg: 'hsl(218, 50%, 95%)', border: 'hsl(218, 50%, 65%)', fg: 'hsl(218, 50%, 28%)', accent: 'hsl(218, 50%, 42%)' },
+  { bg: 'hsl(28,  65%, 95%)', border: 'hsl(28,  65%, 65%)', fg: 'hsl(28,  65%, 28%)', accent: 'hsl(28,  65%, 45%)' },
+  { bg: 'hsl(148, 38%, 95%)', border: 'hsl(148, 38%, 60%)', fg: 'hsl(148, 38%, 22%)', accent: 'hsl(148, 38%, 36%)' },
+  { bg: 'hsl(280, 40%, 95%)', border: 'hsl(280, 40%, 65%)', fg: 'hsl(280, 40%, 30%)', accent: 'hsl(280, 40%, 45%)' },
+];
+
+function VectorStrip({ values, label, palette = PAIR_PALETTE, prefix = 'Q' }) {
+  const d = values.length;
+  // Pair-coloring assumes consecutive pairs of dims share the same colour.
+  return (
+    <div style={{ margin: '4px 0 8px' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--ink-faint)', marginBottom: 6 }}>
+        {label}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${d}, minmax(0, 1fr))`, gap: 4, maxWidth: 70 * d }}>
+        {values.map((v, idx) => {
+          const pairIdx = Math.floor(idx / 2);
+          const p = palette[pairIdx % palette.length];
+          return (
+            <div key={idx} style={{
+              background: p.bg,
+              border: `1px solid ${p.border}`,
+              padding: '6px 4px',
+              borderRadius: 4,
+              textAlign: 'center',
+              fontFamily: 'var(--mono)',
+              color: p.fg,
+            }}>
+              <div style={{ fontSize: '0.6rem', opacity: 0.75 }}>{prefix}<sub>{idx}</sub></div>
+              <div style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontSize: '0.82rem' }}>
+                {v.toFixed(2)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SectionMultiPair() {
   const [m, setM] = useState(16);
   // Standard RoPE base = 10000; θ_i = 10000^(-2i/d) for i = 0 .. d/2-1
@@ -442,6 +515,21 @@ function SectionMultiPair() {
     return out;
   }, []);
 
+  // Flatten PAIR_VECTORS into one d=8 vector — this is the "real" Q we'll
+  // disassemble, rotate, and reassemble.
+  const Q_full     = PAIR_VECTORS.flatMap(([x, y]) => [x, y]);
+  const Q_rotated  = (() => {
+    const out = new Array(D_MODEL_DEMO);
+    for (let i = 0; i < D_MODEL_DEMO / 2; i++) {
+      const theta = m * freqs[i];
+      const [x, y] = PAIR_VECTORS[i];
+      const [rx, ry] = rotate2D(x, y, theta);
+      out[2 * i]     = rx;
+      out[2 * i + 1] = ry;
+    }
+    return out;
+  })();
+
   return (
     <div className="viz-panel">
       <div className="viz-controls">
@@ -452,45 +540,86 @@ function SectionMultiPair() {
         </label>
       </div>
 
+      <VectorStrip
+        values={Q_full}
+        label="Q  (one query vector, d = 8) — before RoPE"
+      />
+
+      <div style={{
+        textAlign: 'center',
+        fontFamily: 'var(--mono)',
+        fontSize: '0.78rem',
+        color: 'var(--ink-faint)',
+        margin: '6px 0',
+      }}>
+        ↓ split into <Katex tex="d/2 = 4" /> pairs · rotate pair i by <Katex tex="m \cdot \theta_i" />
+      </div>
+
       <div className="viz-rope-pair-grid">
         {PAIR_VECTORS.map(([vx, vy], i) => {
           const theta = m * freqs[i];
           const [rx, ry] = rotate2D(vx, vy, theta);
+          const p = PAIR_PALETTE[i];
           return (
-            <div key={i} className="viz-rope-pair-card">
-              <div className="viz-rope-pair-title">
-                pair (dim {2 * i}, dim {2 * i + 1})
+            <div key={i} className="viz-rope-pair-card" style={{ background: p.bg, borderColor: p.border }}>
+              <div className="viz-rope-pair-title" style={{ color: p.fg }}>
+                pair {i} &nbsp;·&nbsp; (Q<sub>{2 * i}</sub>, Q<sub>{2 * i + 1}</sub>)
               </div>
               <RotationCanvas size={160}>
-                <ArrowVector x={vx} y={vy} color="hsl(218, 50%, 35%)" opacity={0.3} />
-                <ArrowVector x={rx} y={ry} color="hsl(28, 65%, 45%)" />
+                <ArrowVector x={vx} y={vy} color="var(--ink-faint)" opacity={0.45} />
+                <ArrowVector x={rx} y={ry} color={p.accent} />
               </RotationCanvas>
-              <div className="viz-rope-pair-freq">
-                θᵢ = {freqs[i] < 0.01 ? freqs[i].toExponential(2) : freqs[i].toFixed(3)}<br />
-                m·θᵢ = {theta.toFixed(3)} rad
+              <div className="viz-rope-pair-freq" style={{ color: p.fg }}>
+                θ<sub>{i}</sub> = {freqs[i] < 0.01 ? freqs[i].toExponential(2) : freqs[i].toFixed(3)}<br />
+                m · θ<sub>{i}</sub> = {theta.toFixed(3)} rad
               </div>
             </div>
           );
         })}
       </div>
 
-      <p className="viz-caption" style={{ marginTop: 12 }}>
-        Each pair rotates at a different speed. The leftmost pair{' '}
+      <div style={{
+        textAlign: 'center',
+        fontFamily: 'var(--mono)',
+        fontSize: '0.78rem',
+        color: 'var(--ink-faint)',
+        margin: '8px 0 6px',
+      }}>
+        ↓ concatenate the rotated pairs back into a d = 8 vector ↓
+      </div>
+
+      <VectorStrip
+        values={Q_rotated}
+        label={`Q'  (same vector, after RoPE at position m = ${m})`}
+        prefix="Q'"
+      />
+
+      <p className="viz-caption" style={{ marginTop: 16 }}>
+        The same eight numbers come out the bottom, but each pair has been
+        rotated by its own angle. The leftmost pair{' '}
         <Katex tex="(i{=}0)" /> uses <Katex tex="\theta_0 = 1" /> rad/position
         and sweeps fast; the rightmost <Katex tex="(i{=}3)" /> uses{' '}
         <Katex tex="\theta_3 = 10000^{-6/8} \approx 0.001" /> rad/position and
-        barely moves over hundreds of tokens. The choice is exactly Fourier
-        multi-resolution: different positions produce different rotation
-        patterns across all frequencies, so the model can read off both nearby
-        word order (high-freq pairs change) and long-range structure
-        (low-freq pairs change).
+        barely moves over hundreds of tokens. The colour-coding above ties
+        each pair card to two specific cells of Q so you can see the
+        disassemble → rotate → reassemble pipeline as one operation on the
+        whole vector.
       </p>
 
       <pre className="viz-code">
-{`# RoPE frequencies for d_model = d
+{`# RoPE frequencies for d_model = d, then applied to a single token's Q
 import torch
 i = torch.arange(0, d, 2)              # 0, 2, 4, ..., d-2
-freqs = 10000.0 ** (-i / d)            # θ_0 = 1, θ_1 = 1/10, ..., θ_(d/2-1) ≈ 1/10000`}
+freqs = 10000.0 ** (-i / d)            # θ_0 = 1, θ_1 = 1/10, ..., θ_(d/2-1) ≈ 1/10000
+
+def apply_rope_to_vec(x, pos):         # x: shape (d,)
+    out = x.clone()
+    for i, t in enumerate(freqs):
+        c, s = math.cos(pos * t), math.sin(pos * t)
+        a, b = x[2*i], x[2*i + 1]
+        out[2*i]     = c * a - s * b
+        out[2*i + 1] = s * a + c * b
+    return out                          # same shape, just rotated in pairs`}
       </pre>
     </div>
   );
@@ -555,37 +684,40 @@ function SectionRoPEDot() {
   const rawDot = dotProduct(Q_DEMO, K_DEMO);
   const ropeDot = dotProduct(qRot, kRot);
 
-  // Sweep n − m from -32 to +32 with m fixed at the current value to
-  // produce the dot-product-as-function-of-relative-position curve.
+  // Reference scenario: Q at position 0 (no rotation), K at position (n − m).
+  // By the §4 invariance, this should give the same dot product as Q at m, K at n.
+  const refDiff = n - m;
+  const kRotRef = applyRoPE(K_DEMO, refDiff);
+  const refDot  = dotProduct(Q_DEMO, kRotRef);
+
+  // The §4 / §6 invariance says the RoPE dot product depends only on the
+  // relative offset d = n − m. So we can compute the whole sweep with Q at
+  // position 0 and K at position d — independent of m. The curve is static
+  // (same shape no matter what m is); only the marker dot below moves.
+  const SWEEP_RANGE = 32;
   const sweepData = useMemo(() => {
     const pts = [];
-    const range = 32;
-    for (let d = -range; d <= range; d++) {
-      const nLocal = m + d;
-      if (nLocal < 0 || nLocal > 256) { pts.push(null); continue; }
-      const qr = applyRoPE(Q_DEMO, m);
-      const kr = applyRoPE(K_DEMO, nLocal);
-      pts.push({ d, v: dotProduct(qr, kr) });
+    for (let d = -SWEEP_RANGE; d <= SWEEP_RANGE; d++) {
+      const kr = applyRoPE(K_DEMO, d);
+      pts.push({ d, v: dotProduct(Q_DEMO, kr) });
     }
     return pts;
-  }, [m]);
+  }, []);
 
-  // Curve SVG
+  // Curve SVG — fixed axes, never re-scale with m.
   const curveW = 460;
   const curveH = 140;
   const xPad = 28;
   const yPad = 14;
-  const xs = sweepData.filter(Boolean).map((p) => p.d);
-  const vs = sweepData.filter(Boolean).map((p) => p.v);
+  const xMin = -SWEEP_RANGE;
+  const xMax =  SWEEP_RANGE;
+  const vs = sweepData.map((p) => p.v);
   const vMin = Math.min(...vs, -1);
-  const vMax = Math.max(...vs, 1);
-  const xMin = Math.min(...xs);
-  const xMax = Math.max(...xs);
+  const vMax = Math.max(...vs,  1);
   const toCX = (d) => xPad + ((d - xMin) / (xMax - xMin)) * (curveW - 2 * xPad);
   const toCY = (v) => curveH - yPad - ((v - vMin) / (vMax - vMin)) * (curveH - 2 * yPad);
   const pathD = sweepData
-    .map((p, idx) => p ? `${idx === 0 ? 'M' : 'L'} ${toCX(p.d)} ${toCY(p.v)}` : '')
-    .filter(Boolean)
+    .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${toCX(p.d)} ${toCY(p.v)}`)
     .join(' ');
   const currentDiff = n - m;
 
@@ -644,6 +776,60 @@ function SectionRoPEDot() {
         product geometrically, without any extra learned parameters.
       </p>
 
+      <div className="viz-subsection" style={{ marginTop: 16 }}>
+        <h4 className="viz-subhead">
+          <span className="viz-sub-tag viz-sub-tag-info">i</span>
+          Invariance check: same dot product, different absolute positions
+        </h4>
+        <p className="viz-subhead-prose">
+          Both setups have the same relative offset{' '}
+          <Katex tex={`n - m = ${refDiff}`} />, so the §4 identity says
+          they must produce the same RoPE dot product.
+        </p>
+
+        <div className="viz-rope-inv-row">
+          <div className="viz-rope-inv-header">
+            <span className="viz-rope-inv-tag">REF</span>
+            Q at position <strong>0</strong>, K at position <strong>{refDiff}</strong>
+            <span className="viz-rope-inv-arrow">→ Q stays put, only K is rotated</span>
+          </div>
+          <VectorStrip values={Q_DEMO} label="Q  (position 0, no rotation)" prefix="Q" />
+          <VectorStrip values={kRotRef} label={`K  (rotated by (n − m) · θ at each pair)`} prefix="K" />
+          <div className="viz-rope-inv-dot">
+            Q · K&nbsp;=&nbsp;
+            <Tip label={dotBreakdownTip(Q_DEMO, kRotRef)}>
+              <strong>{refDot.toFixed(3)}</strong>
+            </Tip>
+          </div>
+        </div>
+
+        <div className="viz-rope-inv-row" style={{ marginTop: 14 }}>
+          <div className="viz-rope-inv-header">
+            <span className="viz-rope-inv-tag viz-rope-inv-tag-cur">CUR</span>
+            Q at position <strong>{m}</strong>, K at position <strong>{n}</strong>
+            <span className="viz-rope-inv-arrow">→ both rotated, but by different amounts</span>
+          </div>
+          <VectorStrip values={qRot}    label={`Q  (rotated by m · θ at each pair)`} prefix="Q" />
+          <VectorStrip values={kRot}    label={`K  (rotated by n · θ at each pair)`} prefix="K" />
+          <div className="viz-rope-inv-dot">
+            Q · K&nbsp;=&nbsp;
+            <Tip label={dotBreakdownTip(qRot, kRot)}>
+              <strong className={Math.abs(refDot - ropeDot) < 0.005 ? 'match' : ''}>
+                {ropeDot.toFixed(3)}
+              </strong>
+            </Tip>
+          </div>
+        </div>
+
+        <p className="viz-caption" style={{ marginTop: 12 }}>
+          Both dot products are identical even though the actual vectors in
+          the strips look different — the rotated Q in the lower row has
+          nothing in common with the un-rotated Q above. The model still
+          sees the same score because everything except the angle{' '}
+          <em>difference</em> cancels out in the dot product.
+        </p>
+      </div>
+
       <pre className="viz-code">
 {`# Apply RoPE to one head's q and k, then score
 def apply_rope(x, pos, freqs):           # x: (d,)
@@ -664,11 +850,66 @@ score = apply_rope(q, m, freqs) @ apply_rope(k, n, freqs)   # depends only on (n
    §7 — Long-context extension: vanilla / PI / YaRN
    ========================================================= */
 
+const LONG_CTX_FORMULAS = {
+  vanilla:
+    String.raw`\theta_{m,\,i} \;=\; m \cdot \theta_i, \qquad \theta_i \;=\; 10000^{-2i/d}`,
+  pi:
+    String.raw`\theta_{m,\,i} \;=\; \tfrac{m}{s} \cdot \theta_i, \qquad s \;=\; \tfrac{T_{\mathrm{eval}}}{T_{\mathrm{train}}} \;\;\text{(same } s \text{ for every pair } i\text{)}`,
+  yarn:
+    String.raw`\theta_{m,\,i} \;=\; m \cdot \theta_i \cdot \Big[\tfrac{1-\gamma_i}{s} + \gamma_i\Big], \qquad s \;=\; \tfrac{T_{\mathrm{eval}}}{T_{\mathrm{train}}}, \;\; \gamma_i \;=\; \mathrm{ramp}\!\big(\tfrac{\lambda_i}{T_{\mathrm{train}}};\,\alpha,\beta\big), \;\; \lambda_i \;=\; \tfrac{2\pi}{\theta_i}`,
+};
+
+const LONG_CTX_CAPTIONS = {
+  vanilla: (
+    <>
+      The original RoPE schedule: each pair <Katex tex="i" /> rotates at its own
+      fixed frequency <Katex tex="\theta_i" />, with the angle growing linearly
+      in the absolute position <Katex tex="m" />. At <Katex tex="m = T_{\mathrm{eval}}" />{' '}
+      a slow pair (small <Katex tex="\theta_i" />) has accumulated an angle the
+      model never saw during training — that's the OOD failure mode.
+    </>
+  ),
+  pi: (
+    <>
+      <a className="viz-link" href="https://arxiv.org/abs/2306.15595" target="_blank" rel="noreferrer">Position Interpolation</a>{' '}
+      (Chen et al., 2023) divides <em>every</em> position by{' '}
+      <Katex tex="s = T_{\mathrm{eval}}/T_{\mathrm{train}}" /> before feeding it
+      to RoPE. Equivalently, every pair's effective frequency is shrunk by{' '}
+      <Katex tex="1/s" />, so at <Katex tex="m = T_{\mathrm{eval}}" /> the
+      slowest pair has only swept the same angle range it saw at{' '}
+      <Katex tex="T_{\mathrm{train}}" />. Cheap (one constant, ~1k fine-tuning
+      steps) but blunt — the fast pairs get squashed even though they didn't
+      need fixing.
+    </>
+  ),
+  yarn: (
+    <>
+      <a className="viz-link" href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noreferrer">YaRN</a>{' '}
+      (Peng et al., 2023) makes the scale <em>per-pair</em>. Each pair's
+      wavelength <Katex tex="\lambda_i = 2\pi/\theta_i" /> (the number of
+      tokens it takes to complete one full rotation) is compared to{' '}
+      <Katex tex="T_{\mathrm{train}}" />. The ramp <Katex tex="\gamma_i" /> is
+      <strong> 1</strong> for fast pairs (<Katex tex="\lambda_i \ll T_{\mathrm{train}}" />,
+      already cycled through every angle during training — leave them alone)
+      and <strong>0</strong> for slow pairs (<Katex tex="\lambda_i \gg T_{\mathrm{train}}" />,
+      genuinely OOD — apply full PI compression <Katex tex="1/s" />), with a
+      linear ramp between thresholds <Katex tex="\alpha" /> and{' '}
+      <Katex tex="\beta" /> (typically 1 and 32). On the slowest pair shown
+      here, <Katex tex="\gamma_i = 0" /> and YaRN coincides with PI; on a fast
+      pair, <Katex tex="\gamma_i = 1" /> and YaRN coincides with vanilla.
+    </>
+  ),
+};
+
 function SectionLongContext() {
   const [mode, setMode] = useState('vanilla');
   const tTrain = 2048;
   const tEval = 16384;
-  const pairI = 1;  // mid-frequency pair so the wrap-around is visible
+  // Lowest-frequency pair (i = d/2 − 1) — this is the one whose angle
+  // genuinely drifts out of the trained range at long contexts. High-freq
+  // pairs wrap around so many times they've already seen every angle during
+  // training; there's no OOD to fix there.
+  const pairI = D_MODEL_DEMO / 2 - 1;
   const baseFreq = Math.pow(10000, -(2 * pairI) / D_MODEL_DEMO);
 
   // Compute angle vs position for the chosen mode.
@@ -678,10 +919,10 @@ function SectionLongContext() {
       case 'vanilla': return pos * baseFreq;
       case 'pi':      return (pos / scaleFactor) * baseFreq;
       case 'yarn': {
-        // Toy YaRN: high-freq dimensions scale more aggressively than low-freq.
-        // Real YaRN uses NTK-aware scaling; we sketch the qualitative shape.
-        const blend = 1 / Math.pow(scaleFactor, 0.7);
-        return pos * baseFreq * blend;
+        // For a low-frequency pair (what we visualise) YaRN's NTK-aware
+        // schedule reduces to PI — slow dimensions get the full compression.
+        // High-freq dimensions (not shown) would be left untouched.
+        return (pos / scaleFactor) * baseFreq;
       }
       default: return pos * baseFreq;
     }
@@ -703,16 +944,23 @@ function SectionLongContext() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  const maxAng = Math.max(...ptsScreen.map((p) => p.ang), 1);
-  const minAng = 0;
+  // Static y-axis: always span the vanilla curve's full range, so PI and
+  // YaRN visibly *flatten* relative to the green band. The auto-scaling
+  // version made all three modes look identical.
+  const vanillaMax = tEval * baseFreq;
+  const trainedMax = tTrain * baseFreq;
+  const yMax = vanillaMax * 1.05;
+
   const toCX = (pos) => xPad + (pos / tEval) * (curveW - 2 * xPad);
-  const toCY = (ang) => curveH - yPad - ((ang - minAng) / (maxAng - minAng)) * (curveH - 2 * yPad);
+  const toCY = (ang) => curveH - yPad - (ang / yMax) * (curveH - 2 * yPad);
   const pathD = ptsScreen
     .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${toCX(p.pos)} ${toCY(p.ang)}`)
     .join(' ');
 
-  // Trained-range box
+  // Trained position threshold (vertical guide line)
   const trainX = toCX(tTrain);
+  // Trained angle threshold (horizontal boundary between safe / OOD)
+  const trainAngleY = toCY(trainedMax);
 
   return (
     <div className="viz-panel">
@@ -735,18 +983,31 @@ function SectionLongContext() {
         </div>
       </div>
 
+      <div className="viz-math-block" style={{ marginTop: 10 }}>
+        <Katex block tex={LONG_CTX_FORMULAS[mode]} />
+      </div>
+
+      <p style={{ fontSize: '0.94rem', color: 'var(--ink-soft)', margin: '8px 0 14px' }}>
+        {LONG_CTX_CAPTIONS[mode]}
+      </p>
+
       <div style={{ marginTop: 12 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--ink-faint)', marginBottom: 4 }}>
           rotation angle at one mid-frequency pair (rad) vs position
         </div>
         <svg viewBox={`0 0 ${curveW} ${curveH}`} width="100%" style={{ maxWidth: curveW, background: 'hsl(218, 30%, 98%)', border: '1px solid hsl(218, 30%, 90%)', borderRadius: 8 }}>
-          {/* trained range box */}
-          <rect x={xPad} y={yPad} width={trainX - xPad} height={curveH - 2 * yPad} fill="hsl(148, 35%, 96%)" />
-          {/* eval range box */}
-          <rect x={trainX} y={yPad} width={curveW - xPad - trainX} height={curveH - 2 * yPad} fill="hsl(8, 55%, 98%)" />
-          {/* vertical line at T_train */}
-          <line x1={trainX} y1={yPad} x2={trainX} y2={curveH - yPad} stroke="hsl(8, 55%, 50%)" strokeWidth="1.5" strokeDasharray="4 4" />
-          <text x={trainX + 4} y={yPad + 12} fontSize="10" fill="hsl(8, 55%, 35%)" fontFamily="var(--mono)">T_train = {tTrain.toLocaleString()}</text>
+          {/* OOD angle band — top */}
+          <rect x={xPad} y={yPad} width={curveW - 2 * xPad} height={trainAngleY - yPad} fill="hsl(8, 60%, 92%)" />
+          {/* Trained angle band — bottom */}
+          <rect x={xPad} y={trainAngleY} width={curveW - 2 * xPad} height={(curveH - yPad) - trainAngleY} fill="hsl(148, 45%, 88%)" />
+          {/* horizontal line at trained-angle threshold */}
+          <line x1={xPad} y1={trainAngleY} x2={curveW - xPad} y2={trainAngleY} stroke="hsl(8, 55%, 50%)" strokeWidth="1.5" strokeDasharray="4 4" />
+          <text x={curveW - xPad - 4} y={trainAngleY - 4} textAnchor="end" fontSize="10" fill="hsl(8, 55%, 35%)" fontFamily="var(--mono)">
+            trained-angle max = {trainedMax.toFixed(2)} rad
+          </text>
+          {/* vertical guide at T_train (position annotation) */}
+          <line x1={trainX} y1={yPad} x2={trainX} y2={curveH - yPad} stroke="hsl(218, 30%, 70%)" strokeWidth="1" strokeDasharray="2 3" />
+          <text x={trainX + 4} y={curveH - yPad - 4} fontSize="10" fill="hsl(218, 30%, 45%)" fontFamily="var(--mono)">T_train = {tTrain.toLocaleString()}</text>
           {/* zero line */}
           <line x1={xPad} y1={toCY(0)} x2={curveW - xPad} y2={toCY(0)} stroke="hsl(218, 20%, 80%)" />
           {/* curve */}
@@ -756,19 +1017,19 @@ function SectionLongContext() {
           <text x={curveW - xPad} y={curveH - 4} textAnchor="end" fontSize="10" fill="var(--ink-faint)" fontFamily="var(--mono)">{tEval.toLocaleString()}</text>
           {/* y-axis labels */}
           <text x={xPad - 4} y={toCY(0) + 3} textAnchor="end" fontSize="10" fill="var(--ink-faint)" fontFamily="var(--mono)">0</text>
-          <text x={xPad - 4} y={toCY(maxAng) + 3} textAnchor="end" fontSize="10" fill="var(--ink-faint)" fontFamily="var(--mono)">
-            {maxAng.toFixed(1)}
+          <text x={xPad - 4} y={toCY(yMax) + 9} textAnchor="end" fontSize="10" fill="var(--ink-faint)" fontFamily="var(--mono)">
+            {yMax.toFixed(1)}
           </text>
         </svg>
       </div>
 
       <p className="viz-caption">
-        The green region is the training-time position range. Past{' '}
-        <Katex tex="T_\mathrm{train}" /> (red zone), the model has never seen
-        these rotation angles.{' '}
-        {mode === 'vanilla' && <>Vanilla RoPE keeps growing — the angles at far positions look like nothing in training, and the model breaks.</>}
-        {mode === 'pi' && <><a className="viz-link" href="https://arxiv.org/abs/2306.15595" target="_blank" rel="noreferrer">Position Interpolation</a> rescales positions by <Katex tex="T_\mathrm{eval}/T_\mathrm{train}" /> so the angles stay inside the trained range — the cost is slightly squashed resolution everywhere.</>}
-        {mode === 'yarn' && <><a className="viz-link" href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noreferrer">YaRN</a> scales high-frequency pairs more aggressively than low-frequency ones, preserving fine-grained position resolution while still keeping out-of-distribution angles tame.</>}
+        Chart shows the slowest pair (<Katex tex={`i = ${pairI}`} />) — the
+        one where the OOD problem actually bites. Green band = rotation-angle
+        range the model saw during training; red band above the dashed line
+        = angles the model has never been asked to interpret. The vertical
+        dotted line marks <Katex tex="T_\mathrm{train}" /> as a position
+        reference.
       </p>
 
       <pre className="viz-code">
@@ -1060,13 +1321,33 @@ function MiniMatrix({ data, title, cellSize = 50, diverging = true, range = 0.6,
   );
 }
 
+// Sinusoidal positional embeddings for absolute mode: P_i[2k] = sin(i/10000^(2k/d)),
+// P_i[2k+1] = cos(i/10000^(2k/d)). Same d as our token embeddings (8).
+function sinusoidalPE(pos, d) {
+  const out = new Array(d).fill(0);
+  for (let k = 0; k < d / 2; k++) {
+    const freq = 1 / Math.pow(10000, (2 * k) / d);
+    out[2 * k]     = Math.sin(pos * freq);
+    out[2 * k + 1] = Math.cos(pos * freq);
+  }
+  return out;
+}
+
 function SectionPosEncodingZoo() {
-  const [mode, setMode] = useState('shaw-key');
+  const [mode, setMode] = useState('absolute');
   const T = 4;
   const tokens = PROMPT.slice(0, T);
-  const X = tokens.map((t) => EMB[t]);
-  const Q = matmul2(X, W_Q);
-  const K = matmul2(X, W_K);
+  const X_base = tokens.map((t) => EMB[t]);
+
+  // For Absolute mode, position vectors are added to the embedding *before* Q/K projections.
+  // For the other modes, position info appears later (as score bias / value bias / nothing).
+  const dModel = X_base[0].length;
+  const P = Array.from({ length: T }, (_, i) => sinusoidalPE(i, dModel));
+  const X_abs = X_base.map((x, i) => x.map((v, k) => v + P[i][k]));
+  const X_for_q = mode === 'absolute' ? X_abs : X_base;
+
+  const Q = matmul2(X_for_q, W_Q);
+  const K = matmul2(X_for_q, W_K);
   const raw = matmul2(Q, transpose(K)).map((row) => row.map((v) => v / 2));
 
   const B = effectiveBias(mode, Q);
@@ -1091,21 +1372,82 @@ function SectionPosEncodingZoo() {
     : null;
 
   const formulas = {
-    'shaw-key':   'e_{ij} = q_i \\cdot (k_j + a^K_{i-j})^\\top / \\sqrt{d}     \\;\\;\\Longleftrightarrow\\;\\; q_i \\!\\cdot\\! k_j + q_i \\!\\cdot\\! a^K_{i-j}',
-    'shaw-value': 'z_i = \\sum_{j} \\alpha_{ij}\\,(v_j + a^V_{i-j})    \\quad\\text{(scores unchanged; position added to values)}',
-    't5':         'e_{ij} = q_i \\cdot k_j / \\sqrt{d} + b_{i-j} \\quad\\text{(learned scalar per offset)}',
-    'swin':       'e_{ij} = q_i \\cdot k_j / \\sqrt{d} + b_{\\Delta i,\\,\\Delta j} \\quad\\text{(2D index for image patches)}',
+    'absolute':   'A_{ij} = \\mathrm{softmax}\\!\\left( (q_i + p_i) \\cdot (k_j + p_j) / \\sqrt{d_k} \\right)',
+    'shaw-key':   'A_{ij} = \\mathrm{softmax}\\!\\left( q_i \\cdot (k_j + a^K_{i-j}) / \\sqrt{d_k} \\right)',
+    'shaw-value': 'A_{ij} = \\mathrm{softmax}\\!\\left( q_i \\cdot k_j / \\sqrt{d_k} \\right), \\quad z_i = \\sum_{j} A_{ij}\\,(v_j + a^V_{i-j})',
+    't5':         'A_{ij} = \\mathrm{softmax}\\!\\left( q_i \\cdot k_j / \\sqrt{d_k} + b_{i-j} \\right)',
+    'swin':       'A_{ij} = \\mathrm{softmax}\\!\\left( q_i \\cdot k_j / \\sqrt{d_k} + b_{\\Delta i,\\,\\Delta j} \\right)',
   };
 
   const captions = {
-    'shaw-key':
-      'Shaw 2018 eq (4) — the relative-position info is a *vector* a^K_{i-j} added to k_j *before* the dot product. The contribution to the score is q_i · a^K_{i-j}, which depends on the query, so different queries weight the same relative offset differently. Notice in the bias matrix below: each *row* looks different even though the index pattern is Toeplitz — that\'s the content dependence.',
-    'shaw-value':
-      'Shaw 2018 eq (3) — the relative-position info is a vector a^V_{i-j} added to the *value* during the weighted sum. Attention scores (and the attention pattern) are completely unchanged: it\'s pure positional information flowing into the output. The right panel shows ΔV_i, the per-row positional vector added to each output row.',
-    't5':
-      'T5 2019 (and Swin in 2D) simplified Shaw\'s vector bias to a *learned scalar* per relative offset. Same Toeplitz indexing as Shaw, but the bias is content-independent — the same value gets added regardless of which q, k are involved. Cheap, effective, and the form most people think of as "relative position bias".',
-    'swin':
-      'Swin 2021 ports T5\'s scalar bias to 2D image patches: index by (Δi, Δj) within an M × M window. Same upside as T5 (relative, simple), same downside (bounded by the trained window — anything past the M × M window falls off the table).',
+    'absolute': (
+      <>
+        The simplest scheme — and the one the original Transformer paper
+        (Vaswani et al. 2017) used. A position vector <Katex tex="p_i" /> is
+        added to each token embedding <em>before</em> the Q/K projections.
+        The attention math itself is unchanged; positional information
+        arrives baked into Q and K. Sinusoidal or learned, both bounded by
+        the trained sequence length — past it, the <Katex tex="p_i" /> are
+        undefined.
+      </>
+    ),
+    'shaw-key': (
+      <>
+        Shaw 2018 eq (4) — the relative-position info is a <em>vector</em>{' '}
+        <Katex tex="a^K_{i-j}" /> added to <Katex tex="k_j" />{' '}
+        <em>before</em> the dot product. The{' '}
+        <Katex tex="a^K" /> values are <strong>learnable parameters</strong>:
+        a small table of <Katex tex="d_k" />-dimensional vectors, one per
+        relative offset, trained jointly with everything else. They're
+        initialized like any other embedding table — a small random Gaussian
+        (Xavier / Glorot-style) — and gradient descent shapes them from
+        there. Shaw clipped the offset range (typically{' '}
+        <Katex tex="\pm 16" />) so the table stays a fixed size — offsets
+        beyond the clip share the boundary entry.
+        {' '}The contribution to the score is{' '}
+        <Katex tex="q_i \cdot a^K_{i-j}" />, which depends on the query — so
+        different queries weight the same relative offset differently.
+        Notice in the bias matrix below: each <em>row</em> looks different
+        even though the index pattern is Toeplitz. That's the content
+        dependence.
+      </>
+    ),
+    'shaw-value': (
+      <>
+        Shaw 2018 eq (3) — the relative-position info is a vector{' '}
+        <Katex tex="a^V_{i-j}" /> added to the <em>value</em> during the
+        weighted sum.{' '}
+        <Katex tex="a^V" /> is the same shape as <Katex tex="a^K" />: a
+        learnable lookup table of <Katex tex="d_v" />-dimensional vectors
+        indexed by clipped relative offset, learned alongside the model
+        weights. Shaw used both <Katex tex="a^K" /> and <Katex tex="a^V" />{' '}
+        but found the value-side gains were modest, and most later work
+        (T5, Swin, …) dropped <Katex tex="a^V" /> entirely.
+        {' '}Attention scores (and the attention pattern) are completely
+        unchanged: it's pure positional information flowing into the output.
+        The right panel shows <Katex tex="\Delta V_i" />, the per-row
+        positional vector added to each output row.
+      </>
+    ),
+    't5': (
+      <>
+        T5 2019 (and Swin in 2D) simplified Shaw's vector bias to a{' '}
+        <em>learned scalar</em> per relative offset. Same Toeplitz indexing
+        as Shaw, but the bias is content-independent — the same value gets
+        added regardless of which <Katex tex="q, k" /> are involved. Cheap,
+        effective, and the form most people think of as "relative position
+        bias".
+      </>
+    ),
+    'swin': (
+      <>
+        Swin 2021 ports T5's scalar bias to 2D image patches: index by{' '}
+        <Katex tex="(\Delta i, \Delta j)" /> within an{' '}
+        <Katex tex="M \times M" /> window. Same upside as T5 (relative,
+        simple), same downside (bounded by the trained window — anything
+        past the <Katex tex="M \times M" /> window falls off the table).
+      </>
+    ),
   };
 
   return (
@@ -1113,6 +1455,7 @@ function SectionPosEncodingZoo() {
       <div className="viz-controls">
         <div className="viz-tabs" role="tablist">
           {[
+            { id: 'absolute',   label: 'Absolute' },
             { id: 'shaw-key',   label: 'Shaw Key' },
             { id: 'shaw-value', label: 'Shaw Value' },
             { id: 't5',         label: 'T5 Scalar' },
@@ -1139,8 +1482,16 @@ function SectionPosEncodingZoo() {
       </p>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-        {/* Left panel: bias matrix (or value-side contribution for Shaw Value) */}
-        {mode === 'shaw-value' ? (
+        {/* Left panel: bias matrix, position embeddings, or value-side contribution */}
+        {mode === 'absolute' ? (
+          <MiniMatrix
+            data={P}
+            title={`positional embeddings p_i  (sinusoidal, d = ${dModel})`}
+            cellSize={36}
+            diverging
+            range={1}
+          />
+        ) : mode === 'shaw-value' ? (
           <MiniMatrix
             data={deltaV}
             title="ΔV_i = Σ_j α_ij · a^V_{i-j}  (added to each output row)"
@@ -1166,7 +1517,9 @@ function SectionPosEncodingZoo() {
           title={
             mode === 'shaw-value'
               ? 'attention pattern A  (unchanged — no bias on scores)'
-              : 'resulting attention pattern A  (rows sum to 1)'
+              : mode === 'absolute'
+                ? 'attention pattern A  (with position baked into Q, K)'
+                : 'resulting attention pattern A  (rows sum to 1)'
           }
           diverging={false}
           vmax={1}
@@ -1174,13 +1527,15 @@ function SectionPosEncodingZoo() {
       </div>
 
       <p className="viz-caption" style={{ marginTop: 14 }}>
-        Three of these are <strong>additive on scores</strong> (Shaw Key, T5,
-        Swin) — they reshape the attention pattern itself. One is{' '}
-        <strong>additive on values</strong> (Shaw Value) — the attention
-        pattern is untouched; position flows into the output through a
-        different door. None of them rotate Q or K. RoPE will be different on
-        every axis: <em>multiplicative</em>, <em>on Q and K directly</em>,
-        and <em>zero learned parameters</em>. That's §3.
+        Five different places to inject position: into the input
+        embedding (<strong>Absolute</strong>), into the key vector before
+        the dot product (<strong>Shaw Key</strong>), into the value vector
+        in the weighted sum (<strong>Shaw Value</strong>), as a learned
+        scalar bias on the score (<strong>T5 Scalar</strong>), as the same
+        scalar but indexed by a 2D offset (<strong>Swin 2D</strong>). None
+        of them <em>rotate</em> Q or K. RoPE will be different on every
+        axis: <em>multiplicative</em>, <em>on Q and K directly</em>, and
+        <em> zero learned parameters</em>. That's §3.
       </p>
     </div>
   );
@@ -1279,38 +1634,43 @@ export default function VisualizingRoPE() {
           next section makes the contrast concrete.
         </p>
 
-        <h2>2. The predecessor family: relative position bias</h2>
+        <h2>2. The predecessors: absolute and relative position bias</h2>
         <p>
-          Between absolute embeddings and RoPE there's a small family of
-          schemes that encode position as an <strong>additive term</strong>{' '}
-          somewhere inside attention. Four variants are worth seeing
-          side-by-side because each makes a slightly different design
-          choice:{' '}
+          Before RoPE, every approach injected position as an{' '}
+          <strong>additive term</strong> somewhere inside attention. Five
+          variants are worth seeing side-by-side because each chooses a
+          different place to inject it.{' '}
+          <strong>Absolute</strong> (Vaswani et al. 2017, the original
+          Transformer) adds a position vector to the input embedding before
+          Q/K projections.{' '}
           <a className="viz-link" href="https://arxiv.org/abs/1803.02155" target="_blank" rel="noreferrer">
             Shaw et al. 2018
           </a>{' '}
-          actually proposed two forms (one adds a vector to keys, one adds
-          a vector to values);{' '}
+          proposed two relative forms: one adds a vector to keys before the
+          dot product (Shaw Key), one adds a vector to values inside the
+          weighted sum (Shaw Value).{' '}
           <a className="viz-link" href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noreferrer">
             T5
           </a>{' '}
-          (Raffel et al. 2019) simplified Shaw's key-vector to a learned
-          scalar per offset; and{' '}
+          (Raffel et al. 2019) simplified Shaw Key's vector to a learned
+          scalar per relative offset, and{' '}
           <a className="viz-link" href="https://arxiv.org/abs/2103.14030" target="_blank" rel="noreferrer">
             Swin
           </a>{' '}
-          (Liu et al. 2021) lifted the T5 scalar to 2D image patches.
-          Toggle between them below — note the structural differences in the
-          bias panel as much as the result.
+          (Liu et al. 2021) ported that scalar to 2D image patches. Toggle
+          between them below — note the structural differences in the left
+          panel as much as the right.
         </p>
         <SectionPosEncodingZoo />
         <p>
-          Three of these add a bias to the attention <em>scores</em>; one
-          adds it to the <em>values</em>. None of them touch Q or K directly.
-          And all of them depend on a table indexed by relative offset that
-          is bounded by the trained range. RoPE breaks both habits at once:
-          it modifies Q and K themselves (<em>multiplicatively</em>, via a
-          rotation), and the relative-position dependence falls out of the
+          Three of these add a bias to the attention <em>scores</em>
+          {' '}(Shaw Key, T5, Swin); one adds it to the <em>values</em>
+          {' '}(Shaw Value); one adds it to the <em>inputs</em> (Absolute).
+          None of them touch Q or K via a rotation, and all of them rely on
+          a table indexed by absolute position or relative offset that's
+          bounded by the trained range. RoPE breaks both habits at once: it
+          modifies Q and K themselves <em>multiplicatively</em>, via a
+          rotation, and the relative-position dependence falls out of the
           dot product without any extra learned parameters. The next four
           sections build that idea up from a single 2D rotation.
         </p>
@@ -1369,6 +1729,32 @@ export default function VisualizingRoPE() {
           it is.
         </p>
         <SectionMultiPair />
+        <p>
+          A helpful intuition: think of the <Katex tex="d/2" /> pairs as the
+          hands on a clock. The fastest pair (<Katex tex="i=0" />) is the
+          second hand — one full revolution every six tokens or so, perfect
+          for distinguishing immediate neighbours but useless for long
+          ranges (it cycles through the same angle every six positions, so{' '}
+          <Katex tex="m=6" /> and <Katex tex="m=12" /> look identical to it
+          modulo <Katex tex="2\pi" />). The slowest pair is the hour hand —
+          it barely moves between adjacent tokens, but over hundreds of
+          positions it traces out clearly distinct angles, so it
+          disambiguates long offsets the fast pair confuses. The model can
+          read whichever scale of relative distance matters for the head's
+          job: short-range syntactic dependencies use the fast pairs;
+          long-range semantic dependencies use the slow ones.
+        </p>
+        <p>
+          This is also exactly why §7's long-context tricks exist — but
+          counterintuitively, it's the <em>slow</em> pairs that drift out of
+          distribution first. The fast pairs wind around the unit circle so
+          many times even within the trained range that the model has
+          already seen every possible <Katex tex="(\cos, \sin)" /> value;
+          extending position just produces more of the same. The slow pairs,
+          on the other hand, only ever traced a thin arc during training —
+          at long evaluation contexts they reach angles the model has
+          genuinely never been asked to interpret.
+        </p>
 
         <h2>6. Attention with RoPE — what the model sees</h2>
         <p>
@@ -1392,32 +1778,68 @@ export default function VisualizingRoPE() {
 
         <h2>7. Long-context extension: PI and YaRN</h2>
         <p>
-          One subtlety: the model is trained at some maximum context length{' '}
-          <Katex tex="T_\mathrm{train}" /> (say 2048). Past that, RoPE's
-          rotation angles enter unprecedented territory — the high-frequency
-          pairs have wound around the unit circle thousands of times, but at
-          angles the model has never been asked to interpret. So when you try
-          to evaluate at <Katex tex="T_\mathrm{eval} = 16k" />, vanilla RoPE
-          breaks.
+          One subtlety from §5's clock-face intuition: the model is trained
+          at some maximum context length <Katex tex="T_\mathrm{train}" />{' '}
+          (say 2048), and the OOD problem at longer eval contexts isn't
+          uniform across pairs. The <em>fast</em> pairs cycled through every
+          possible <Katex tex="(\cos, \sin)" /> value many times during
+          training — going further in position just produces more of the
+          same, modulo <Katex tex="2\pi" />. The <em>slow</em> pairs are the
+          ones in trouble: they only swept a thin arc during training, and
+          at long contexts they reach angles the model has genuinely never
+          seen.
         </p>
         <p>
           Two techniques fix this without retraining.{' '}
           <a className="viz-link" href="https://arxiv.org/abs/2306.15595" target="_blank" rel="noreferrer">
             Position Interpolation
           </a>{' '}
-          (Chen et al. 2023) simply rescales position indices so the angles
-          stay inside the trained range.{' '}
+          (Chen et al. 2023) was first: rescale <em>all</em> position
+          indices uniformly by <Katex tex="T_\mathrm{train}/T_\mathrm{eval}" />,
+          so every pair's angles stay inside the trained range — but it
+          also compresses the fast pairs that didn't need it, costing
+          short-range resolution.{' '}
           <a className="viz-link" href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noreferrer">
             YaRN
           </a>{' '}
-          (Peng et al. 2023) does the same idea but{' '}
-          <em>frequency-aware</em>: it scales high-frequency pairs more
-          aggressively than low-frequency ones, preserving fine resolution
-          where it matters. Toggle between the three modes below.
+          (Peng et al. 2023) is the frequency-aware version: leave the fast
+          pairs alone, apply PI-style compression to the slow pairs
+          (where the real OOD is), ramp smoothly in between. (The bridge
+          between the two — scaling RoPE's base constant instead of
+          positions to get frequency-awareness from a single number — is
+          known as <em>NTK-aware scaling</em>, and YaRN's piecewise
+          refinement is sometimes called <em>NTK-by-parts</em>.)
         </p>
         <SectionLongContext />
+        <p>
+          A fair question at this point: doesn't rescaling positions{' '}
+          <em>change</em> what relative offsets mean to the model? How can
+          this possibly work without retraining? The answer is that the
+          model never learned "offset 5 means X" — it learned to react to
+          rotation-angle <em>signatures</em>. With PI at{' '}
+          <Katex tex="S = 8" />, an eval offset of 8 now produces the
+          geometric signal that an offset of 1 used to. The model's heads
+          still see distance-monotone signals, the dot product still
+          encodes <em>some</em> relative-offset structure, and the model's
+          original training distribution is approximately preserved.
+        </p>
+        <p>
+          What you give up is <strong>resolution</strong>: with positions
+          compressed 8×, the model can't tell "1 token apart" from "8
+          tokens apart" any more — both look like the same angle to it.
+          Fine-grained syntactic behaviour suffers. YaRN's frequency-aware
+          design is exactly the response to this: it leaves the fast pairs
+          (where short-range resolution lives) untouched, and only
+          compresses the slow pairs (where the OOD problem actually was).
+          You still lose some quality at extreme extensions, which is why
+          production deployments typically pair PI/YaRN with a few
+          thousand steps of fine-tuning on long-context data — the heads
+          adapt to the new effective offsets and recover most of the
+          degradation. So: post-hoc context extension works, but it isn't
+          free, and the "free" part has a ceiling.
+        </p>
 
-        <h2>8. What this isn't (yet)</h2>
+        <h2>8. Related work</h2>
         <p>
           <strong>ALiBi (Attention with Linear Biases).</strong>{' '}
           <a className="viz-link" href="https://arxiv.org/abs/2108.12409" target="_blank" rel="noreferrer">
@@ -1441,10 +1863,19 @@ export default function VisualizingRoPE() {
         </p>
         <p>
           <strong>Long context, more broadly.</strong> PI and YaRN are the
-          first wave of post-training context extension. The frontier (NTK
+          first wave of post-training context extension. The frontier — NTK
           scaling, dynamic NTK, LongRoPE, RingAttention, sparse-attention
-          variants) is its own ecosystem.{' '}
-          <em>Future post in this series.</em>
+          variants — is its own ecosystem, all built on the same rotation
+          idea from §3.
+        </p>
+        <p>
+          <strong>Earlier in this series.</strong>{' '}
+          <a className="viz-link" href="#/blog/visualizing-attention">Post #1 — Visualizing Attention</a>{' '}
+          covers Q/K/V, multi-head, and causal masking — the substrate RoPE
+          modifies. <a className="viz-link" href="#/blog/visualizing-kv-cache">Post #2 — Visualizing the KV Cache</a>{' '}
+          shows why inference is bandwidth-bound and how the cache shapes
+          every long-context engineering decision (PI/YaRN included — they
+          stretch the rotation schedule, not the cache).
         </p>
 
         <h2>9. Back to the question</h2>
@@ -1470,20 +1901,12 @@ export default function VisualizingRoPE() {
           2D rotation in §3 is the right unit for talking about position.
         </p>
 
-        <h2>What comes next</h2>
-        <p>
-          <strong>The RLHF stack.</strong> Post #4 is about how a base LM
-          becomes a chat model — supervised fine-tuning, reward models, PPO
-          and DPO, the whole loop. Mostly geometric in its own way: each
-          stage moves the model's distribution around in policy space.{' '}
-          <em>Coming next.</em>
-        </p>
-
         <footer className="viz-footer">
           <p>
             <strong>Part 3 of Visualizing ML</strong> · Previous:{' '}
             <a className="viz-link" href="#/blog/visualizing-kv-cache">Visualizing the KV Cache</a>
-            . Next: <em>The RLHF Stack</em>.
+            {' · '}Start of the series:{' '}
+            <a className="viz-link" href="#/blog/visualizing-attention">Visualizing Attention</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

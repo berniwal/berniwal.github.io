@@ -54,31 +54,34 @@
 /* New styles for Blog Post Preview Cards */
 .blog-preview-container {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
   max-height: 80%;
-  max-width: 1200px;
+  max-width: 900px;
   margin: 20px auto;
+  padding: 0 16px;
 }
 
 .blog-preview-link {
   text-decoration: none;
   color: inherit;
+  display: block;
+  width: 100%;
 }
 
 .blog-preview-card {
   background-color: #fff;
   border: 1px solid #ddd;
   border-radius: 8px;
-  padding: 20px;
-  width: 300px;
-  min-height: 200px;
+  padding: 20px 24px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .blog-preview-card h2 {
@@ -95,11 +98,7 @@
 /* Below 800 pixels, hide the logo text */
 @media (max-width: 800px) {
   .blog-preview-card {
-    width: inherit;
-  }
-
-  .blog-preview-container {
-    flex-direction: column;
+    padding: 16px 18px;
   }
 }
 
