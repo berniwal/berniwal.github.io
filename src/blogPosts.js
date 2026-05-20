@@ -1,6 +1,13 @@
 // src/blogPosts.js
 export const blogPosts = [
   {
+    slug: 'visualizing-rlhf',
+    title: 'Visualizing RLHF: From Next-Token Prediction to Following Instructions',
+    category: 'Visualizing ML',
+    excerpt: 'How a base language model becomes an instruction-following assistant — SFT, reward models, PPO, and the modern simplifications (DPO, GRPO) side-by-side, with the RL math made geometric.',
+    component: 'VisualizingRLHF'
+  },
+  {
     slug: 'visualizing-rope',
     title: 'Visualizing RoPE: Rotary Positional Embeddings, Geometrically',
     category: 'Visualizing ML',

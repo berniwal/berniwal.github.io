@@ -9,12 +9,14 @@ import { blogPosts } from './blogPosts';
 import VisualizingAttention from './posts/VisualizingAttention';
 import VisualizingKVCache from './posts/VisualizingKVCache';
 import VisualizingRoPE from './posts/VisualizingRoPE';
+import VisualizingRLHF from './posts/VisualizingRLHF';
 import './BlogPage.css';
 
 const componentRegistry = {
   VisualizingAttention,
   VisualizingKVCache,
   VisualizingRoPE,
+  VisualizingRLHF,
 };
 
 function CodeBlock({ node, inline, className, children, ...props }) {
