@@ -1,6 +1,13 @@
 // src/blogPosts.js
 export const blogPosts = [
   {
+    slug: 'visualizing-rope',
+    title: 'Visualizing RoPE: Rotary Positional Embeddings, Geometrically',
+    category: 'Visualizing ML',
+    excerpt: 'The geometric story of why Llama, Mistral, Qwen, and DeepSeek all rotate Q and K in 2D pairs — and how relative position falls out of the dot product for free.',
+    component: 'VisualizingRoPE'
+  },
+  {
     slug: 'visualizing-kv-cache',
     title: 'Visualizing the KV Cache: Prefill, Decode, and Why Inference Is Bandwidth-Bound',
     category: 'Visualizing ML',

@@ -21,9 +21,11 @@ function BlogPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Determine the number of posts per page based on the current window width
+  // Determine the number of posts per page based on the current window width.
+  // Cards are now full-width rows, so we can show more per page than the old
+  // 2×n grid allowed.
   const postsPerPage =
-    windowWidth < 800 ? 3 : windowWidth < 1200 ? 4 : 6;
+    windowWidth < 800 ? 4 : 6;
 
   const handleCategoryClick = (category) => {
     setChosenCategory(category);

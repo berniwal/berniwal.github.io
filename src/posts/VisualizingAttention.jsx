@@ -1811,7 +1811,7 @@ export default function VisualizingAttention() {
           subword splits here are precomputed for illustration — real
           tokenizers learn the merges from data using{' '}
           <a className="viz-link" href="https://en.wikipedia.org/wiki/Byte_pair_encoding" target="_blank" rel="noreferrer">Byte-Pair Encoding</a>
-          {' '}or similar. (A future post in this series will visualise that.)
+          {' '}or similar.
         </p>
         <SectionTokens />
 
@@ -2002,7 +2002,7 @@ export default function VisualizingAttention() {
         </p>
         <SectionPositional />
 
-        <h2>What comes next</h2>
+        <h2>Related work</h2>
         <p>
           <strong>Better positional embeddings (RoPE).</strong> Both schemes
           above encode <em>absolute</em> positions, so a token at position 50
@@ -2010,14 +2010,17 @@ export default function VisualizingAttention() {
           <strong>Rotary Position Embeddings</strong> (RoPE), which inject
           position by rotating <Katex tex="Q" /> and <Katex tex="K" /> in 2D
           pairs — the dot product then naturally encodes <em>relative</em>{' '}
-          position. <em>Subject of the next post in this series.</em>
+          position. Walked through end-to-end in{' '}
+          <a className="viz-link" href="#/blog/visualizing-rope">Visualizing RoPE</a>.
         </p>
         <p>
           <strong>KV cache.</strong> At training time we attend over the full
           sequence in one shot. At inference we generate one token at a time —
           and most of <Katex tex="K" /> and <Katex tex="V" /> hasn't changed
-          since the last step. The KV cache stores them so each new token costs{' '}
-          <Katex tex="O(T)" />, not <Katex tex="O(T^2)" />. <em>Coming in part 3.</em>
+          since the last step. The KV cache stores them so each new token
+          costs <Katex tex="O(T)" />, not <Katex tex="O(T^2)" />. Covered in{' '}
+          <a className="viz-link" href="#/blog/visualizing-kv-cache">Visualizing the KV Cache</a>{' '}
+          (prefill vs decode, GQA, PagedAttention, continuous batching).
         </p>
         <p>
           <strong>Attention variants.</strong> Everything above is "vanilla"
@@ -2025,13 +2028,15 @@ export default function VisualizingAttention() {
           FlashAttention restructures the compute to be IO-aware without
           changing the math; sparse attention drops entries from the score
           matrix; mixture-of-experts routes whole token streams to different
-          sub-networks. <em>All future posts in this series.</em>
+          sub-networks. All active research areas worth a read of their own.
         </p>
 
         <footer className="viz-footer">
           <p>
-            <strong>Part 1 of Visualizing ML</strong> · Next: <em>The KV Cache —
-            why inference is not training</em>. RSS feed coming with post #2.
+            <strong>Part 1 of Visualizing ML</strong> · Next:{' '}
+            <a className="viz-link" href="#/blog/visualizing-kv-cache">Visualizing the KV Cache</a>
+            {' · '}then{' '}
+            <a className="viz-link" href="#/blog/visualizing-rope">Visualizing RoPE</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}
