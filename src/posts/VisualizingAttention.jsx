@@ -2031,6 +2031,88 @@ export default function VisualizingAttention() {
           sub-networks. All active research areas worth a read of their own.
         </p>
 
+        <h2>References</h2>
+        <p>All papers and posts cited above, in reading order.</p>
+        <div className="viz-refs">
+          <div className="head">cite</div>
+          <div className="head">title</div>
+          <div className="head">link</div>
+
+          <div className="section-row">§1 — Tokenization</div>
+
+          <div className="ref-cite">Wikipedia</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://en.wikipedia.org/wiki/Byte_pair_encoding" target="_blank" rel="noreferrer">Byte-Pair Encoding (BPE)</a>
+            </div>
+            <div className="ref-note">The subword tokenization algorithm modern LLMs learn from data.</div>
+          </div>
+          <div className="ref-link"><a href="https://en.wikipedia.org/wiki/Byte_pair_encoding" target="_blank" rel="noreferrer">wikipedia</a></div>
+
+          <div className="section-row">§2 — Where attention came from</div>
+
+          <div className="ref-cite">Bahdanau et al. 2014</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1409.0473" target="_blank" rel="noreferrer">Neural Machine Translation by Jointly Learning to Align and Translate</a>
+            </div>
+            <div className="ref-note">First attention mechanism — let an RNN decoder look back at any encoder position.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1409.0473" target="_blank" rel="noreferrer">arxiv 1409.0473</a></div>
+
+          <div className="ref-cite">Gehring et al. 2017</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1705.03122" target="_blank" rel="noreferrer">Convolutional Sequence to Sequence Learning</a>
+            </div>
+            <div className="ref-note">Stacked 1D convolutions instead of recurrence — parallel within a layer but local receptive field.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1705.03122" target="_blank" rel="noreferrer">arxiv 1705.03122</a></div>
+
+          <div className="ref-cite">Vaswani et al. 2017</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">Attention Is All You Need</a>
+            </div>
+            <div className="ref-note">Drop recurrence and convolution entirely — attention layers + feed-forward layers only.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">arxiv 1706.03762</a></div>
+
+          <div className="section-row">Earlier posts</div>
+
+          <div className="ref-cite">Visualizing ML · #2</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-kv-cache">Visualizing the KV Cache: Prefill, Decode, and Why Inference Is Bandwidth-Bound</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-kv-cache">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #3</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-rope">Visualizing RoPE: Rotary Positional Embeddings, Geometrically</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-rope">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #4</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-rlhf">Visualizing RLHF: From Next-Token Prediction to Following Instructions</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-rlhf">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #5</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-self-improvement">Visualizing Self-Improving AI: From AlphaZero to TTT-Discover</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-self-improvement">post</a></div>
+        </div>
+
         <footer className="viz-footer">
           <p>
             <strong>Part 1 of Visualizing ML</strong> · Next:{' '}

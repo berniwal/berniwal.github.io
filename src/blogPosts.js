@@ -1,6 +1,13 @@
 // src/blogPosts.js
 export const blogPosts = [
   {
+    slug: 'visualizing-self-improvement',
+    title: 'Visualizing Self-Improving AI: From AlphaZero to TTT-Discover',
+    category: 'Visualizing ML',
+    excerpt: 'A map of the self-improvement family — AlphaZero, STaR, RLVR, FunSearch, AlphaEvolve, and the frontier where the model rewrites its own weights mid-inference. Two axes: when do the weights change, and does the objective target peak or average?',
+    component: 'VisualizingSelfImprovement'
+  },
+  {
     slug: 'visualizing-rlhf',
     title: 'Visualizing RLHF: From Next-Token Prediction to Following Instructions',
     category: 'Visualizing ML',

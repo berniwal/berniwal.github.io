@@ -1901,6 +1901,137 @@ export default function VisualizingRoPE() {
           2D rotation in §3 is the right unit for talking about position.
         </p>
 
+        <h2>10. References</h2>
+        <p>All papers and posts cited above, in reading order.</p>
+        <div className="viz-refs">
+          <div className="head">cite</div>
+          <div className="head">title</div>
+          <div className="head">link</div>
+
+          <div className="section-row">§2 — Predecessors of RoPE</div>
+
+          <div className="ref-cite">Vaswani et al. 2017</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">Attention Is All You Need</a>
+            </div>
+            <div className="ref-note">Sinusoidal absolute positional embeddings added to input vectors.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">arxiv 1706.03762</a></div>
+
+          <div className="ref-cite">Shaw et al. 2018</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1803.02155" target="_blank" rel="noreferrer">Self-Attention with Relative Position Representations</a>
+            </div>
+            <div className="ref-note">Both Shaw Key (eq 4) and Shaw Value (eq 3) — learnable vector biases.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1803.02155" target="_blank" rel="noreferrer">arxiv 1803.02155</a></div>
+
+          <div className="ref-cite">Raffel et al. 2019</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noreferrer">T5: Exploring the Limits of Transfer Learning</a>
+            </div>
+            <div className="ref-note">Simplified Shaw Key to a learned scalar bias per relative offset.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noreferrer">arxiv 1910.10683</a></div>
+
+          <div className="ref-cite">Liu et al. 2021</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2103.14030" target="_blank" rel="noreferrer">Swin Transformer</a>
+            </div>
+            <div className="ref-note">Ported T5's scalar bias to 2D image patches.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2103.14030" target="_blank" rel="noreferrer">arxiv 2103.14030</a></div>
+
+          <div className="section-row">§3–§6 — RoPE itself</div>
+
+          <div className="ref-cite">Su et al. 2021</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noreferrer">RoFormer: Enhanced Transformer with Rotary Position Embedding</a>
+            </div>
+            <div className="ref-note">The original RoPE paper. Used by Llama, Mistral, Qwen, DeepSeek.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noreferrer">arxiv 2104.09864</a></div>
+
+          <div className="section-row">§7 — Long-context extension</div>
+
+          <div className="ref-cite">Chen et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2306.15595" target="_blank" rel="noreferrer">Extending Context Window of Large Language Models via Position Interpolation</a>
+            </div>
+            <div className="ref-note">Uniform position rescaling by T_train / T_eval.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2306.15595" target="_blank" rel="noreferrer">arxiv 2306.15595</a></div>
+
+          <div className="ref-cite">Peng et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noreferrer">YaRN: Efficient Context Window Extension</a>
+            </div>
+            <div className="ref-note">Frequency-aware NTK-by-parts scaling; leaves fast pairs alone.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noreferrer">arxiv 2309.00071</a></div>
+
+          <div className="section-row">§8 — Related work</div>
+
+          <div className="ref-cite">Press et al. 2021</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2108.12409" target="_blank" rel="noreferrer">ALiBi: Attention with Linear Biases</a>
+            </div>
+            <div className="ref-note">Parameter-free linear-distance bias for extrapolation.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2108.12409" target="_blank" rel="noreferrer">arxiv 2108.12409</a></div>
+
+          <div className="ref-cite">Kazemnejad et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2305.19466" target="_blank" rel="noreferrer">The Impact of Positional Encoding on Length Generalization (NoPE)</a>
+            </div>
+            <div className="ref-note">Decoder-only transformers can learn position from the causal mask alone.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2305.19466" target="_blank" rel="noreferrer">arxiv 2305.19466</a></div>
+
+          <div className="section-row">Earlier posts</div>
+
+          <div className="ref-cite">Visualizing ML · #1</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-attention">Visualizing Attention: Q/K/V, Multi-Head, and Causal Masking</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-attention">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #2</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-kv-cache">Visualizing the KV Cache: Prefill, Decode, and Why Inference Is Bandwidth-Bound</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-kv-cache">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #4</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-rlhf">Visualizing RLHF: From Next-Token Prediction to Following Instructions</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-rlhf">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #5</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-self-improvement">Visualizing Self-Improving AI: From AlphaZero to TTT-Discover</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-self-improvement">post</a></div>
+        </div>
+
         <footer className="viz-footer">
           <p>
             <strong>Part 3 of Visualizing ML</strong> · Previous:{' '}

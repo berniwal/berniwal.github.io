@@ -10,6 +10,7 @@ import VisualizingAttention from './posts/VisualizingAttention';
 import VisualizingKVCache from './posts/VisualizingKVCache';
 import VisualizingRoPE from './posts/VisualizingRoPE';
 import VisualizingRLHF from './posts/VisualizingRLHF';
+import VisualizingSelfImprovement from './posts/VisualizingSelfImprovement';
 import './BlogPage.css';
 
 const componentRegistry = {
@@ -17,6 +18,7 @@ const componentRegistry = {
   VisualizingKVCache,
   VisualizingRoPE,
   VisualizingRLHF,
+  VisualizingSelfImprovement,
 };
 
 function CodeBlock({ node, inline, className, children, ...props }) {

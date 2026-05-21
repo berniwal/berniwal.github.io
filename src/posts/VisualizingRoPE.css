@@ -583,3 +583,114 @@ a.viz-link:hover { border-bottom-color: var(--accent); }
   .viz-panel { padding: 14px; }
   .viz-rope-slider { grid-template-columns: 56px 1fr 50px; }
 }
+
+/* ============================================================
+   References list — paper-style, low chrome (shared across posts)
+   ============================================================ */
+
+.viz-refs {
+  display: grid;
+  grid-template-columns: 170px 1fr 140px;
+  margin: 14px 0 28px;
+  font-family: var(--sans);
+  font-size: 0.92rem;
+  border-top: 1px solid var(--rule);
+}
+
+.viz-refs > div {
+  padding: 10px 14px 10px 0;
+  text-align: left;
+  line-height: 1.5;
+  border-bottom: 1px solid hsl(var(--accent-h), 20%, 94%);
+}
+
+.viz-refs > div:last-child,
+.viz-refs > div:nth-last-child(2),
+.viz-refs > div:nth-last-child(3) {
+  border-bottom-color: var(--rule);
+}
+
+.viz-refs .head {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.viz-refs .section-row {
+  grid-column: 1 / -1;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 22px 0 4px;
+  border-bottom: 1px solid hsl(var(--accent-h), 20%, 86%);
+  letter-spacing: -0.005em;
+}
+
+.viz-refs .ref-cite {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.viz-refs .ref-title {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.viz-refs .ref-title a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-soft);
+}
+
+.viz-refs .ref-title a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.viz-refs .ref-note {
+  font-size: 0.84rem;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  font-style: italic;
+}
+
+.viz-refs .ref-link {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.viz-refs .ref-link a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.viz-refs .ref-link a:hover { border-bottom-color: var(--accent); }
+
+@media (max-width: 720px) {
+  .viz-refs {
+    grid-template-columns: 1fr;
+    border-top: none;
+  }
+  .viz-refs .head { display: none; }
+  .viz-refs > div { padding: 4px 0; border-bottom: none; }
+  .viz-refs .ref-cite {
+    font-size: 0.74rem;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+  }
+  .viz-refs .ref-link {
+    padding-bottom: 12px;
+  }
+  .viz-refs .section-row {
+    padding: 22px 0 4px;
+    border-top: none;
+  }
+}

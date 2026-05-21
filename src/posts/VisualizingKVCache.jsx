@@ -2407,6 +2407,130 @@ export default function VisualizingKVCache() {
           schedule for long context.
         </p>
 
+        <h2>References</h2>
+        <p>All papers, posts, and tools cited above, in reading order.</p>
+        <div className="viz-refs">
+          <div className="head">cite</div>
+          <div className="head">title</div>
+          <div className="head">link</div>
+
+          <div className="section-row">§6 — Memory-bandwidth bound</div>
+
+          <div className="ref-cite">Horace He, 2022</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://horace.io/brrr_intro.html" target="_blank" rel="noreferrer">Making Deep Learning Go Brrr From First Principles</a>
+            </div>
+            <div className="ref-note">The canonical explainer of compute-bound vs bandwidth-bound vs overhead-bound regimes.</div>
+          </div>
+          <div className="ref-link"><a href="https://horace.io/brrr_intro.html" target="_blank" rel="noreferrer">horace.io</a></div>
+
+          <div className="section-row">§7 — GQA / MQA</div>
+
+          <div className="ref-cite">Shazeer 2019</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noreferrer">Fast Transformer Decoding: Multi-Query Attention (MQA)</a>
+            </div>
+            <div className="ref-note">One K and one V head, shared across all query heads.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noreferrer">arxiv 1911.02150</a></div>
+
+          <div className="ref-cite">Ainslie et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noreferrer">GQA: Generalized Multi-Query Attention</a>
+            </div>
+            <div className="ref-note">The compromise that landed: groups of Q heads share one K/V pair.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noreferrer">arxiv 2305.13245</a></div>
+
+          <div className="section-row">§8 — PagedAttention</div>
+
+          <div className="ref-cite">Kwon et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noreferrer">Efficient Memory Management for LLM Serving with PagedAttention (vLLM)</a>
+            </div>
+            <div className="ref-note">Paged blocks + block tables; the cache layout vLLM uses.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noreferrer">arxiv 2309.06180</a></div>
+
+          <div className="section-row">§9 — Continuous batching</div>
+
+          <div className="ref-cite">Yu et al. 2022</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://www.usenix.org/conference/osdi22/presentation/yu" target="_blank" rel="noreferrer">Orca: A Distributed Serving System for Transformer-Based Models</a>
+            </div>
+            <div className="ref-note">The iteration-level (continuous) batching paper that's now standard in production.</div>
+          </div>
+          <div className="ref-link"><a href="https://www.usenix.org/conference/osdi22/presentation/yu" target="_blank" rel="noreferrer">osdi</a></div>
+
+          <div className="section-row">Related work</div>
+
+          <div className="ref-cite">DeepSeek 2024</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">DeepSeek-V2: Multi-Latent Attention (MLA)</a>
+            </div>
+            <div className="ref-note">Reconstruct K, V from a low-rank latent — cache shrinks another order of magnitude.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">arxiv 2405.04434</a></div>
+
+          <div className="ref-cite">Xiao et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noreferrer">StreamingLLM: Efficient Streaming with Attention Sinks</a>
+            </div>
+            <div className="ref-note">First few tokens + sliding window ≈ full-context quality at bounded cache size.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noreferrer">arxiv 2309.17453</a></div>
+
+          <div className="ref-cite">Leviathan et al. 2022</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noreferrer">Speculative Decoding</a>
+            </div>
+            <div className="ref-note">Small draft model proposes; big model verifies in parallel.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noreferrer">arxiv 2211.17192</a></div>
+
+          <div className="section-row">Earlier posts</div>
+
+          <div className="ref-cite">Visualizing ML · #1</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-attention">Visualizing Attention: Q/K/V, Multi-Head, and Causal Masking</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-attention">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #3</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-rope">Visualizing RoPE: Rotary Positional Embeddings, Geometrically</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-rope">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #4</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-rlhf">Visualizing RLHF: From Next-Token Prediction to Following Instructions</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-rlhf">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #5</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-self-improvement">Visualizing Self-Improving AI: From AlphaZero to TTT-Discover</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-self-improvement">post</a></div>
+        </div>
+
         <footer className="viz-footer">
           <p>
             <strong>Part 2 of Visualizing ML</strong> · Previous:{' '}

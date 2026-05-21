@@ -2132,6 +2132,139 @@ export default function VisualizingRLHF() {
           Everything else is engineering on top of that picture.
         </p>
 
+        <h2>10. References</h2>
+        <p>All papers, posts, and tools cited above, in reading order.</p>
+        <div className="viz-refs">
+          <div className="head">cite</div>
+          <div className="head">title</div>
+          <div className="head">link</div>
+
+          <div className="section-row">§2 — Reward model</div>
+
+          <div className="ref-cite">Wikipedia</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://en.wikipedia.org/wiki/Bradley%E2%80%93Terry_model" target="_blank" rel="noreferrer">Bradley–Terry preference model</a>
+            </div>
+            <div className="ref-note">Foundational pairwise-preference loss reused for the reward head.</div>
+          </div>
+          <div className="ref-link"><a href="https://en.wikipedia.org/wiki/Bradley%E2%80%93Terry_model" target="_blank" rel="noreferrer">wikipedia</a></div>
+
+          <div className="section-row">§3 — PPO</div>
+
+          <div className="ref-cite">Ouyang et al. 2022</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2203.02155" target="_blank" rel="noreferrer">InstructGPT: Training language models to follow instructions with human feedback</a>
+            </div>
+            <div className="ref-note">The canonical SFT → RM → PPO pipeline this post is built around.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2203.02155" target="_blank" rel="noreferrer">arxiv 2203.02155</a></div>
+
+          <div className="ref-cite">Schulman et al. 2017</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noreferrer">Proximal Policy Optimization Algorithms</a>
+            </div>
+            <div className="ref-note">The clipped-surrogate + KL objective that powers stage 3.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noreferrer">arxiv 1707.06347</a></div>
+
+          <div className="ref-cite">Schulman et al. 2015</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noreferrer">High-Dimensional Continuous Control Using Generalized Advantage Estimation (GAE)</a>
+            </div>
+            <div className="ref-note">The bias-variance dial PPO uses to compute Â_t.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noreferrer">arxiv 1506.02438</a></div>
+
+          <div className="section-row">§4 — PPO vs DPO vs GRPO</div>
+
+          <div className="ref-cite">Rafailov et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2305.18290" target="_blank" rel="noreferrer">Direct Preference Optimization (DPO)</a>
+            </div>
+            <div className="ref-note">Closed-form trick that collapses RM + PPO into a single supervised loss on preference pairs.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2305.18290" target="_blank" rel="noreferrer">arxiv 2305.18290</a></div>
+
+          <div className="ref-cite">Shao et al. 2024</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noreferrer">DeepSeekMath: GRPO and group-relative advantages</a>
+            </div>
+            <div className="ref-note">Drops V_ψ entirely; uses group statistics as the baseline. Powers DeepSeek-R1.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noreferrer">arxiv 2402.03300</a></div>
+
+          <div className="section-row">§5 — RLAIF / Constitutional AI</div>
+
+          <div className="ref-cite">Bai et al. 2022</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2212.08073" target="_blank" rel="noreferrer">Constitutional AI: Harmlessness from AI Feedback</a>
+            </div>
+            <div className="ref-note">AI labeler + written constitution replacing human preference labels.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2212.08073" target="_blank" rel="noreferrer">arxiv 2212.08073</a></div>
+
+          <div className="section-row">§6 — Process reward models</div>
+
+          <div className="ref-cite">Lightman et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2305.20050" target="_blank" rel="noreferrer">Let's Verify Step by Step (PRM800K)</a>
+            </div>
+            <div className="ref-note">Hand-labelled per-step math correctness for PRM training.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2305.20050" target="_blank" rel="noreferrer">arxiv 2305.20050</a></div>
+
+          <div className="ref-cite">Wang et al. 2023</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2312.08935" target="_blank" rel="noreferrer">Math-Shepherd: Monte-Carlo rollout labels for PRMs</a>
+            </div>
+            <div className="ref-note">Cheap automatic per-step labels via continuation-success fraction.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2312.08935" target="_blank" rel="noreferrer">arxiv 2312.08935</a></div>
+
+          <div className="section-row">Earlier posts</div>
+
+          <div className="ref-cite">Visualizing ML · #1</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-attention">Visualizing Attention: Q/K/V, Multi-Head, and Causal Masking</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-attention">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #2</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-kv-cache">Visualizing the KV Cache: Prefill, Decode, and Why Inference Is Bandwidth-Bound</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-kv-cache">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #3</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-rope">Visualizing RoPE: Rotary Positional Embeddings, Geometrically</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-rope">post</a></div>
+
+          <div className="ref-cite">Visualizing ML · #5</div>
+          <div>
+            <div className="ref-title">
+              <a href="#/blog/visualizing-self-improvement">Visualizing Self-Improving AI: From AlphaZero to TTT-Discover</a>
+            </div>
+          </div>
+          <div className="ref-link"><a href="#/blog/visualizing-self-improvement">post</a></div>
+        </div>
+
         <footer className="viz-footer">
           <p>
             <strong>Part 4 of Visualizing ML</strong> · Previous:{' '}
