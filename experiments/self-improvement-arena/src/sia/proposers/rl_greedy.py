@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..objectives import greedy_weights
 from ..policy import RNNPolicy
 from ..verifier import Result
 from .base import Proposer
@@ -29,8 +30,7 @@ class RLGreedy(Proposer):
 
     def tell(self, candidates, results: list[Result]) -> None:
         R = np.array([r.reward for r in results])
-        weights = R - R.mean()  # expected-reward objective
-        self.policy.reinforce(weights, self.ent_coef)
+        self.policy.reinforce(greedy_weights(R), self.ent_coef)  # expected-reward objective
 
     def diagnostics(self) -> dict:
         return {"policy_entropy": self.policy.last_entropy()}

@@ -1,3 +1,0 @@
-# Layer 1 (LLM proposer) extra dependencies — Apple Silicon / macOS only.
-# Layer 0 needs none of this; install only to run run_layer1.py.
-mlx-lm>=0.31

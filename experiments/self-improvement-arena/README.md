@@ -30,8 +30,13 @@ seconds-to-minutes on a laptop CPU.
    tilt (`J_β`) collapses across its *entire* β range and under both ESS- and
    KL-adaptive schedules.
 
-Layer 1 (designed but not built; see [`layer1/`](layer1/)) will swap in an LLM
-proposer behind the *same* interfaces to test whether any of this transfers.
+Layer 1 (see [`layer1/`](layer1/)) swaps in an LLM proposer behind the *same*
+interfaces to test whether any of this transfers. All three arms are implemented —
+program-database evolution (in-context) plus greedy and risk-seeking **LoRA**
+fine-tuning, which reuse Layer 0's exact reward-weighting via the shared
+[`objectives.py`](src/sia/objectives.py). The LoRA arms need Apple Silicon (MLX)
+and have not yet been run end-to-end on-device; see
+[`layer1/README.md`](layer1/README.md) for the M4 verification steps.
 
 ---
 
@@ -82,11 +87,11 @@ Everything is built around three interfaces so that Layer 0 (search/RL) and Laye
 - **Evolution (GP)** — keep a population; make children by **subtree crossover/mutation**
   + tournament selection + elitism + a few random immigrants. Searches directly in
   expression-space ([`genetic.py`](src/sia/proposers/genetic.py)).
-- **Greedy / Risk-seeking / Entropic RL** — a tiny RNN emits expression tokens; trained
-  by policy gradient. The three differ *only* in how rewards become gradient weights
+- **CVaR / Greedy / Risk-seeking / Entropic RL** — a tiny RNN emits expression tokens;
+  trained by policy gradient. They differ *only* in how rewards become gradient weights
   (next section).
 
-## The three RL objectives — one gradient, three weightings
+## The RL objectives — one gradient, a whole risk spectrum
 
 The RL arms are written by hand in numpy ([`policy.py`](src/sia/policy.py)) to make
 this concrete. A policy-gradient update is **always**
@@ -96,14 +101,25 @@ maximize   Σ_i  w_i · Σ_t log π(a_t^i)        +        λ · H(π)
            └──── advantage-weighted log-prob ────┘     └ entropy bonus ┘
 ```
 
-and **the three arms differ only in the per-trajectory weight `w_i`** — pure scalar
-arithmetic on the rewards. Backprop is identical.
+and **the arms differ only in the per-trajectory weight `w_i`** — pure scalar
+arithmetic on the rewards ([`objectives.py`](src/sia/objectives.py), shared with the
+Layer 1 LoRA arms). Backprop is identical. Reading the spectrum from risk-averse to
+risk-seeking:
 
 | arm | objective (what it maximizes) | weight `w_i` | intuition |
 |---|---|---|---|
+| **Risk-averse CVaR** | the *lower* `ε` reward tail `E[R \| R≤R̃_ε]` | `(R_i − R̃_ε)` for the bottom ε (so `≤ 0`), else `0` | "lift the *worst* case" → pushes away from bad samples → wrong target for discovery |
 | **Greedy** | `E[R]` — the *average* sample | `R_i − mean(R)` | "make the typical sample better" → piles mass on one safe mode → **collapses** |
-| **Risk-seeking (DSR)** | the `(1−ε)` reward *quantile* | `(R_i − R̃_ε)` for the top ε, else `0` | "make the top 10% better, ignore the rest" → reinforces a *set* of good expressions → stays diverse |
-| **Entropic (`J_β`)** | `(1/β) log E[e^{βR}]` | `∝ e^{βR_i}` (centered) | soft version of risk-seeking; `β→0` = greedy, `β→∞` = pure max |
+| **Entropic (`J_β`)** | `(1/β) log E[e^{βR}]` | `∝ e^{βR_i}` (centered) | soft risk-seeking; `β→0` = greedy, `β→∞` = pure max |
+| **Risk-seeking (DSR)** | the *upper* `(1−ε)` reward tail `E[R \| R≥R̃_ε]` | `(R_i − R̃_ε)` for the top ε, else `0` | "make the top 10% better, ignore the rest" → reinforces a *set* of good expressions → stays diverse |
+
+The **CVaR and DSR arms are exact mirrors**: the same conditional-tail-expectation
+policy gradient (Tamar et al. 2014), one on the *worst* ε-tail (risk-averse), one on
+the *best* ε-tail (risk-seeking). DSR is literally that CVaR gradient inverted — see
+the lineage note below. Optimizing the *average* sample (greedy) is already the wrong
+target for discovery: you do not want a typically-decent expression, you want the
+*one* exact hit. Risk-aversion (CVaR) is wronger still — it spends the gradient
+making the *worst* samples less bad.
 
 Optimizing the *average* sample (greedy) is the wrong target for discovery: you do
 not want a typically-decent expression, you want the *one* exact hit. That pressure
@@ -260,13 +276,24 @@ external exploration, just not by tuning β.
 
 ---
 
-## The DSR ↔ Jiang ↔ TTT-Discover lineage note
+## The CVaR ↔ DSR ↔ Jiang ↔ TTT-Discover lineage note
 
 This sandbox's risk-seeking quantile arm **is** essentially
 [Deep Symbolic Regression](https://arxiv.org/abs/1912.04871) (Petersen et al., 2021):
 an RNN emits expression tokens, trained with a risk-seeking policy gradient on the
 top-ε reward quantile. DSR made the "optimize the best, not the average" point for
 symbolic regression in **2021**.
+
+DSR's gradient did not come from nowhere — it is the **risk-averse CVaR policy
+gradient, inverted**. The conditional-value-at-risk policy gradient was derived for
+the *worst*-case ε-tail (risk-averse, for safety/robustness) by
+[**Tamar, Glassner & Mannor (2014)**](https://arxiv.org/abs/1404.3862) ("Policy
+Gradients Beyond Expectations: Conditional Value-at-Risk"), and applied across a
+model ensemble for robust control by [**EPOpt** (Rajeswaran et al., 2016)](https://arxiv.org/abs/1610.01283).
+DSR takes that exact `(R_i − R̃_ε)·1[tail]` estimator and flips it from the lower
+tail to the upper `(1−ε)` tail — risk-*seeking* instead of risk-*averse*. Our
+[`cvar`](src/sia/objectives.py) arm is the original lower-tail objective, included as
+the deliberately wrong-direction baseline; `risk` (DSR) is its mirror.
 
 The entropic line rediscovered the same idea in *soft* form:
 
@@ -290,12 +317,40 @@ tilt.
 ## How to run
 
 ```bash
-pip install -r requirements.txt
+pip install -e .                                      # Layer 0 (numpy only)
 python run_layer0.py --quick                          # fast smoke run -> results_quick/
 python run_layer0.py --config configs/layer0.yaml     # headline run, 20 seeds, 100k -> results/
 ./run_overnight.sh                                    # budget-scaling sweep, 2M calls -> results_scaling/
 PYTHONPATH=src python -m tests.test_core              # sanity checks
+PYTHONPATH=src python -m tests.test_objectives        # shared RL objectives (numeric)
+PYTHONPATH=src:. python -m tests.test_layer1          # Layer 1 LoRA ask/tell (no MLX)
+PYTHONPATH=src:. python -m tests.test_app_engine      # Streamlit engine (no Streamlit/MLX)
 ```
+
+Dependencies are declared in [`pyproject.toml`](pyproject.toml) as a tiny numpy
+core plus two optional extras (composable for what your machine supports):
+
+```bash
+pip install -e .                  # Layer 0: search + RL, runs anywhere
+pip install -e ".[app]"           # + the interactive Streamlit visualizer
+pip install -e ".[app,layer1]"    # + the LLM/LoRA arms (Apple Silicon only)
+```
+
+### Interactive visualizer
+
+```bash
+pip install -e ".[app]"
+streamlit run streamlit_app.py
+```
+
+Step the methods batch-by-batch on the same task and watch the dynamics the
+offline figures only summarize: best-so-far reward, the greedy **collapse** (batch
+diversity / policy entropy crashing toward 0), and whether the current best
+expression actually fits the data. The Layer 1 (LLM/LoRA) panel activates only on
+Apple Silicon (where `mlx-lm` imports) and otherwise shows a clear "not available
+here" note — everything else works on any platform. The stepping logic lives in
+[`app_engine.py`](app_engine.py) (no Streamlit import, so it is unit-tested
+separately); [`streamlit_app.py`](streamlit_app.py) is just the view.
 
 - Everything is seeded and configured from YAML (budget, seeds, all hyperparameters).
 - The scaling sweep is **crash-safe and resumable**: each run is checkpointed to disk
@@ -308,11 +363,14 @@ PYTHONPATH=src python -m tests.test_core              # sanity checks
 ## Repo layout
 
 ```
+pyproject.toml       deps: numpy core + optional [app] (streamlit) / [layer1] (mlx-lm)
 src/sia/
   expression.py      grammar, tree eval, complexity, prefix tokens, GP operators
   task.py            benchmark targets + data generation
   verifier.py        the fixed reward + success check + call counting
   policy.py          numpy vanilla-RNN token policy + manual BPTT (shared by RL arms)
+  objectives.py      shared reward->weight formulas (greedy/quantile/entropic), used
+                     by BOTH Layer 0 RL proposers and Layer 1 LoRA arms
   proposers/         random, gp, greedy, risk  (the pluggable part)
   runner.py          fair-budget ask/tell loop, multi-seed, resumable checkpointing
   metrics.py         best-so-far, success rate, diversity, scaling, cross-seed aggregation
@@ -320,10 +378,19 @@ src/sia/
 configs/
   layer0.yaml        headline run (single source of truth)
   scaling.yaml       budget-scaling sweep (2M calls)
+  layer1.yaml        Layer 1 LLM-evolution sweep
+  layer1_lora.yaml   Layer 1 three-arm sweep (evolution + greedy/risk LoRA)
 run_layer0.py        one command -> all figures + tables
-run_overnight.sh     crash-safe resumable launcher for the scaling sweep
-tests/test_core.py   grammar round-trips, exact-target reward, call counting
-layer1/              LLM-proposer design note + interface stub (NOT built in v1)
+run_layer1.py        Layer 1 entrypoint: evolution / greedy_lora / risk_lora arms
+run_overnight.sh     crash-safe resumable launcher for the sweeps
+app_engine.py        steppable engine behind the visualizer (no Streamlit/MLX import)
+streamlit_app.py     interactive visualizer (Layer 0 always; Layer 1 on Apple Silicon)
+tests/test_core.py        grammar round-trips, exact-target reward, call counting
+tests/test_objectives.py  numeric checks for the shared RL objectives (incl. CVaR)
+tests/test_layer1.py      LoRA proposer ask/tell/budget (fake model, no MLX)
+tests/test_app_engine.py  visualizer engine: build/step/record + plot data (no Streamlit)
+layer1/              LLM proposers: evolution (built) + greedy/risk LoRA (built;
+                     needs M4 verification). See layer1/README.md
 results/             headline figures + tables (committed); raw logs (gitignored)
 results_scaling/     scaling figures + tables (committed); raw logs (gitignored)
 ```
@@ -353,6 +420,12 @@ results_scaling/     scaling figures + tables (committed); raw logs (gitignored)
 
 - **Deep Symbolic Regression** — Petersen et al., ICLR 2021. Risk-seeking policy
   gradient for symbolic regression. [arXiv:1912.04871](https://arxiv.org/abs/1912.04871)
+- **Policy Gradients Beyond Expectations: Conditional Value-at-Risk** — Tamar,
+  Glassner & Mannor, 2014. The CVaR policy gradient as a conditional tail expectation
+  — the risk-averse objective DSR inverts. [arXiv:1404.3862](https://arxiv.org/abs/1404.3862)
+- **EPOpt: Learning Robust Neural Network Policies Using Model Ensembles** —
+  Rajeswaran et al., 2016 (ICLR 2017). CVaR over a model ensemble for robust (risk-
+  averse) policies. [arXiv:1610.01283](https://arxiv.org/abs/1610.01283)
 - **Regularized Evolution for Image Classifier Architecture Search** — Real et al.,
   AAAI 2019. Evolution competitive with / faster than RL on a verifiable reward.
   [arXiv:1802.01548](https://arxiv.org/abs/1802.01548)

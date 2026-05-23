@@ -1,0 +1,42 @@
+# Packaging for the self-improvement-arena sandbox.
+#
+# Layer 0 (the numpy search/RL core) is the only required install. Everything
+# heavier is an OPTIONAL extra, composed for what your machine supports:
+#
+#   pip install -e .              # Layer 0: search + RL, runs anywhere (numpy only)
+#   pip install -e ".[app]"       # + the Streamlit visualizer (Layer 0 stepping)
+#   pip install -e ".[app,layer1]"  # + LLM/LoRA arms, on Apple Silicon
+#
+# The Streamlit app drives BOTH layers; the Layer 1 controls light up only when
+# mlx-lm is importable and otherwise show a clear "needs Apple Silicon" note, so
+# `[app]` alone is fully functional off-Mac. `mlx-lm` carries a platform marker,
+# so `[layer1]` is a no-op (skipped, not an error) on non-Apple-Silicon machines.
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "self-improvement-arena"
+version = "0.1.0"
+description = "A fast non-LLM sandbox for studying evolution vs. RL search dynamics on symbolic regression, with an LLM/LoRA Layer 1."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# The interactive Streamlit visualizer (works for Layer 0 anywhere; gates Layer 1
+# on mlx availability at runtime).
+app = ["streamlit>=1.30"]
+# Layer 1 LLM proposer (evolution + LoRA arms). Apple Silicon / macOS only --
+# the marker makes this a no-op on other platforms instead of a hard failure.
+layer1 = ["mlx-lm>=0.31 ; platform_machine == 'arm64' and sys_platform == 'darwin'"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+# Only the numpy core (`sia`) is an installed package. `layer1/`, the run_*.py
+# entrypoints, the Streamlit app, and tests are repo scripts that self-bootstrap
+# sys.path (see each file's header), matching how the project already runs.
