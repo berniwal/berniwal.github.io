@@ -1,0 +1,27 @@
+# Layer 1 — LLM program-database evolution sweep. SERIAL (MLX/Metal; one model
+# saturates the GPU, so no --parallel). Budget = verifier calls = LLM generations.
+#
+#   ./run_overnight.sh layer1        # start (or resume) the sweep
+#
+# Models are the OUTER loop and loaded once each; the smaller/validated 3B runs
+# first, so even if the 7B is slow you still get complete 3B results.
+# Estimate: 2 models x 3 targets x 2 temps x 5 seeds = 60 runs x 512 gens
+#           ~= 30,700 generations x ~0.8s ~= 6-7 h.
+
+models:
+  - mlx-community/Qwen2.5-3B-Instruct-4bit
+  - mlx-community/Qwen2.5-7B-Instruct-4bit
+targets: [easy, medium, harder]
+temperatures: [0.7, 1.0]
+seeds: 5
+budget: 512          # LLM generations per run
+batch_size: 8
+max_tokens: 48
+n_data_shown: 12
+
+quick:               # --quick override: a fast harness smoke test
+  models: [mlx-community/Qwen2.5-3B-Instruct-4bit]
+  targets: [medium]
+  temperatures: [1.0]
+  seeds: 1
+  budget: 16

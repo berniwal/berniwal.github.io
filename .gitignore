@@ -27,5 +27,6 @@ __pycache__/
 *.pyc
 experiments/**/results/logs/
 experiments/**/results_scaling/logs/
+experiments/**/results_layer1/logs/
 experiments/**/results_quick/
 experiments/**/*.log

@@ -60,15 +60,35 @@ def run_method(method: str, proposer_name: str, target: str, budget: int, seed: 
     return log
 
 
+def _run_job(job: dict) -> RunLog:
+    """Run one (method, target, seed) and atomically checkpoint its log to disk.
+    Top-level so it is picklable for the process pool."""
+    lg = run_method(
+        method=job["method"], proposer_name=job["proposer_name"],
+        target=job["target"], budget=job["budget"], seed=job["seed"],
+        proposer_hp=job["hp"], n_points=job["n_points"], x_range=job["x_range"],
+        length_penalty=job["length_penalty"], eps_success=job["eps_success"],
+        log_every=job["log_every"],
+    )
+    if job["path"] is not None:  # atomic write -> a crash mid-write can't corrupt
+        path = Path(job["path"])
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(lg.to_dict()))
+        tmp.replace(path)
+    return lg
+
+
 def run_experiment(config: dict, log_dir=None, resume: bool = True,
                    verbose: bool = True, checkpoint_cb=None,
-                   checkpoint_every: int = 25) -> list[RunLog]:
-    """Run every (method, target, seed). Crash-safe and resumable:
+                   checkpoint_every: int = 25, workers: int = 1) -> list[RunLog]:
+    """Run every (method, target, seed). Crash-safe, resumable, optionally parallel:
 
     - each run's log is written to ``log_dir`` *immediately* on completion;
     - on resume, a run whose log file already exists is loaded and skipped;
     - a failing run is logged to stderr and skipped (so it is retried next resume),
-      never killing the batch.
+      never killing the batch;
+    - ``workers > 1`` runs the independent jobs across processes (results are
+      identical -- each run is seeded by its own seed, independent of scheduling).
 
     Rerunning the same command continues from where a crash left off.
     """
@@ -77,48 +97,67 @@ def run_experiment(config: dict, log_dir=None, resume: bool = True,
     log_dir = Path(log_dir) if log_dir is not None else None
     if log_dir is not None:
         log_dir.mkdir(parents=True, exist_ok=True)
-    t0 = time.time()
-    done = 0
+
+    # Build the job list, loading (and skipping) any already-completed runs.
+    jobs: list[dict] = []
     for target in config["targets"]:
         for method, mhp in config["methods"].items():
             hp = dict(mhp)
             proposer_name = hp.pop("proposer")
             for seed in range(config["seeds"]):
-                done += 1
                 path = (log_dir / f"{method}__{target}__seed{seed}.json"
                         if log_dir is not None else None)
                 if resume and path is not None and path.exists():
                     try:
                         logs.append(RunLog(**json.loads(path.read_text())))
-                        if verbose:
-                            _progress(done, total, t0, f"skip {method}/{target}/seed{seed}")
                         continue
                     except Exception:  # corrupt/partial file -> re-run it
                         pass
+                jobs.append(dict(
+                    method=method, proposer_name=proposer_name, target=target,
+                    seed=seed, hp=hp, path=(str(path) if path else None),
+                    budget=config["budget"], n_points=config["n_points"],
+                    x_range=config["x_range"], length_penalty=config["length_penalty"],
+                    eps_success=float(config["eps_success"]),
+                    log_every=config.get("log_every", 1),
+                ))
+
+    t0 = time.time()
+    done = len(logs)
+    if verbose and done:
+        _progress(done, total, t0, f"resumed {done} runs")
+
+    def _accept(lg: RunLog) -> None:
+        nonlocal done
+        done += 1
+        logs.append(lg)
+        if verbose:
+            _progress(done, total, t0, f"{lg.method}/{lg.target}/seed{lg.seed}")
+        if checkpoint_cb is not None and done % checkpoint_every == 0:
+            try:
+                checkpoint_cb(logs)  # regenerate figures so partial results are viewable
+            except Exception as e:
+                sys.stderr.write(f"\n[warn] checkpoint plot failed: {e!r}\n")
+
+    if workers and workers > 1 and jobs:
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(_run_job, j): j for j in jobs}
+            for fut in as_completed(futs):
+                j = futs[fut]
                 try:
-                    lg = run_method(
-                        method=method, proposer_name=proposer_name, target=target,
-                        budget=config["budget"], seed=seed, proposer_hp=hp,
-                        n_points=config["n_points"], x_range=config["x_range"],
-                        length_penalty=config["length_penalty"],
-                        eps_success=float(config["eps_success"]),
-                        log_every=config.get("log_every", 1),
-                    )
+                    _accept(fut.result())
                 except Exception as e:  # one bad run must not kill the batch
-                    sys.stderr.write(f"\n[ERROR] {method}/{target}/seed{seed}: {e!r}\n")
-                    continue
-                logs.append(lg)
-                if path is not None:  # atomic write so a crash mid-write can't corrupt
-                    tmp = path.with_suffix(".json.tmp")
-                    tmp.write_text(json.dumps(lg.to_dict()))
-                    tmp.replace(path)
-                if verbose:
-                    _progress(done, total, t0, f"{method}/{target}/seed{seed}")
-                if checkpoint_cb is not None and done % checkpoint_every == 0:
-                    try:
-                        checkpoint_cb(logs)  # regenerate figures so partial results are viewable
-                    except Exception as e:
-                        sys.stderr.write(f"\n[warn] checkpoint plot failed: {e!r}\n")
+                    sys.stderr.write(
+                        f"\n[ERROR] {j['method']}/{j['target']}/seed{j['seed']}: {e!r}\n")
+    else:
+        for j in jobs:
+            try:
+                _accept(_run_job(j))
+            except Exception as e:
+                sys.stderr.write(
+                    f"\n[ERROR] {j['method']}/{j['target']}/seed{j['seed']}: {e!r}\n")
+
     if verbose:
         sys.stderr.write("\n")
     return logs

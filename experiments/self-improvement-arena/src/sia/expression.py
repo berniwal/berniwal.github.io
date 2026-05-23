@@ -7,7 +7,9 @@ Expressions are trees of :class:`Node`. The same trees serialize to/from prefix
 """
 from __future__ import annotations
 
+import ast
 import copy
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -61,12 +63,17 @@ def leaf(op: str) -> Node:
 def evaluate(node: Node, x: np.ndarray) -> np.ndarray:
     """Vectorized evaluation. May return non-finite values (inf/NaN) for invalid
     expressions (div-by-zero, overflow); the verifier is responsible for checking
-    finiteness. Callers should wrap this in ``np.errstate(all="ignore")``."""
+    finiteness. Callers should wrap this in ``np.errstate(all="ignore")``.
+
+    Leaf ops are either the variable ``"x"`` or a numeric constant. Grammar
+    constants (``"1.0"`` etc.) and *arbitrary* numeric constants (e.g. ``"3.14"``
+    produced by an LLM in Layer 1) are both handled, so the SAME verifier scores
+    both Layer 0 trees and parsed LLM expressions."""
     op = node.op
-    if op == "x":
-        return x
-    if op in CONSTS:
-        return np.full_like(x, CONSTS[op], dtype=float)
+    if not node.children:  # leaf: variable or numeric constant
+        if op == "x":
+            return x
+        return np.full_like(x, float(op), dtype=float)
     if op == "+":
         return evaluate(node.children[0], x) + evaluate(node.children[1], x)
     if op == "-":
@@ -88,14 +95,14 @@ def complexity(node: Node) -> int:
 
 
 def to_infix(node: Node) -> str:
-    """Human-readable string (for logs / the results table)."""
-    op = node.op
-    if ARITY[op] == 0:
-        return op
-    if op in UNARY:
-        return f"{op}({to_infix(node.children[0])})"
+    """Human-readable string (for logs / the results table). Children-based so it
+    also handles arbitrary numeric constants from Layer 1 (not in ARITY)."""
+    if not node.children:
+        return node.op
+    if len(node.children) == 1:
+        return f"{node.op}({to_infix(node.children[0])})"
     a, b = node.children
-    return f"({to_infix(a)} {op} {to_infix(b)})"
+    return f"({to_infix(a)} {node.op} {to_infix(b)})"
 
 
 # --- Prefix (Polish) serialization ------------------------------------------
@@ -165,3 +172,94 @@ def crossover_subtree(a: Node, b: Node, rng: np.random.Generator) -> Node:
     source = _all_nodes(donor)[rng.integers(len(_all_nodes(donor)))]
     target.op, target.children = source.op, source.children
     return out
+
+
+# --- Parsing free-form infix expressions (Layer 1: LLM text -> Node) ---------
+# An LLM emits expressions as text ("x*x + sin(x)"). We parse them into the SAME
+# Node representation Layer 0 uses, so the SAME verifier scores them. Anything
+# outside the grammar (unknown functions, non-integer powers, ...) returns None
+# -> the verifier treats it as an invalid candidate (reward 0).
+_AST_BINOP = {ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/"}
+_AST_FUNCS = {"sin", "cos"}
+_NAMED_CONSTS = {"pi": math.pi, "e": math.e}
+_MAX_POW = 6  # x**n is expanded to repeated multiplication for 1 <= n <= _MAX_POW
+
+
+def _from_ast(node: ast.AST) -> Node | None:
+    if isinstance(node, ast.Expression):
+        return _from_ast(node.body)
+    if isinstance(node, ast.BinOp):
+        opt = type(node.op)
+        if opt in _AST_BINOP:
+            lhs, rhs = _from_ast(node.left), _from_ast(node.right)
+            return None if lhs is None or rhs is None else Node(_AST_BINOP[opt], [lhs, rhs])
+        if opt is ast.Pow:  # x**n -> x*x*...*x  (small integer n only)
+            base, exp = _from_ast(node.left), node.right
+            if base is None or not isinstance(exp, ast.Constant):
+                return None
+            v = exp.value
+            if isinstance(v, (int, float)) and float(v).is_integer() and 1 <= int(v) <= _MAX_POW:
+                out = copy.deepcopy(base)
+                for _ in range(int(v) - 1):
+                    out = Node("*", [out, copy.deepcopy(base)])
+                return out
+            return None
+        return None
+    if isinstance(node, ast.UnaryOp):
+        if isinstance(node.op, ast.UAdd):
+            return _from_ast(node.operand)
+        if isinstance(node.op, ast.USub):
+            v = _from_ast(node.operand)
+            return None if v is None else Node("-", [leaf("0.0"), v])
+        return None
+    if isinstance(node, ast.Call):
+        if (isinstance(node.func, ast.Name) and node.func.id in _AST_FUNCS
+                and len(node.args) == 1 and not node.keywords):
+            a = _from_ast(node.args[0])
+            return None if a is None else Node(node.func.id, [a])
+        return None
+    if isinstance(node, ast.Name):
+        if node.id == "x":
+            return leaf("x")
+        if node.id in _NAMED_CONSTS:
+            return leaf(repr(float(_NAMED_CONSTS[node.id])))
+        return None
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+            return leaf(repr(float(node.value)))
+        return None
+    return None
+
+
+def _candidate_strings(text: str):
+    """Yield cleaned expression candidates from an LLM reply, in priority order:
+    each line (and the whole text), plus the part after a trailing ``=``/``:``,
+    so prose like 'The expression is: x*x' or 'y = x*x' is handled."""
+    s = text.replace("```python", " ").replace("```", " ")
+    seen = set()
+    for line in s.splitlines() + [s]:
+        pieces = [line]
+        if "=" in line:
+            pieces.append(line.split("=")[-1])
+        if ":" in line:
+            pieces.append(line.split(":")[-1])
+        for p in pieces:
+            c = p.replace("^", "**").strip().rstrip(".,;: ").strip()
+            if c and c not in seen:
+                seen.add(c)
+                yield c
+
+
+def parse_expression(text: str) -> Node | None:
+    """Parse an LLM's free-form reply into a Node, or None if no candidate is a
+    valid in-grammar expression. Tries each line/segment and returns the first
+    that parses (so leading prose is tolerated)."""
+    for cand in _candidate_strings(text):
+        try:
+            tree = ast.parse(cand, mode="eval")
+        except (SyntaxError, ValueError):
+            continue
+        node = _from_ast(tree)
+        if node is not None:
+            return node
+    return None

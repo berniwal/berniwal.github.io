@@ -1,10 +1,33 @@
-# Layer 1 — LLM proposer (design only; not built in v1)
+# Layer 1 — LLM proposer
 
 Layer 1 swaps the *proposer* for a language model while keeping **everything else
 identical**: the same `Task` (data + grammar), the same `Verifier` (reward =
 `1/(1+MSE)` − penalties), the same `Proposer.ask()/tell()` contract, and the same
-`runner`/metrics/plots. That is the whole reason Layer 0 was built behind clean
-seams — Layer 1 should be a drop-in `LLMProposer`.
+metrics. That is the whole reason Layer 0 was built behind clean seams.
+
+## Status
+
+- **Arm 1 — program-database evolution: IMPLEMENTED.**
+  [`llm_evolution.py`](llm_evolution.py) + [`../run_layer1.py`](../run_layer1.py).
+  Runs an MLX model (default `Qwen2.5-3B-Instruct-4bit`) as the proposer; the LLM's
+  free-form output is parsed into the SAME `Node` representation
+  (`sia.expression.parse_expression`) and scored by the SAME `Verifier`.
+- **Arms 2 & 3 — greedy / risk-seeking LoRA: still stubs** ([`proposer_llm_stub.py`](proposer_llm_stub.py)).
+
+```bash
+pip install -r ../requirements-layer1.txt   # mlx-lm (Apple Silicon only)
+python ../run_layer1.py --target medium --budget 64 --batch-size 8 --temperature 1.0
+```
+
+**Preliminary observation (smoke runs, 1 seed, Qwen2.5-3B-4bit, budget ≤ 64):** the
+LLM evolution arm does *not* solve `medium` (`x²+sin(x)`) — unlike Layer 0, where
+random/GP/risk all eventually do. With a generic prompt the 3B collapses onto a
+linear `x+1`; nudged toward nonlinear terms it explores *products* like
+`x*x*sin(x)` but not the *sum* `x²+sin(x)`. This is consistent with the transfer
+question below (a target far from the model's prior is hard to reach) — but it is a
+1-seed smoke, not a result. Real evaluation needs: more budget, multiple seeds,
+bigger models (7B is cached), and prompt iteration, then a head-to-head of the three
+arms on the same budget.
 
 ## The seam
 

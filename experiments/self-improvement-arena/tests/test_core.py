@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from sia.expression import (GRAMMAR, evaluate, from_prefix, random_tree,
-                            to_prefix)
+from sia.expression import (GRAMMAR, Node, complexity, evaluate, from_prefix,
+                            leaf, parse_expression, random_tree, to_prefix)
 from sia.task import TARGET_EXPRS, make_task
 from sia.verifier import Verifier
 
@@ -42,6 +42,40 @@ def test_targets_match_numpy_fns():
         task = make_task(name, seed=1)
         y = evaluate(TARGET_EXPRS[name], task.x_train)
         assert np.allclose(y, task.y_train, atol=1e-9), name
+
+
+def test_arbitrary_constant_eval():
+    # constants outside the grammar set must still evaluate (Layer 1 LLM output)
+    x = np.linspace(-2, 2, 7)
+    node = Node("+", [Node("*", [leaf("3.0"), leaf("x")]), leaf("0.25")])
+    assert np.allclose(evaluate(node, x), 3.0 * x + 0.25)
+
+
+def test_parse_expression_matches_eval():
+    x = np.linspace(-3, 3, 11)
+    cases = {
+        "x*x + sin(x)": x * x + np.sin(x),
+        "x**2 + sin(x)": x * x + np.sin(x),       # power expansion
+        "3*x + 0.5": 3 * x + 0.5,                  # arbitrary constants
+        "cos(2*x) - x": np.cos(2 * x) - x,
+        "-x + 1": -x + 1,                          # unary minus
+    }
+    for text, expected in cases.items():
+        node = parse_expression(text)
+        assert node is not None, text
+        assert np.allclose(evaluate(node, x), expected), text
+
+
+def test_parse_expression_rejects_out_of_grammar():
+    for bad in ["sqrt(x)", "x**2.5", "exp(x)", "x +", "tan(x)", "import os"]:
+        assert parse_expression(bad) is None, bad
+
+
+def test_parse_expression_strips_prose():
+    node = parse_expression("Sure! The expression is:\n```\ny = x*x + sin(x)\n```")
+    assert node is not None
+    x = np.linspace(-2, 2, 5)
+    assert np.allclose(evaluate(node, x), x * x + np.sin(x))
 
 
 def test_verifier_counts_calls():

@@ -181,6 +181,85 @@ def _fmt_calls(n: int) -> str:
     return str(n)
 
 
+def make_layer1(logs, out_dir: Path) -> str:
+    """Layer-1 figures + table. Methods are arbitrary (model+temperature), so colors
+    are auto-assigned rather than taken from the Layer-0 STYLE map."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    g = defaultdict(list)
+    for lg in logs:
+        g[(lg.target, lg.method)].append(lg)
+    methods = sorted({lg.method for lg in logs})
+    targets, seen = [], set()
+    for t in ("easy", "medium", "harder"):
+        if any(lg.target == t for lg in logs):
+            targets.append(t)
+            seen.add(t)
+    for lg in logs:  # any non-standard targets, in encounter order
+        if lg.target not in seen:
+            targets.append(lg.target)
+            seen.add(lg.target)
+    cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    color = {m: cycle[i % len(cycle)] for i, m in enumerate(methods)}
+    budget = max(lg.budget for lg in logs)
+    grid = np.linspace(1, budget, 80)
+
+    # best-so-far reward vs. generations
+    fig, axes = plt.subplots(1, len(targets), figsize=(5.2 * len(targets), 4.2),
+                             squeeze=False)
+    for ax, t in zip(axes[0], targets):
+        for m in methods:
+            runs = g.get((t, m))
+            if not runs:
+                continue
+            mean, std = aggregate(runs, grid, best_curve)
+            ax.plot(grid, mean, color=color[m], label=m, lw=2)
+            ax.fill_between(grid, mean - std, mean + std, color=color[m], alpha=0.15)
+        ax.set_title(t)
+        ax.set_xlabel("verifier calls (LLM generations)")
+        ax.set_ylabel("best-so-far reward")
+        ax.grid(alpha=0.3)
+    axes[0][0].legend(fontsize=8, loc="lower right")
+    fig.suptitle("Layer 1 — LLM evolution: best reward vs. generations")
+    fig.tight_layout()
+    fig.savefig(out_dir / "curves.png", dpi=130)
+    plt.close(fig)
+
+    # final best-reward bars per method per target
+    x = np.arange(len(targets))
+    w = 0.8 / max(len(methods), 1)
+    fig, ax = plt.subplots(figsize=(2.4 * len(targets) + 3, 4.2))
+    for i, m in enumerate(methods):
+        vals = [float(np.mean([lg.best_reward[-1] for lg in g.get((t, m), [])]))
+                if g.get((t, m)) else 0.0 for t in targets]
+        ax.bar(x + i * w, vals, w, color=color[m], label=m)
+    ax.set_xticks(x + 0.4 - w / 2)
+    ax.set_xticklabels(targets)
+    ax.set_ylabel("mean final best reward")
+    ax.set_title("Layer 1 — final best reward")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.3, axis="y")
+    fig.tight_layout()
+    fig.savefig(out_dir / "summary.png", dpi=130)
+    plt.close(fig)
+
+    # table
+    lines = ["| target | arm | success rate | mean best reward | mean valid frac |",
+             "|---|---|---|---|---|"]
+    for t in targets:
+        for m in methods:
+            runs = g.get((t, m), [])
+            if not runs:
+                continue
+            sr = success_rate(runs)
+            mb = float(np.mean([lg.best_reward[-1] for lg in runs]))
+            # Layer 1 stores per-batch valid fraction in the policy_entropy field
+            vf = float(np.mean([np.nanmean(lg.policy_entropy) for lg in runs]))
+            lines.append(f"| {t} | {m} | {sr:.2f} | {mb:.4f} | {vf:.2f} |")
+    text = "\n".join(lines) + "\n"
+    (out_dir / "table.md").write_text(text)
+    return text
+
+
 def make_all(logs, out_dir: Path) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     plot_curves(logs, out_dir / "curves.png", kind="reward")
