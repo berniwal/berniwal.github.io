@@ -52,7 +52,14 @@ methods:
     lr: 0.01
     ent_coef: 0.01
     mode: entropic     # entropic J_beta (Jiang et al. 2025 / TTT-Discover)
-    beta: 2.0          # scale-invariant: effective beta = beta / std(reward)
+    # How the temperature beta is chosen each batch:
+    #   beta_rule: fixed  -> constant tilt; effective beta = beta / std(reward)   (Jiang 2025)
+    #   beta_rule: ess    -> target effective sample size (target_ess as fraction of batch)
+    #   beta_rule: kl     -> target KL of the induced tilt (target_kl nats; TTT-Discover-style)
+    beta_rule: fixed
+    beta: 2.0
+    # target_ess: 0.3
+    # target_kl: 1.0
 
 # Overrides applied when --quick is passed.
 quick:

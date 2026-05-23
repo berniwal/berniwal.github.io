@@ -58,6 +58,7 @@ methods:
     lr: 0.01
     ent_coef: 0.01
     mode: entropic
+    beta_rule: fixed   # fixed | ess | kl  (see configs/layer0.yaml for the options)
     beta: 2.0
 
 quick:

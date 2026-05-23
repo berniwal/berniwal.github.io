@@ -25,7 +25,7 @@ with no modification, and the Layer 0 figures/table regenerate for Layer 1.
 
 | Layer 0 arm | Layer 1 arm | Mechanism |
 |---|---|---|
-| Evolution (GP) | Program-database evolution | AlphaEvolve / ThetaEvolve style: keep an archive of high-reward expressions, feed the best back into the prompt as inspiration. No weight updates. |
+| Evolution (GP) | Program-database evolution | [AlphaEvolve](https://arxiv.org/abs/2506.13131) / [ThetaEvolve](https://arxiv.org/abs/2511.23473) style: keep an archive of high-reward expressions, feed the best back into the prompt as inspiration. No weight updates. |
 | Greedy RL (`E[R]`) | Greedy LoRA | Fine-tune a LoRA adapter on high-reward outputs (SFT / expected-reward policy gradient). |
 | Risk-seeking / entropic RL | Risk-seeking LoRA | LoRA step on the top-ε outputs (DSR) or the `e^{βR}`-weighted outputs (entropic). Reuse Layer 0's `rl_risk` weighting verbatim. |
 
