@@ -113,7 +113,7 @@ is kept only as a pointer to the real implementations
 |---|---|---|
 | Evolution (GP) | Program-database evolution ([`llm_evolution.py`](llm_evolution.py)) | [AlphaEvolve](https://arxiv.org/abs/2506.13131) / [ThetaEvolve](https://arxiv.org/abs/2511.23473) style: keep an archive of high-reward expressions, feed the best back into the prompt as inspiration. No weight updates. |
 | Greedy RL (`E[R]`) | Greedy LoRA ([`lora_proposer.py`](lora_proposer.py)) | One LoRA gradient step per batch with `w_i = R_i − mean(R)` (`objectives.greedy_weights`). Expected-reward policy gradient / weighted SFT. |
-| Risk-seeking / entropic RL | Risk-seeking LoRA ([`lora_proposer.py`](lora_proposer.py)) | Same LoRA step but `w_i` from the top-ε quantile (DSR, `objectives.quantile_weights`) or the `e^{βR}`-tilt (`objectives.entropic_weights`). The weighting is the SAME source of truth as Layer 0's `rl_risk`. |
+| Risk-seeking / entropic RL | Risk-seeking LoRA ([`lora_proposer.py`](lora_proposer.py)) | Same LoRA step but `w_i` from the top-ε quantile (DSR, `objectives.quantile_weights`), the `e^{βR}`-tilt (`objectives.entropic_weights`), or — via `mode: cvar` — the risk-averse lower-tail mirror (`objectives.cvar_weights`). The weighting is the SAME source of truth as Layer 0's `rl_risk`. |
 
 The greedy and risk LoRA arms differ in **exactly one** function — `_weights` —
 which dispatches into `sia/objectives.py`. Everything else (prompt, sampling, the

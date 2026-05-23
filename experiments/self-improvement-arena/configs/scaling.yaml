@@ -41,6 +41,15 @@ methods:
     max_length: 24
     lr: 0.01
     ent_coef: 0.01
+  cvar:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: cvar         # risk-averse mirror of DSR (Tamar 2014 / EPOpt 2016)
+    epsilon: 0.1
   risk:
     proposer: risk
     batch_size: 200

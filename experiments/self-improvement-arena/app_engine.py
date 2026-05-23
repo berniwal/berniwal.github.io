@@ -44,6 +44,8 @@ LAYER0_PRESETS: dict[str, dict] = {
     "gp": dict(proposer="gp", hp=dict(tournament_size=5, crossover_rate=0.6,
                                       mutation_rate=0.3, immigrant_rate=0.1,
                                       max_depth=4, max_complexity=30)),
+    "cvar": dict(proposer="risk", hp=dict(hidden=32, max_length=24, lr=0.01,
+                                          ent_coef=0.01, mode="cvar", epsilon=0.1)),
     "greedy": dict(proposer="greedy", hp=dict(hidden=32, max_length=24, lr=0.01,
                                               ent_coef=0.01)),
     "risk": dict(proposer="risk", hp=dict(hidden=32, max_length=24, lr=0.01,

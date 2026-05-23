@@ -43,7 +43,8 @@ from __future__ import annotations
 import numpy as np
 
 from sia.expression import Node, leaf, parse_expression
-from sia.objectives import entropic_weights, greedy_weights, quantile_weights
+from sia.objectives import (cvar_weights, entropic_weights, greedy_weights,
+                            quantile_weights)
 from sia.proposers.base import Proposer
 from sia.verifier import Result
 
@@ -88,8 +89,8 @@ class LoRAProposer(Proposer):
         super().__init__(task, rng, **hp)
         if arm not in ("greedy", "risk"):
             raise ValueError(f"arm must be 'greedy' or 'risk', got {arm!r}")
-        if mode not in ("quantile", "entropic"):
-            raise ValueError(f"mode must be 'quantile' or 'entropic', got {mode!r}")
+        if mode not in ("quantile", "entropic", "cvar"):
+            raise ValueError(f"mode must be quantile/entropic/cvar, got {mode!r}")
         if beta_rule not in ("fixed", "ess", "kl"):
             raise ValueError(f"beta_rule must be fixed/ess/kl, got {beta_rule!r}")
         self.model = model
@@ -169,6 +170,8 @@ class LoRAProposer(Proposer):
             return greedy_weights(R)
         if self.mode == "quantile":
             return quantile_weights(R, self.epsilon)
+        if self.mode == "cvar":  # risk-averse lower-tail mirror of quantile
+            return cvar_weights(R, self.epsilon)
         w, self._last_beta = entropic_weights(R, self.beta_rule, self.beta,
                                               self.target_ess, self.target_kl)
         return w

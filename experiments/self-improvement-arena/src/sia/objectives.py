@@ -1,11 +1,20 @@
-"""The three RL objectives, as pure reward -> per-sample weight functions.
+"""The RL objectives, as pure reward -> per-sample weight functions.
 
 A policy-gradient / weighted-SFT update is ALWAYS
 
     maximize   sum_i  w_i * sum_t log pi(token_t^i)        (+ optional entropy bonus)
 
-and the three arms differ ONLY in how the scalar rewards ``R`` become the
-per-sample weight vector ``w``. Those formulas live here, once, so that BOTH
+and the arms differ ONLY in how the scalar rewards ``R`` become the per-sample
+weight vector ``w`` -- a whole risk spectrum from one gradient:
+
+    cvar_weights      risk-AVERSE : lift the worst eps-tail        (Tamar 2014; EPOpt 2016)
+    greedy_weights    neutral     : E[R], the mean-baselined sample
+    entropic_weights  soft seeking: e^{beta R} tilt               (Jiang 2025 / TTT-Discover)
+    quantile_weights  risk-SEEKING: chase the best (1-eps)-tail   (DSR, Petersen 2021)
+
+The two tails (cvar vs. quantile) are exact mirrors: same conditional-tail-
+expectation gradient, opposite tail and opposite intent. Those formulas live here,
+once, so that BOTH
 
   * Layer 0 (numpy RNN policy: ``proposers/rl_greedy.py``, ``proposers/rl_risk.py``)
   * Layer 1 (LLM + LoRA: ``layer1/lora_proposer.py``)
@@ -43,10 +52,37 @@ def quantile_weights(R: np.ndarray, eps: float = 0.1) -> np.ndarray:
     ``R_i - q``, where ``q`` is the ``(1 - eps)`` reward quantile; everything
     below ``q`` gets weight 0. The quantile *is* the baseline. This reinforces a
     diverse *set* of good expressions instead of one mode, so it resists collapse.
+
+    DSR obtains this by *inverting* the risk-averse CVaR policy gradient
+    (``cvar_weights`` below) from the lower tail to the upper tail -- same
+    conditional-tail-expectation machinery, opposite tail and opposite intent.
     """
     R = np.asarray(R, dtype=float)
     q = np.quantile(R, 1.0 - eps)
     return np.where(R >= q, R - q, 0.0)  # train only on the top tail
+
+
+def cvar_weights(R: np.ndarray, eps: float = 0.1) -> np.ndarray:
+    """Risk-AVERSE CVaR policy gradient -- the exact MIRROR of ``quantile_weights``.
+
+    Conditional Value-at-Risk optimizes the *worst* eps-tail: keep only the bottom
+    ``eps`` of the batch and weight each by ``R_i - q``, where ``q`` is now the
+    ``eps`` quantile (the lower-tail VaR). The kept weights are ``<= 0``, so
+    REINFORCE pushes probability *away* from the catastrophic tail -- it lifts the
+    worst case rather than chasing the best.
+
+    This is the classic risk-averse objective of the CVaR policy-gradient line
+    (Tamar, Glassner & Mannor 2014, "Policy Gradients Beyond Expectations: CVaR";
+    Rajeswaran et al. 2016, EPOpt, which applies it across a model ensemble for
+    robustness). DSR's risk-seeking ``quantile_weights`` is literally this gradient
+    inverted to the upper tail. For *discovery* -- where you want the single exact
+    hit, not a safe floor -- this is the deliberately "wrong direction" baseline
+    that anchors the risk-averse end of the spectrum (cvar -> greedy E[R] ->
+    entropic J_beta -> risk-seeking quantile).
+    """
+    R = np.asarray(R, dtype=float)
+    q = np.quantile(R, eps)
+    return np.where(R <= q, R - q, 0.0)  # train only on the worst tail (weights <= 0)
 
 
 def _bisect_beta(Rs: np.ndarray, stat, target: float, increasing: bool) -> float:

@@ -43,8 +43,9 @@ risk_lora:
   lora_scale: 20.0
   lora_dropout: 0.0
   lr: 1.0e-4
-  mode: quantile       # DSR risk-seeking (top-epsilon); or mode: entropic + beta_rule
-  epsilon: 0.25        # train on the top 25% of each batch (batch is small here)
+  mode: quantile       # DSR risk-seeking (top-epsilon). Also available:
+  epsilon: 0.25        #   mode: cvar      -> risk-AVERSE lower-tail mirror (Tamar 2014)
+  #                        mode: entropic  -> soft tilt (set beta + beta_rule below)
   # mode: entropic
   # beta: 2.0
   # beta_rule: fixed   # fixed | ess | kl  (see configs/layer0.yaml / sia/objectives.py)

@@ -18,9 +18,10 @@ from .metrics import (RunLog, aggregate, best_curve, best_reward_at,  # noqa: E4
 STYLE = {
     "random": ("#9e9e9e", "Random search"),
     "gp": ("#1b9e77", "Evolution (GP)"),
+    "cvar": ("#e6ab02", "Risk-averse CVaR"),
     "greedy": ("#d95f02", "Greedy RL"),
-    "risk": ("#7570b3", "Risk-seeking RL (DSR)"),
     "risk_entropic": ("#e7298a", "Entropic RL (J_beta)"),
+    "risk": ("#7570b3", "Risk-seeking RL (DSR)"),
 }
 
 

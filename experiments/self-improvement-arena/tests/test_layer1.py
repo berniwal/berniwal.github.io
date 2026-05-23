@@ -21,7 +21,7 @@ for p in (str(ROOT / "src"), str(ROOT)):
         sys.path.insert(0, p)
 
 from layer1.lora_proposer import INVALID, LoRAProposer  # noqa: E402
-from sia.objectives import greedy_weights, quantile_weights  # noqa: E402
+from sia.objectives import cvar_weights, greedy_weights, quantile_weights  # noqa: E402
 from sia.task import make_task  # noqa: E402
 from sia.verifier import Result, Verifier  # noqa: E402
 
@@ -117,6 +117,16 @@ def test_tell_risk_quantile_uses_quantile_weights():
     p.tell([None] * 4, _results(R))
     _, _, w = p.recorded[0]
     assert np.allclose(w, quantile_weights(np.array(R), 0.5))
+
+
+def test_tell_risk_cvar_uses_cvar_weights():
+    p = _make(["x", "x*x", "sin(x)", "x + 1"], arm="risk", mode="cvar", epsilon=0.5)
+    p.ask()
+    R = [0.1, 0.4, 0.2, 0.9]
+    p.tell([None] * 4, _results(R))
+    _, _, w = p.recorded[0]
+    assert np.allclose(w, cvar_weights(np.array(R), 0.5))
+    assert (w <= 1e-12).all()                  # risk-averse weights are non-positive
 
 
 def test_tell_risk_entropic_records_beta():

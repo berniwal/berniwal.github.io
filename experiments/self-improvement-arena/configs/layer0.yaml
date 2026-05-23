@@ -35,6 +35,16 @@ methods:
     max_length: 24
     lr: 0.01
     ent_coef: 0.01
+  cvar:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: cvar         # risk-AVERSE CVaR (Tamar et al. 2014 / EPOpt 2016): the
+    epsilon: 0.1       # mirror of DSR -- trains on the WORST 10%. Expected to be
+                       # the worst arm for discovery; it anchors the risk-averse end.
   risk:
     proposer: risk
     batch_size: 200

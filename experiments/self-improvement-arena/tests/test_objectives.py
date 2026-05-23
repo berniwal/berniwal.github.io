@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from sia.objectives import (entropic_beta, entropic_weights, greedy_weights,
-                            quantile_weights)
+from sia.objectives import (cvar_weights, entropic_beta, entropic_weights,
+                            greedy_weights, quantile_weights)
 
 
 def test_greedy_is_mean_baselined():
@@ -37,6 +37,30 @@ def test_quantile_weight_is_reward_minus_cutoff():
     q = np.quantile(R, 1 - eps)
     w = quantile_weights(R, eps)
     assert np.allclose(w, np.where(R >= q, R - q, 0.0))
+
+
+def test_cvar_keeps_only_bottom_tail():
+    R = np.arange(10, dtype=float)              # 0..9
+    w = cvar_weights(R, eps=0.2)                # keep bottom 20% -> the two smallest
+    # q = 20th percentile of 0..9 = 1.8; samples <= 1.8 are 0 and 1
+    assert (w[2:] == 0.0).all()                 # everything above the cutoff is dropped
+    assert (w[:2] < 0.0).all()                  # kept weights are negative (push down)
+    assert np.isclose(w[0], 0.0 - np.quantile(R, 0.2))
+
+
+def test_cvar_is_exact_mirror_of_quantile():
+    # cvar(R) == -quantile(-R): same conditional-tail-expectation gradient, flipped.
+    rng = np.random.default_rng(3)
+    for _ in range(200):
+        R = rng.random(40)
+        assert np.allclose(cvar_weights(R, 0.1), -quantile_weights(-R, 0.1))
+
+
+def test_cvar_weights_are_nonpositive():
+    rng = np.random.default_rng(4)
+    for _ in range(100):
+        R = rng.random(30)
+        assert (cvar_weights(R, 0.25) <= 1e-12).all()
 
 
 def test_entropic_centered_and_scaled():
@@ -109,6 +133,8 @@ def test_layer0_proposers_use_shared_objectives():
     rq = RLRisk(task, rng, mode="quantile", epsilon=0.1)
     assert np.allclose(rq._weights(np.array([r.reward for r in results])),
                        quantile_weights(R, 0.1))
+    rc = RLRisk(task, rng, mode="cvar", epsilon=0.1)
+    assert np.allclose(rc._weights(R), cvar_weights(R, 0.1))
     re = RLRisk(task, rng, mode="entropic", beta_rule="fixed", beta=2.0)
     w_expected, _ = entropic_weights(R, "fixed", 2.0)
     assert np.allclose(re._weights(R), w_expected)
