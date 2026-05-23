@@ -25,7 +25,7 @@ metrics. That is the whole reason Layer 0 was built behind clean seams.
   See **On-device verification** below for the M4 smoke test the human must run.
 
 ```bash
-pip install -r ../requirements-layer1.txt   # mlx-lm (Apple Silicon only)
+pip install -e ".[layer1]"   # from the project root; mlx-lm (Apple Silicon only)
 # arm 1 (evolution):
 python ../run_layer1.py --arm evolution   --target medium --budget 64 --batch-size 8
 # arms 2 & 3 (LoRA):
@@ -40,7 +40,7 @@ The LoRA path touches MLX, which cannot run on this Linux dev box, so it is
 the expected behavior before trusting the results:
 
 ```bash
-pip install -r ../requirements-layer1.txt        # mlx-lm >= 0.31
+pip install -e ".[layer1]"                        # from the project root; mlx-lm >= 0.31
 # 1) sanity: the portable parts pass anywhere (no MLX needed)
 PYTHONPATH=../src        python -m tests.test_objectives
 PYTHONPATH=../src:..     python -m tests.test_layer1

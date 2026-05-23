@@ -1,5 +1,0 @@
-# Layer 1 (LLM proposer) extra dependencies — Apple Silicon / macOS only.
-# Layer 0 needs none of this; install only to run run_layer1.py.
-# mlx-lm pulls in mlx and bundles the LoRA tuner (mlx_lm.tuner) used by the
-# greedy/risk LoRA arms — no separate LoRA package is required.
-mlx-lm>=0.31

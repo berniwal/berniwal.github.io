@@ -295,14 +295,40 @@ tilt.
 ## How to run
 
 ```bash
-pip install -r requirements.txt
+pip install -e .                                      # Layer 0 (numpy only)
 python run_layer0.py --quick                          # fast smoke run -> results_quick/
 python run_layer0.py --config configs/layer0.yaml     # headline run, 20 seeds, 100k -> results/
 ./run_overnight.sh                                    # budget-scaling sweep, 2M calls -> results_scaling/
 PYTHONPATH=src python -m tests.test_core              # sanity checks
 PYTHONPATH=src python -m tests.test_objectives        # shared RL objectives (numeric)
 PYTHONPATH=src:. python -m tests.test_layer1          # Layer 1 LoRA ask/tell (no MLX)
+PYTHONPATH=src:. python -m tests.test_app_engine      # Streamlit engine (no Streamlit/MLX)
 ```
+
+Dependencies are declared in [`pyproject.toml`](pyproject.toml) as a tiny numpy
+core plus two optional extras (composable for what your machine supports):
+
+```bash
+pip install -e .                  # Layer 0: search + RL, runs anywhere
+pip install -e ".[app]"           # + the interactive Streamlit visualizer
+pip install -e ".[app,layer1]"    # + the LLM/LoRA arms (Apple Silicon only)
+```
+
+### Interactive visualizer
+
+```bash
+pip install -e ".[app]"
+streamlit run streamlit_app.py
+```
+
+Step the methods batch-by-batch on the same task and watch the dynamics the
+offline figures only summarize: best-so-far reward, the greedy **collapse** (batch
+diversity / policy entropy crashing toward 0), and whether the current best
+expression actually fits the data. The Layer 1 (LLM/LoRA) panel activates only on
+Apple Silicon (where `mlx-lm` imports) and otherwise shows a clear "not available
+here" note — everything else works on any platform. The stepping logic lives in
+[`app_engine.py`](app_engine.py) (no Streamlit import, so it is unit-tested
+separately); [`streamlit_app.py`](streamlit_app.py) is just the view.
 
 - Everything is seeded and configured from YAML (budget, seeds, all hyperparameters).
 - The scaling sweep is **crash-safe and resumable**: each run is checkpointed to disk
@@ -315,11 +341,14 @@ PYTHONPATH=src:. python -m tests.test_layer1          # Layer 1 LoRA ask/tell (n
 ## Repo layout
 
 ```
+pyproject.toml       deps: numpy core + optional [app] (streamlit) / [layer1] (mlx-lm)
 src/sia/
   expression.py      grammar, tree eval, complexity, prefix tokens, GP operators
   task.py            benchmark targets + data generation
   verifier.py        the fixed reward + success check + call counting
   policy.py          numpy vanilla-RNN token policy + manual BPTT (shared by RL arms)
+  objectives.py      shared reward->weight formulas (greedy/quantile/entropic), used
+                     by BOTH Layer 0 RL proposers and Layer 1 LoRA arms
   proposers/         random, gp, greedy, risk  (the pluggable part)
   runner.py          fair-budget ask/tell loop, multi-seed, resumable checkpointing
   metrics.py         best-so-far, success rate, diversity, scaling, cross-seed aggregation
@@ -327,13 +356,17 @@ src/sia/
 configs/
   layer0.yaml        headline run (single source of truth)
   scaling.yaml       budget-scaling sweep (2M calls)
+  layer1.yaml        Layer 1 LLM-evolution sweep
+  layer1_lora.yaml   Layer 1 three-arm sweep (evolution + greedy/risk LoRA)
 run_layer0.py        one command -> all figures + tables
-run_overnight.sh     crash-safe resumable launcher for the scaling sweep
-  objectives.py      shared reward->weight formulas (greedy/quantile/entropic), used
-                     by BOTH Layer 0 RL proposers and Layer 1 LoRA arms
-tests/test_core.py   grammar round-trips, exact-target reward, call counting
+run_layer1.py        Layer 1 entrypoint: evolution / greedy_lora / risk_lora arms
+run_overnight.sh     crash-safe resumable launcher for the sweeps
+app_engine.py        steppable engine behind the visualizer (no Streamlit/MLX import)
+streamlit_app.py     interactive visualizer (Layer 0 always; Layer 1 on Apple Silicon)
+tests/test_core.py        grammar round-trips, exact-target reward, call counting
 tests/test_objectives.py  numeric checks for the three shared RL objectives
 tests/test_layer1.py      LoRA proposer ask/tell/budget (fake model, no MLX)
+tests/test_app_engine.py  visualizer engine: build/step/record + plot data (no Streamlit)
 layer1/              LLM proposers: evolution (built) + greedy/risk LoRA (built;
                      needs M4 verification). See layer1/README.md
 results/             headline figures + tables (committed); raw logs (gitignored)
