@@ -1,0 +1,58 @@
+# Layer 1 — three-arm comparison on the M4 (evolution vs. greedy LoRA vs. risk LoRA).
+# SERIAL (MLX/Metal). Budget = verifier calls = LLM generations.
+#
+#   ./run_overnight.sh layer1_lora        # NOTE: edit run_overnight.sh to add this
+#   python run_layer1.py --config configs/layer1_lora.yaml --out results_layer1_lora
+#
+# This is the head-to-head the Layer-0 -> Layer-1 transfer question needs: do the
+# LoRA arms reproduce the Layer-0 ranking (risk-seeking resists collapse, greedy
+# collapses) once the proposer is an LLM with a strong pretrained prior?
+#
+# Has NOT been run yet (the dev box has no Apple Silicon). Start small — a 3B at a
+# tiny budget — confirm the LoRA step trains, then scale seeds/budget/models.
+# Rough cost: each generation ~0.5-1s; each batch also does one LoRA step (small,
+# rank-8). For the numbers below: 3 arms x 3 targets x 1 temp x 3 seeds = 27 runs
+# x 256 gens ~= 6,900 generations -> a few hours, dominated by generation not training.
+
+models:
+  - mlx-community/Qwen2.5-3B-Instruct-4bit
+arms: [evolution, greedy_lora, risk_lora]
+targets: [easy, medium, harder]
+temperatures: [1.0]
+seeds: 3
+budget: 256          # LLM generations per run
+batch_size: 8        # generations per ask() == samples per LoRA step
+max_tokens: 48
+n_data_shown: 12
+
+# Per-arm hyperparameters (merged over the shared generation settings above).
+evolution:
+  archive_size: 12
+  n_inspirations: 5
+
+greedy_lora:
+  lora_layers: 8       # adapt the last N transformer blocks
+  lora_rank: 8
+  lora_scale: 20.0
+  lora_dropout: 0.0
+  lr: 1.0e-4
+
+risk_lora:
+  lora_layers: 8
+  lora_rank: 8
+  lora_scale: 20.0
+  lora_dropout: 0.0
+  lr: 1.0e-4
+  mode: quantile       # DSR risk-seeking (top-epsilon); or mode: entropic + beta_rule
+  epsilon: 0.25        # train on the top 25% of each batch (batch is small here)
+  # mode: entropic
+  # beta: 2.0
+  # beta_rule: fixed   # fixed | ess | kl  (see configs/layer0.yaml / sia/objectives.py)
+
+quick:                 # --quick override: a fast harness smoke test
+  models: [mlx-community/Qwen2.5-3B-Instruct-4bit]
+  arms: [greedy_lora, risk_lora]
+  targets: [medium]
+  temperatures: [1.0]
+  seeds: 1
+  budget: 16

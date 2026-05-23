@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..objectives import entropic_weights, quantile_weights
 from ..policy import RNNPolicy
 from ..verifier import Result
 from .base import Proposer
@@ -63,55 +64,15 @@ class RLRisk(Proposer):
     def ask(self):
         return self.policy.sample(self.batch_size, self.rng)
 
-    @staticmethod
-    def _bisect_beta(Rs: np.ndarray, stat, target: float, increasing: bool) -> float:
-        """Find beta >= 0 such that stat(weights(beta)) == target, where weights =
-        softmax(beta * Rs) and `stat` is monotone in beta. `increasing` says whether
-        stat grows with beta (KL) or shrinks (ESS)."""
-        def val(b: float) -> float:
-            w = np.exp(b * Rs)
-            w /= w.sum()
-            return stat(w)
-
-        lo, hi = 0.0, 1.0
-        # grow hi until it brackets the target
-        while ((val(hi) < target) if increasing else (val(hi) > target)) and hi < 1e7:
-            hi *= 2.0
-        for _ in range(40):
-            mid = 0.5 * (lo + hi)
-            below = val(mid) < target
-            if below == increasing:   # need larger beta
-                lo = mid
-            else:
-                hi = mid
-        return 0.5 * (lo + hi)
-
-    def _entropic_beta(self, R: np.ndarray) -> float:
-        if R.std() < 1e-9:
-            return 0.0
-        Rs = R - R.max()  # shift for numerical stability (softmax-invariant)
-        B = len(R)
-        if self.beta_rule == "fixed":
-            return self.beta / (R.std() + 1e-8)
-        if self.beta_rule == "ess":  # ESS shrinks as beta grows
-            ess = lambda w: 1.0 / np.sum(w * w)
-            return self._bisect_beta(Rs, ess, self.target_ess * B, increasing=False)
-        # kl: KL(tilted || sampling) = log B - H(weights), grows as beta grows
-        kl = lambda w: np.log(B) + np.sum(w * np.log(w + 1e-12))
-        target = min(self.target_kl, 0.999 * np.log(B))
-        return self._bisect_beta(Rs, kl, target, increasing=True)
-
     def _weights(self, R: np.ndarray) -> np.ndarray:
+        """Per-sample weights from the shared objectives module (the SAME formulas
+        Layer 1's LoRA arms use)."""
         if self.mode == "quantile":
-            q = np.quantile(R, 1.0 - self.epsilon)
-            return np.where(R >= q, R - q, 0.0)  # train only on the top tail
-        # entropic exponential tilt, centered to sum ~0
-        b = self._entropic_beta(R)
-        self._last_beta = float(b)
-        logits = b * (R - R.max())               # subtract max for stability
-        sm = np.exp(logits)
-        sm /= sm.sum()
-        return sm * len(R) - 1.0                 # O(1) scale, mean 0
+            return quantile_weights(R, self.epsilon)
+        w, b = entropic_weights(R, self.beta_rule, self.beta,
+                                self.target_ess, self.target_kl)
+        self._last_beta = b
+        return w
 
     def tell(self, candidates, results: list[Result]) -> None:
         R = np.array([r.reward for r in results])

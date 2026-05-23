@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Crash-safe, resumable launcher for the long sweeps.
 #
-#   ./run_overnight.sh            # Layer 0 budget-scaling sweep (default)
-#   ./run_overnight.sh layer0     # same
-#   ./run_overnight.sh layer1     # Layer 1 LLM evolution sweep
+#   ./run_overnight.sh             # Layer 0 budget-scaling sweep (default)
+#   ./run_overnight.sh layer0      # same
+#   ./run_overnight.sh layer1      # Layer 1 LLM evolution sweep
+#   ./run_overnight.sh layer1_lora # Layer 1 three-arm sweep (evolution + LoRA)
 #
 # Safe to re-run: completed runs are detected on disk and skipped, so if the job
 # crashes, the machine reboots, or you stop it, just run this again and it
@@ -21,8 +22,12 @@ case "$LAYER" in
     OUT=results_layer1; LOG=results_layer1_run.log
     CMD="python3 run_layer1.py --config configs/layer1.yaml --out $OUT"
     DESC="Layer 1 LLM evolution sweep (serial, MLX/Metal)";;
+  layer1_lora)
+    OUT=results_layer1_lora; LOG=results_layer1_lora_run.log
+    CMD="python3 run_layer1.py --config configs/layer1_lora.yaml --out $OUT"
+    DESC="Layer 1 three-arm sweep: evolution + greedy/risk LoRA (serial, MLX/Metal)";;
   *)
-    echo "usage: $0 [layer0|layer1]"; exit 1;;
+    echo "usage: $0 [layer0|layer1|layer1_lora]"; exit 1;;
 esac
 
 mkdir -p "$OUT"

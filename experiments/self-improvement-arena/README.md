@@ -30,8 +30,13 @@ seconds-to-minutes on a laptop CPU.
    tilt (`J_β`) collapses across its *entire* β range and under both ESS- and
    KL-adaptive schedules.
 
-Layer 1 (designed but not built; see [`layer1/`](layer1/)) will swap in an LLM
-proposer behind the *same* interfaces to test whether any of this transfers.
+Layer 1 (see [`layer1/`](layer1/)) swaps in an LLM proposer behind the *same*
+interfaces to test whether any of this transfers. All three arms are implemented —
+program-database evolution (in-context) plus greedy and risk-seeking **LoRA**
+fine-tuning, which reuse Layer 0's exact reward-weighting via the shared
+[`objectives.py`](src/sia/objectives.py). The LoRA arms need Apple Silicon (MLX)
+and have not yet been run end-to-end on-device; see
+[`layer1/README.md`](layer1/README.md) for the M4 verification steps.
 
 ---
 
@@ -295,6 +300,8 @@ python run_layer0.py --quick                          # fast smoke run -> result
 python run_layer0.py --config configs/layer0.yaml     # headline run, 20 seeds, 100k -> results/
 ./run_overnight.sh                                    # budget-scaling sweep, 2M calls -> results_scaling/
 PYTHONPATH=src python -m tests.test_core              # sanity checks
+PYTHONPATH=src python -m tests.test_objectives        # shared RL objectives (numeric)
+PYTHONPATH=src:. python -m tests.test_layer1          # Layer 1 LoRA ask/tell (no MLX)
 ```
 
 - Everything is seeded and configured from YAML (budget, seeds, all hyperparameters).
@@ -322,8 +329,13 @@ configs/
   scaling.yaml       budget-scaling sweep (2M calls)
 run_layer0.py        one command -> all figures + tables
 run_overnight.sh     crash-safe resumable launcher for the scaling sweep
+  objectives.py      shared reward->weight formulas (greedy/quantile/entropic), used
+                     by BOTH Layer 0 RL proposers and Layer 1 LoRA arms
 tests/test_core.py   grammar round-trips, exact-target reward, call counting
-layer1/              LLM-proposer design note + interface stub (NOT built in v1)
+tests/test_objectives.py  numeric checks for the three shared RL objectives
+tests/test_layer1.py      LoRA proposer ask/tell/budget (fake model, no MLX)
+layer1/              LLM proposers: evolution (built) + greedy/risk LoRA (built;
+                     needs M4 verification). See layer1/README.md
 results/             headline figures + tables (committed); raw logs (gitignored)
 results_scaling/     scaling figures + tables (committed); raw logs (gitignored)
 ```
