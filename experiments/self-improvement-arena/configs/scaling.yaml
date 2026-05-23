@@ -1,0 +1,66 @@
+# Budget-scaling sweep: does the learned policy (DSR risk-seeking) overtake
+# evolution (GP) as the budget grows? Each run goes to the MAX budget once;
+# performance at every smaller budget is read off the logged curve / evals-to-solve.
+#
+# Run (overnight):
+#   python run_layer0.py --config configs/scaling.yaml --out results_scaling
+#
+# Only the budget changes vs. configs/layer0.yaml -- hyperparameters are held
+# fixed so the single varied factor is the verifier-call budget (= gradient steps
+# for the RL arms: 2,000,000 / 200 = 10,000 steps, 20x the headline run).
+
+budget: 2000000       # 2M verifier calls
+seeds: 20
+log_every: 25         # downsample the curve (2M/200/25 = 400 points per run)
+n_points: 30
+x_range: [-3.0, 3.0]
+length_penalty: 0.001
+eps_success: 1.0e-6
+
+targets: [easy, medium, harder]
+
+methods:
+  random:
+    proposer: random
+    batch_size: 200
+    max_depth: 4
+  gp:
+    proposer: gp
+    pop_size: 200
+    batch_size: 200
+    tournament_size: 5
+    crossover_rate: 0.6
+    mutation_rate: 0.3
+    immigrant_rate: 0.1
+    max_depth: 4
+    max_complexity: 30
+  greedy:
+    proposer: greedy
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+  risk:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: quantile
+    epsilon: 0.1
+  risk_entropic:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: entropic
+    beta: 2.0
+
+quick:
+  budget: 20000
+  seeds: 2
+  log_every: 1

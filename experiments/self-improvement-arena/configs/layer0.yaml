@@ -1,0 +1,60 @@
+# Layer 0 experiment configuration -- the single source of truth.
+# Reproduce everything with:  python run_layer0.py --config configs/layer0.yaml
+# Quick smoke run (tiny budget, 2 seeds):  python run_layer0.py --quick
+
+budget: 100000        # evaluation budget per run, measured in VERIFIER CALLS (the fair unit)
+seeds: 20             # runs per (method, target); results reported as mean +/- std
+n_points: 30          # (x, y) training points sampled from the hidden target
+x_range: [-3.0, 3.0]
+length_penalty: 0.001 # reward = 1/(1+MSE) - length_penalty * complexity
+eps_success: 1.0e-6   # held-out MSE below this counts as recovering the formula
+
+targets: [easy, medium, harder]
+
+# Each method names a proposer from the registry plus its hyperparameters.
+# All RL arms share the SAME policy/optimizer; only the objective (weighting) differs.
+methods:
+  random:
+    proposer: random
+    batch_size: 200
+    max_depth: 4
+  gp:
+    proposer: gp
+    pop_size: 200
+    batch_size: 200
+    tournament_size: 5
+    crossover_rate: 0.6
+    mutation_rate: 0.3
+    immigrant_rate: 0.1
+    max_depth: 4
+    max_complexity: 30
+  greedy:
+    proposer: greedy
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+  risk:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: quantile     # DSR risk-seeking policy gradient (Petersen et al. 2021)
+    epsilon: 0.1       # train on the top 10% of each batch
+  risk_entropic:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: entropic     # entropic J_beta (Jiang et al. 2025 / TTT-Discover)
+    beta: 2.0          # scale-invariant: effective beta = beta / std(reward)
+
+# Overrides applied when --quick is passed.
+quick:
+  budget: 8000
+  seeds: 2
