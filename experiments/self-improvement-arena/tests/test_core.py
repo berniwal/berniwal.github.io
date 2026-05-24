@@ -112,6 +112,39 @@ def test_invalid_expression_scores_zero():
     assert not res.valid and res.reward == 0.0
 
 
+def test_dsr_constraints_enforced():
+    """With constraints on, every sampled tree must obey the four DSR rules; with
+    constraints off, the sampler is free to violate them (sanity that the toggle
+    actually does something)."""
+    from sia.expression import CONSTS, UNARY, complexity
+    from sia.policy import RNNPolicy
+
+    def nested_trig(node, under=False):
+        is_trig = node.op in UNARY
+        if is_trig and under:
+            return True
+        return any(nested_trig(c, under or is_trig) for c in node.children)
+
+    def all_const_operator(node):
+        if node.children and all(not c.children and c.op in CONSTS for c in node.children):
+            return True
+        return any(all_const_operator(c) for c in node.children)
+
+    rng = np.random.default_rng(0)
+    on = RNNPolicy(hidden=16, max_length=30, constraints=True, min_length=4, seed=1)
+    trees = on.sample(1500, rng)
+    assert all(from_prefix(to_prefix(t)) == t for t in trees)   # valid round-trips
+    assert min(complexity(t) for t in trees) >= 4                # (1) min length
+    assert max(complexity(t) for t in trees) <= 30               # (1) max length
+    assert not any(all_const_operator(t) for t in trees)         # (2) not all-constant
+    assert not any(nested_trig(t) for t in trees)                # (4) no nested trig
+
+    off = RNNPolicy(hidden=16, max_length=30, constraints=False, seed=1)
+    free = off.sample(1500, np.random.default_rng(0))
+    # unconstrained sampler does violate them (else the toggle is meaningless)
+    assert any(nested_trig(t) for t in free) or any(all_const_operator(t) for t in free)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

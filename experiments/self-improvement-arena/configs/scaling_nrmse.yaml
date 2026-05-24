@@ -1,0 +1,73 @@
+# Same 2M budget-scaling sweep as configs/scaling.yaml, but with the NRMSE reward
+# (1/(1 + RMSE/std(y)), DSR-style scale-invariant) instead of MSE. The ONLY change
+# vs. scaling.yaml is `reward_mode: nrmse` -- so the two runs isolate the effect of
+# reward shaping on the same task / methods / budget.
+#
+#   python run_layer0.py --config configs/scaling_nrmse.yaml --out results/layer0_nrmse
+
+budget: 2000000       # 2M verifier calls
+seeds: 20
+log_every: 25
+n_points: 30
+x_range: [-3.0, 3.0]
+length_penalty: 0.001
+eps_success: 1.0e-6
+reward_mode: nrmse    # the one varied factor vs. scaling.yaml
+
+targets: [easy, medium, harder]
+
+methods:
+  random:
+    proposer: random
+    batch_size: 200
+    max_depth: 4
+  gp:
+    proposer: gp
+    pop_size: 200
+    batch_size: 200
+    tournament_size: 5
+    crossover_rate: 0.6
+    mutation_rate: 0.3
+    immigrant_rate: 0.1
+    max_depth: 4
+    max_complexity: 30
+  greedy:
+    proposer: greedy
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+  cvar:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: cvar
+    epsilon: 0.1
+  risk:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: quantile
+    epsilon: 0.1
+  risk_entropic:
+    proposer: risk
+    batch_size: 200
+    hidden: 32
+    max_length: 24
+    lr: 0.01
+    ent_coef: 0.01
+    mode: entropic
+    beta_rule: fixed
+    beta: 2.0
+
+quick:
+  budget: 20000
+  seeds: 2
+  log_every: 1

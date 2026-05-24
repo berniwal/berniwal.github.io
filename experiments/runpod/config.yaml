@@ -1,0 +1,31 @@
+# Shared RunPod launcher config. One source of truth for the bucket, the image,
+# the repo to run, and the default pod flavors. Override per-launch on the CLI.
+
+# Google Cloud Storage bucket that pods read/write and the laptop pulls from.
+# Each experiment lands at  gs://<bucket>/<exp-name>/results/ (+ worker.log).
+bucket: gs://runpod-experiments
+
+# Public repo the pod clones (HTTPS so no SSH key is needed on the pod).
+repo_url: https://github.com/berniwal/berniwal.github.io.git
+repo_ref: main
+# Directory inside the repo to cd into before running the command.
+workdir: experiments/self-improvement-arena
+
+# Container image. google/cloud-sdk has gcloud + gsutil preinstalled (for the GCS
+# sync + service-account auth); the worker pip-installs the tiny Layer-0 deps on top.
+image: google/cloud-sdk:slim
+
+# Default pod flavors (override with --pod-type / --gpu on the CLI).
+#   CPU instance_id format: <tier>-<vCPU>-<GB RAM>, e.g. cpu3c-16-32 (16 vCPU / 32 GB).
+#   Layer 0 is pure-numpy and embarrassingly parallel -> more vCPUs = faster, no GPU.
+cpu_instance_id: cpu3c-16-32
+gpu_type_id: "NVIDIA GeForce RTX 4090"   # used only with --gpu (future Layer 1)
+container_disk_gb: 30
+
+# How often the worker pushes results/ up to GCS (seconds). A crash loses at most
+# this much progress; relaunching pulls the last push down and resumes.
+push_interval: 300
+
+# Self-terminate the pod when the command finishes (success OR failure). The final
+# state + worker.log are always pushed to GCS first, so failures stay inspectable.
+auto_terminate: true

@@ -198,7 +198,7 @@ Success rate vs. budget, `medium`:
 | **Greedy RL** | 0.25 | 0.25 | 0.25 | 0.25 | 0.25 |
 | **Entropic RL (J_β)** | 0.45 | 0.45 | 0.45 | 0.45 | 0.45 |
 
-![success rate vs. budget](results_scaling/scaling.png)
+![success rate vs. budget](results/layer0_mse/scaling.png)
 
 Greedy and entropic are **ruler-flat across 20× more compute**, while GP, DSR, and
 even random keep climbing to 1.00. **You cannot buy your way out of a collapsed
@@ -270,9 +270,47 @@ One escape hatch: a **strong entropy bonus** (`λ=0.2`, 20× the default) partia
 rescues the entropic arm (5/8) — so the collapse is overcome-able by injecting heavy
 external exploration, just not by tuning β.
 
-![best-so-far reward vs. budget (100k)](results/curves.png)
-![success rate (100k)](results/success.png)
-![batch diversity — the collapse, visualized](results/diversity.png)
+![best-so-far reward vs. budget](results/layer0_mse/curves.png)
+![batch diversity — the collapse, visualized](results/layer0_mse/diversity.png)
+
+### Finding 4 — Reward shaping (MSE vs NRMSE) changes how badly greedy fails, not who wins
+
+We reran the entire 2M sweep with the only change being the reward transform —
+`reward = 1/(1+MSE)` vs the scale-invariant DSR-style `reward = 1/(1+RMSE/std(y))`
+(`configs/scaling.yaml` vs `configs/scaling_nrmse.yaml`). Success is judged on
+held-out data either way, so the rates are directly comparable.
+
+**Success rate at 2M, MSE vs NRMSE:**
+
+| target | method | MSE | NRMSE |
+|---|---|---|---|
+| easy | Evolution (GP) | 1.00 | 1.00 |
+| easy | Risk-seeking (DSR) | 1.00 | 1.00 |
+| easy | Random search | 1.00 | 1.00 |
+| easy | Risk-averse CVaR | 1.00 | 1.00 |
+| easy | **Greedy RL** | **0.90** | **0.15** |
+| easy | Entropic (J_β) | 0.85 | 0.75 |
+| medium | Evolution (GP) | 1.00 | 1.00 |
+| medium | Risk-seeking (DSR) | 1.00 | 1.00 |
+| medium | Random search | 1.00 | 1.00 |
+| medium | Risk-averse CVaR | 0.95 | 0.90 |
+| medium | **Greedy RL** | **0.25** | **0.05** |
+| medium | Entropic (J_β) | 0.45 | 0.30 |
+
+The tail-optimizing and search methods (GP, DSR, random, CVaR) are **invariant** to the
+reward shaping — all still solve easy+medium. But the *average*-optimizing arms collapse
+**harder** under NRMSE: greedy on easy falls 0.90 → 0.15, on medium 0.25 → 0.05.
+
+**Why:** NRMSE compresses the reward scale so that "predict the mean" already scores ~0.5
+and the gradient toward the true peak is gentler. That deepens the mean-predictor
+attractor — exactly the basin a mean-maximizing objective falls into — while leaving the
+risk-seeking objective, which only ever looks at the top tail, untouched. So the headline
+is a robustness statement: **the risk-seeking objective is invariant to the reward
+shaping that wrecks greedy.**
+
+(Caveat: only *success rate* is comparable across modes. The "mean best reward" column is
+not — NRMSE compresses the scale, so e.g. unsolved `harder` runs show ~0.92 mean reward at
+0.10 success. Read the held-out success rate, not the reward magnitude, across modes.)
 
 ---
 
@@ -365,11 +403,35 @@ construction — while NRMSE (2) remains a separate, opt-in reward-shaping knob.
 
 ## How to run
 
+### >> The headline experiment: constraints x reward 2x2 (run overnight, ~5h)
+
+This is the run that decides Findings 1-4. It sweeps `constraints {on, off}` x
+`reward {MSE, NRMSE}` at DSR's tuned hyperparameters (lr 5e-4, batch 1000, entropy
+0.005, risk 0.05), 2M verifier calls x 20 seeds, all six methods, three targets.
+It writes `results/abl_{mse,nrmse}_{con,nocon}/` (curves/diversity/scaling.png +
+results.md each). Resumable: re-run the same command after any interruption.
+
+```bash
+./run_overnight.sh ablation            # caffeinated, background, ~5h; tail results/ablation_run.log
+# or directly:
+python run_ablation.py --budget 2000000 --seeds 20
+# quick smoke (a few minutes) to sanity-check first:
+python run_ablation.py --budget 150000 --seeds 5
+```
+
+What it shows: greedy RL needs the constraints (it collapses without them, totally
+under NRMSE), while risk-seeking solves regardless — the guardrails are load-bearing
+for the average objective and merely a speed-up for the risk-seeking one.
+
+### Everything else
+
 ```bash
 pip install -e .                                      # Layer 0 (numpy only)
 python run_layer0.py --quick                          # fast smoke run -> results_quick/
-python run_layer0.py --config configs/layer0.yaml     # headline run, 20 seeds, 100k -> results/
-./run_overnight.sh                                    # budget-scaling sweep, 2M calls -> results_scaling/
+python run_layer0.py --config configs/layer0.yaml     # headline run, 20 seeds, 100k
+# the canonical 2M sweeps (parallel; ~1-1.5h each on an M4):
+python run_layer0.py --config configs/scaling.yaml       --out results/layer0_mse   --parallel
+python run_layer0.py --config configs/scaling_nrmse.yaml --out results/layer0_nrmse --parallel
 PYTHONPATH=src python -m tests.test_core              # sanity checks
 PYTHONPATH=src python -m tests.test_objectives        # shared RL objectives (numeric)
 PYTHONPATH=src:. python -m tests.test_layer1          # Layer 1 LoRA ask/tell (no MLX)
@@ -423,14 +485,17 @@ src/sia/
   proposers/         random, gp, greedy, risk  (the pluggable part)
   runner.py          fair-budget ask/tell loop, multi-seed, resumable checkpointing
   metrics.py         best-so-far, success rate, diversity, scaling, cross-seed aggregation
-  plotting.py        figures (curves, success, diversity, budget-scaling) + tables
+  plotting.py        figures (curves, diversity, budget-scaling) + one results.md
 configs/
-  layer0.yaml        headline run (single source of truth)
-  scaling.yaml       budget-scaling sweep (2M calls)
+  layer0.yaml        headline run, 100k (quick reference)
+  scaling.yaml       canonical 2M sweep, MSE reward
+  scaling_nrmse.yaml canonical 2M sweep, NRMSE reward (only reward_mode differs)
   layer1.yaml        Layer 1 LLM-evolution sweep
   layer1_lora.yaml   Layer 1 three-arm sweep (evolution + greedy/risk LoRA)
 run_layer0.py        one command -> all figures + tables
 run_layer1.py        Layer 1 entrypoint: evolution / greedy_lora / risk_lora arms
+export_replay.py     bakes a single-seed step-through to results/layer0_*/replay.json
+                     (reuses app_engine, so the blog replay matches the live app)
 run_overnight.sh     crash-safe resumable launcher for the sweeps
 app_engine.py        steppable engine behind the visualizer (no Streamlit/MLX import)
 streamlit_app.py     interactive visualizer (Layer 0 always; Layer 1 on Apple Silicon)
@@ -440,9 +505,13 @@ tests/test_layer1.py      LoRA proposer ask/tell/budget (fake model, no MLX)
 tests/test_app_engine.py  visualizer engine: build/step/record + plot data (no Streamlit)
 layer1/              LLM proposers: evolution (built) + greedy/risk LoRA (built;
                      needs M4 verification). See layer1/README.md
-results/             headline figures + tables (committed); raw logs (gitignored)
-results_scaling/     scaling figures + tables (committed); raw logs (gitignored)
+results/
+  layer0_mse/        canonical 2M sweep, MSE: curves/diversity/scaling.png + results.md
+  layer0_nrmse/      canonical 2M sweep, NRMSE: same artifacts (committed; logs gitignored)
 ```
+
+Each run writes exactly four artifacts: `curves.png`, `diversity.png`, `scaling.png`, and
+a single self-contained `results.md` (both tables + the embedded figures).
 
 ## Honesty / caveats
 

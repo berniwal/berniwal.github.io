@@ -1,0 +1,4 @@
+# Laptop-side deps for the RunPod launcher/fetcher.
+# (gsutil comes from the Google Cloud SDK, installed separately -- see README.)
+runpod>=1.6
+pyyaml>=6.0

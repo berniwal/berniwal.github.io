@@ -1,0 +1,4 @@
+# Never commit credentials or local logs.
+*.json          # GCP service-account keys
+*.log
+__pycache__/

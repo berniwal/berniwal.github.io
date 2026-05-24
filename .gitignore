@@ -25,10 +25,6 @@ yarn-error.log*
 # python experiments
 __pycache__/
 *.pyc
-experiments/**/results/logs/
-experiments/**/results_scaling/logs/
-experiments/**/results_layer1/logs/
-experiments/**/results_layer1_lora/logs/
-experiments/**/results_layer1_lora_kl/logs/
+experiments/**/logs/
 experiments/**/results_quick/
 experiments/**/*.log

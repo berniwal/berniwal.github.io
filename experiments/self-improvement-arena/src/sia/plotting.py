@@ -72,28 +72,6 @@ def plot_curves(logs, out: Path, kind: str = "reward") -> None:
     plt.close(fig)
 
 
-def plot_success(logs, out: Path) -> None:
-    g = _group(logs)
-    methods, targets = _methods_targets(logs)
-    x = np.arange(len(targets))
-    w = 0.8 / len(methods)
-    fig, ax = plt.subplots(figsize=(2.2 * len(targets) + 2, 4.2))
-    for i, m in enumerate(methods):
-        rates = [success_rate(g.get((t, m), [])) for t in targets]
-        color, label = STYLE[m]
-        ax.bar(x + i * w, rates, w, color=color, label=label)
-    ax.set_xticks(x + 0.4 - w / 2)
-    ax.set_xticklabels(targets)
-    ax.set_ylabel("success rate (exact recovery)")
-    ax.set_ylim(0, 1)
-    ax.set_title(f"Success rate over {len(next(iter(g.values())))} seeds")
-    ax.legend(fontsize=8)
-    ax.grid(alpha=0.3, axis="y")
-    fig.tight_layout()
-    fig.savefig(out, dpi=130)
-    plt.close(fig)
-
-
 def plot_budget_scaling(logs, out: Path) -> None:
     """Success rate vs. budget (log x) per method per target -- the figure that
     shows which method wins under which budget/complexity, and whether the learned
@@ -127,10 +105,10 @@ def plot_budget_scaling(logs, out: Path) -> None:
     plt.close(fig)
 
 
-def write_table(logs, out: Path) -> str:
+def _summary_table_md(logs) -> str:
+    """Final-budget summary: success rate, median evals-to-solve, mean best reward."""
     g = _group(logs)
     methods, targets = _methods_targets(logs)
-    grid = np.array([logs[0].budget])
     lines = ["| target | method | success rate | median evals-to-solve | mean best reward |",
              "|---|---|---|---|---|"]
     for t in targets:
@@ -143,9 +121,7 @@ def write_table(logs, out: Path) -> str:
             mean_best = float(np.mean([lg.best_reward[-1] for lg in runs]))
             med_s = f"{int(med)}" if med is not None else "-"
             lines.append(f"| {t} | {STYLE[m][1]} | {sr:.2f} | {med_s} | {mean_best:.4f} |")
-    text = "\n".join(lines) + "\n"
-    out.write_text(text)
-    return text
+    return "\n".join(lines) + "\n"
 
 
 def _checkpoints(maxB: int) -> list[int]:
@@ -153,9 +129,9 @@ def _checkpoints(maxB: int) -> list[int]:
     return sorted({int(maxB * f) for f in fracs if maxB * f >= 1})
 
 
-def write_scaling_table(logs, out: Path) -> str:
-    """Success rate at a few budget checkpoints -> shows the budget x method x
-    complexity interaction at a glance."""
+def _scaling_table_md(logs) -> str:
+    """Success rate at a few budget checkpoints -> the budget x method x complexity
+    interaction at a glance."""
     g = _group(logs)
     methods, targets = _methods_targets(logs)
     cps = _checkpoints(logs[0].budget)
@@ -168,9 +144,30 @@ def write_scaling_table(logs, out: Path) -> str:
                 continue
             cells = " | ".join(f"{success_rate_at(runs, c):.2f}" for c in cps)
             lines.append(f"| {t} | {STYLE[m][1]} | {cells} |")
-    text = ("Success rate (exact recovery) at increasing verifier-call budgets:\n\n"
-            + "\n".join(lines) + "\n")
-    out.write_text(text)
+    return "\n".join(lines) + "\n"
+
+
+def write_results_md(logs, out_dir: Path, reward_mode: str = "mse") -> str:
+    """One self-contained results page: embeds the three figures and both tables, so
+    the whole Layer-0 result reads top-to-bottom from a single file."""
+    n_seeds = len({lg.seed for lg in logs})
+    budget = logs[0].budget
+    text = (
+        f"# Layer 0 results — reward = `{reward_mode}`\n\n"
+        f"Same task, same verifier, same budget ({_fmt_calls(budget)} verifier calls); "
+        f"only the proposer differs. Mean over {n_seeds} seeds.\n\n"
+        "## Best-so-far reward vs. budget\n\n"
+        "![best-so-far reward vs. budget](curves.png)\n\n"
+        "## Batch diversity — the collapse, visualized\n\n"
+        "![batch diversity](diversity.png)\n\n"
+        "## Success rate vs. budget\n\n"
+        "![success rate vs. budget](scaling.png)\n\n"
+        "## Summary (at full budget)\n\n"
+        + _summary_table_md(logs)
+        + "\n## Success rate at increasing verifier-call budgets\n\n"
+        + _scaling_table_md(logs)
+    )
+    (out_dir / "results.md").write_text(text)
     return text
 
 
@@ -261,11 +258,9 @@ def make_layer1(logs, out_dir: Path) -> str:
     return text
 
 
-def make_all(logs, out_dir: Path) -> str:
+def make_all(logs, out_dir: Path, reward_mode: str = "mse") -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     plot_curves(logs, out_dir / "curves.png", kind="reward")
     plot_curves(logs, out_dir / "diversity.png", kind="diversity")
-    plot_success(logs, out_dir / "success.png")
     plot_budget_scaling(logs, out_dir / "scaling.png")
-    write_scaling_table(logs, out_dir / "scaling_table.md")
-    return write_table(logs, out_dir / "table.md")
+    return write_results_md(logs, out_dir, reward_mode=reward_mode)

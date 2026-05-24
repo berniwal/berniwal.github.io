@@ -50,7 +50,8 @@ class RLRisk(Proposer):
                  max_length: int = 24, lr: float = 0.01, ent_coef: float = 0.01,
                  mode: str = "quantile", epsilon: float = 0.1, beta: float = 2.0,
                  beta_rule: str = "fixed", target_ess: float = 0.3,
-                 target_kl: float = 1.0, seed: int | None = None, **hp):
+                 target_kl: float = 1.0, constraints: bool = False,
+                 min_length: int = 4, seed: int | None = None, **hp):
         super().__init__(task, rng, **hp)
         if mode not in ("quantile", "entropic", "cvar"):
             raise ValueError(f"mode must be quantile/entropic/cvar, got {mode!r}")
@@ -66,7 +67,8 @@ class RLRisk(Proposer):
         self.target_kl = target_kl    # for beta_rule="kl": target KL in nats
         self._last_beta = float("nan")
         seed = int(rng.integers(1 << 30)) if seed is None else seed
-        self.policy = RNNPolicy(hidden=hidden, max_length=max_length, lr=lr, seed=seed)
+        self.policy = RNNPolicy(hidden=hidden, max_length=max_length, lr=lr, seed=seed,
+                                constraints=constraints, min_length=min_length)
 
     def ask(self):
         return self.policy.sample(self.batch_size, self.rng)

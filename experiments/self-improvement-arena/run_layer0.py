@@ -4,8 +4,9 @@
     python run_layer0.py --config configs/layer0.yaml   # full run
     python run_layer0.py --quick                         # fast smoke run
 
-Writes results/{curves,diversity,success}.png, results/table.md, and the raw
-per-run logs to results/logs/*.json.
+Writes results/{curves,diversity,scaling}.png, results/results.md (a single
+self-contained summary with both tables + embedded figures), and the raw per-run
+logs to results/logs/*.json.
 """
 from __future__ import annotations
 
@@ -78,12 +79,13 @@ def main() -> None:
     # Regenerate figures/table periodically so partial results are viewable even
     # mid-run; logs are saved per-run so a crash is safe to resume (rerun the
     # same command).
+    reward_mode = config.get("reward_mode", "mse")
     logs = run_experiment(config, log_dir=log_dir, resume=not args.fresh,
-                          checkpoint_cb=lambda lg: make_all(lg, out_dir),
+                          checkpoint_cb=lambda lg: make_all(lg, out_dir, reward_mode),
                           workers=workers)
     print(f"Done in {time.time() - t0:.1f}s.")
 
-    table = make_all(logs, out_dir)
+    table = make_all(logs, out_dir, reward_mode)
     print(f"\nWrote figures + table to {out_dir}/\n")
     print(table)
 

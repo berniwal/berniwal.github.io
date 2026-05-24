@@ -17,12 +17,19 @@ from __future__ import annotations
 
 import numpy as np
 
-from .expression import ARITY, TOKENS, Node, from_prefix
+from .expression import CONSTS, TOKENS, UNARY, Node, from_prefix
+from .expression import ARITY
 
 _ARITY_ARR = np.array([ARITY[t] for t in TOKENS])
 _BINARY = _ARITY_ARR == 2
 _UNARY = _ARITY_ARR == 1
+_TERM = _ARITY_ARR == 0
+# In this grammar every unary operator (sin, cos) is trigonometric, so "trig" and
+# "unary" coincide; kept as a separate name to mirror DSR's constraint vocabulary.
+_TRIG = np.array([t in UNARY for t in TOKENS])
+_CONST = np.array([t in CONSTS for t in TOKENS])
 V = len(TOKENS)
+_NEG_INF = -np.inf
 
 
 class _Adam:
@@ -44,10 +51,16 @@ class _Adam:
 
 class RNNPolicy:
     def __init__(self, hidden: int = 32, max_length: int = 24, lr: float = 0.01,
-                 grad_clip: float = 5.0, seed: int = 0):
+                 grad_clip: float = 5.0, seed: int = 0,
+                 constraints: bool = False, min_length: int = 4):
         self.H = hidden
         self.L = max_length
         self.grad_clip = grad_clip
+        # DSR-style a-priori constraints on the sampled tree (Petersen et al. 2021,
+        # Sec. 3.2). Off by default -> the original fast counter-based sampler and
+        # the existing reproducible results. On -> the four constraints below.
+        self.constraints = constraints
+        self.min_length = min_length
         rng = np.random.default_rng(seed)
         s = 0.1
         self.p = {
@@ -66,11 +79,18 @@ class RNNPolicy:
         B, H, L = batch_size, self.H, self.L
         h = np.zeros((B, H))
         x = np.zeros((B, V))            # BOS input
-        counter = np.ones(B, dtype=int)  # open operand slots
         done = np.zeros(B, dtype=bool)
         toks = np.full((B, L), -1, dtype=int)
         length = np.zeros(B, dtype=int)
         cache = []  # per-step dicts for BPTT
+
+        # Per-sequence open-slot bookkeeping. Without constraints we only need a
+        # count of open slots (vectorized). With constraints we keep an explicit
+        # stack per sequence so each open slot carries its parent context (needed
+        # for the no-nested-trig and not-all-constant rules); see _mask_row.
+        counter = np.ones(B, dtype=int)
+        stacks = ([[(False, None)] for _ in range(B)]  # (under_trig, parent_record)
+                  if self.constraints else None)
 
         for t in range(L):
             active = ~done
@@ -79,10 +99,15 @@ class RNNPolicy:
             h = np.tanh(z)
             logits = h @ self.p["Who"] + self.p["bo"]
 
-            slack = L - t - counter  # >=0 invariant; room left to close the tree
             add = np.zeros((B, V))
-            add[(slack < 2)[:, None] & _BINARY[None, :]] = -np.inf
-            add[(slack < 1)[:, None] & _UNARY[None, :]] = -np.inf
+            if self.constraints:
+                for i in range(B):
+                    if active[i]:
+                        add[i] = self._mask_row(stacks[i], length[i], t)
+            else:
+                slack = L - t - counter  # >=0 invariant; room left to close the tree
+                add[(slack < 2)[:, None] & _BINARY[None, :]] = _NEG_INF
+                add[(slack < 1)[:, None] & _UNARY[None, :]] = _NEG_INF
             logits = logits + add
 
             logits -= logits.max(axis=1, keepdims=True)
@@ -96,11 +121,31 @@ class RNNPolicy:
             cache.append({"x": x, "h_prev": h_prev, "h": h, "probs": probs,
                           "a": a, "active": active.copy()})
 
-            ar = _ARITY_ARR[a]
-            counter = np.where(active, counter + ar - 1, counter)
-            length += active.astype(int)
-            toks[active, t] = a[active]
-            done = done | (active & (counter == 0))
+            if self.constraints:
+                for i in range(B):
+                    if not active[i]:
+                        continue
+                    ai = int(a[i])
+                    under, rec = stacks[i].pop()
+                    if rec is not None:              # update parent's child tally
+                        rec[0] -= 1
+                        rec[1] = rec[1] and bool(_CONST[ai])
+                    ar = int(_ARITY_ARR[ai])
+                    if ar > 0:                       # push this op's child slots
+                        child_rec = [ar, True]       # [remaining, all-constant-so-far]
+                        child_under = under or bool(_TRIG[ai])
+                        stacks[i].extend([(child_under, child_rec)] * ar)
+                    length[i] += 1
+                    toks[i, t] = ai
+                    if not stacks[i]:
+                        done[i] = True
+            else:
+                ar = _ARITY_ARR[a]
+                counter = np.where(active, counter + ar - 1, counter)
+                length += active.astype(int)
+                toks[active, t] = a[active]
+                done = done | (active & (counter == 0))
+
             x = np.zeros((B, V))
             x[np.arange(B), a] = 1.0
             if done.all():
@@ -119,6 +164,40 @@ class RNNPolicy:
             node = from_prefix(seq)
             trees.append(node if node is not None else Node("x", []))
         return trees
+
+    def _mask_row(self, stack: list, length_i: int, t: int) -> np.ndarray:
+        """Additive logit mask (0 / -inf) for the next token of ONE sequence under
+        the DSR a-priori constraints. ``stack[-1]`` is the open slot being filled,
+        carrying ``(under_trig, parent_record)`` where ``parent_record`` is
+        ``[children_remaining, all_children_constant_so_far]`` (None for the root).
+
+        (1) length: forbid finishing the tree before ``min_length`` (and the shared
+            slack rule keeps it finishable within ``max_length``).
+        (2) not-all-constant: when filling an operator's last child and every prior
+            child was a constant leaf, forbid constant leaves here.
+        (3) no-inverse-of-unary: N/A in this grammar (sin/cos have no inverse token).
+        (4) no-nested-trig: under a trig ancestor, forbid trig operators."""
+        add = np.zeros(V)
+        counter = len(stack)
+        slack = self.L - t - counter
+        if slack < 2:                       # not enough room to close a binary op
+            add[_BINARY] = _NEG_INF
+        if slack < 1:                       # ... or a unary op
+            add[_UNARY] = _NEG_INF
+        under, rec = stack[-1]
+        if under:                           # (4) descendants of trig are not trig
+            add[_TRIG] = _NEG_INF
+        if rec is not None and rec[0] == 1 and rec[1]:  # (2) avoid all-constant operands
+            add[_CONST] = _NEG_INF
+        if counter == 1 and (length_i + 1) < self.min_length:  # (1) min length
+            add[_TERM] = _NEG_INF
+        if np.all(np.isneginf(add)):        # safety: never mask everything
+            add = np.zeros(V)
+            if slack < 2:
+                add[_BINARY] = _NEG_INF
+            if slack < 1:
+                add[_UNARY] = _NEG_INF
+        return add
 
     def last_entropy(self) -> float:
         return self._last_entropy
