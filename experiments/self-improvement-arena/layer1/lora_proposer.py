@@ -93,7 +93,11 @@ class LoRAProposer(Proposer):
                  # risk-arm objective knobs (mirror Layer 0's rl_risk)
                  mode: str = "quantile", epsilon: float = 0.25, beta: float = 2.0,
                  beta_rule: str = "fixed", target_ess: float = 0.3,
-                 target_kl: float = 1.0, **hp):
+                 target_kl: float = 1.0,
+                 # DAPO-style GRPO (off by default -> the weighted-PG path above). When on:
+                 # clipped importance ratio vs pi_old, clip-higher, multi-epoch reuse.
+                 grpo: bool = False, ppo_epochs: int = 4,
+                 clip_low: float = 0.2, clip_high: float = 0.28, **hp):
         super().__init__(task, rng, **hp)
         if arm not in ("greedy", "risk"):
             raise ValueError(f"arm must be 'greedy' or 'risk', got {arm!r}")
@@ -123,6 +127,10 @@ class LoRAProposer(Proposer):
         self.beta_rule = beta_rule
         self.target_ess = target_ess
         self.target_kl = target_kl
+        self.grpo = grpo
+        self.ppo_epochs = ppo_epochs
+        self.clip_low = clip_low
+        self.clip_high = clip_high
         # state carried between ask() and tell()
         self._pending_prompt = None          # token ids of the prompt (list[int])
         self._pending_completions = None     # list[list[int]] generated tokens
@@ -208,11 +216,11 @@ class LoRAProposer(Proposer):
     def tell(self, candidates: list[Node], results: list[Result]) -> None:
         if self._pending_completions is None:
             return  # tell() without a preceding ask(); nothing to learn from
-        weights = self._weights(results)
-        # One LoRA gradient step (does NOT cost a verifier call). All completions
-        # are included with their weights — invalids carry reward 0, so greedy
-        # pushes them down and quantile ignores them, exactly as in Layer 0.
-        self._lora_step(self._pending_prompt, self._pending_completions, weights)
+        weights = self._weights(results)  # group-relative advantage (greedy: R-mean; risk: shaped)
+        # One LoRA update (does NOT cost a verifier call). DAPO-style GRPO if enabled
+        # (clipped ratio + clip-higher + multi-epoch), else the single-step weighted-PG.
+        step = self._grpo_step if self.grpo else self._lora_step
+        step(self._pending_prompt, self._pending_completions, weights)
         self._pending_prompt = self._pending_completions = None
 
     def diagnostics(self) -> dict:
@@ -355,3 +363,67 @@ class LoRAProposer(Proposer):
         self._last_pg = float(pg)                # PG term (signed)
         self._last_kl = float(kl)                # raw KL (k3)
         self._last_kl_term = float(self.kl_coef * kl)  # KL's contribution to the loss
+
+    def _policy_logprobs(self, inputs, targets):
+        """Per-token log pi of ``targets`` under the CURRENT policy (LoRA on), as a
+        constant -- this is pi_old for the GRPO importance ratio (generation happened
+        with these same params, just before this update)."""
+        import mlx.core as mx
+        import mlx.nn as nn
+        logp = -nn.losses.cross_entropy(self.model(inputs), targets)  # (B, T-1)
+        mx.eval(logp)
+        return mx.stop_gradient(logp)
+
+    def _grpo_step(self, prompt_tokens, completions, advantages) -> None:
+        """DAPO-style GRPO update on the LoRA params: a clipped importance ratio vs
+        pi_old with CLIP-HIGHER (asymmetric: 1-clip_low .. 1+clip_high, keeps the
+        upside/exploration), token-level loss, and multi-epoch reuse so the ratio
+        actually drifts from 1 and the clip bites. ``advantages`` are group-relative
+        (greedy: R-mean; risk: risk-shaped) -- the only per-arm difference. KL optional
+        (DAPO drops it; set kl_coef=0)."""
+        import mlx.core as mx
+        import mlx.nn as nn
+
+        prompt = list(prompt_tokens)
+        P = len(prompt)
+        keep = [i for i, c in enumerate(completions) if len(c) > 0]
+        seqs = [prompt + list(completions[i]) for i in keep]
+        if not seqs:
+            return
+        A = np.asarray(advantages, dtype=np.float32)[keep]
+        B, T = len(seqs), max(len(s) for s in seqs)
+        pad_id = getattr(self.tok, "eos_token_id", 0) or 0
+        batch = np.full((B, T), pad_id, dtype=np.int32)
+        mask = np.zeros((B, T), dtype=np.float32)
+        for i, s in enumerate(seqs):
+            batch[i, :len(s)] = s
+            mask[i, P:len(s)] = 1.0
+        batch = mx.array(batch)
+        inputs, targets = batch[:, :-1], batch[:, 1:]
+        tgt_mask = mx.array(mask[:, 1:])
+        Av = mx.array(A)[:, None]                         # (B,1) per-sample advantage
+        ntok = float(mask[:, 1:].sum()) or 1.0
+        logp_old = self._policy_logprobs(inputs, targets)  # pi_old (constant)
+        ref_logp = self._ref_logprobs(inputs, targets) if self.kl_coef > 0 else None
+        lo, hi = 1.0 - self.clip_low, 1.0 + self.clip_high
+
+        loss = pg = kl = mx.array(0.0)
+        for _ in range(self.ppo_epochs):
+            def loss_fn(model):
+                logp = -nn.losses.cross_entropy(model(inputs), targets)  # (B,T-1)
+                ratio = mx.exp(logp - logp_old)
+                obj = mx.minimum(ratio * Av, mx.clip(ratio, lo, hi) * Av)  # PPO clip-higher
+                pg_ = -(obj * tgt_mask).sum() / ntok                       # maximize obj
+                if ref_logp is None:
+                    kl_ = mx.array(0.0)
+                else:
+                    d = ref_logp - logp
+                    kl_ = ((mx.exp(d) - d - 1.0) * tgt_mask).sum() / ntok
+                return pg_ + self.kl_coef * kl_, (pg_, kl_)
+            (loss, (pg, kl)), grads = nn.value_and_grad(self.model, loss_fn)(self.model)
+            self.opt.update(self.model, grads)
+            mx.eval(self.model.parameters(), self.opt.state)
+        self._last_loss = float(loss)
+        self._last_pg = float(pg)
+        self._last_kl = float(kl)
+        self._last_kl_term = float(self.kl_coef * kl)
