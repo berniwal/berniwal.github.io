@@ -46,7 +46,15 @@ def main() -> None:
     ap.add_argument("--gpu", action="store_true", help="GPU pod (default: CPU)")
     ap.add_argument("--cpu-instance", default=cfg["cpu_instance_id"])
     ap.add_argument("--gpu-type", default=cfg["gpu_type_id"])
+    ap.add_argument("--repo-url", default=cfg["repo_url"],
+                    help="repo to clone + run (default: this repo). NOTE: worker_entry.sh "
+                         "is fetched from this repo's experiments/runpod/, so a different "
+                         "repo must also vendor the harness there.")
     ap.add_argument("--repo-ref", default=cfg["repo_ref"])
+    ap.add_argument("--workdir", default=cfg["workdir"],
+                    help="subdir inside the repo to cd into before running --cmd "
+                         "(e.g. experiments/<other-project>) -- this is how you point "
+                         "the launcher at a different project")
     ap.add_argument("--push-interval", type=int, default=cfg["push_interval"])
     ap.add_argument("--no-terminate", action="store_true",
                     help="leave the pod running after the command (for debugging)")
@@ -69,16 +77,16 @@ def main() -> None:
     gcs_dest = f"{cfg['bucket'].rstrip('/')}/{args.exp}"
     env = {
         "GCS_DEST": gcs_dest,
-        "REPO_URL": cfg["repo_url"],
+        "REPO_URL": args.repo_url,
         "REPO_REF": args.repo_ref,
-        "WORKDIR": cfg["workdir"],
+        "WORKDIR": args.workdir,
         "RUN_CMD": args.cmd,
         "GCP_SA_KEY_B64": sa_b64,
         "PUSH_INTERVAL": str(args.push_interval),
         "AUTO_TERMINATE": "0" if args.no_terminate else ("1" if cfg["auto_terminate"] else "0"),
         "RUNPOD_API_KEY": api_key,  # so the pod can terminate itself
     }
-    raw = _raw_worker_url(cfg["repo_url"], args.repo_ref)
+    raw = _raw_worker_url(args.repo_url, args.repo_ref)
     docker_args = ("bash -c 'apt-get update -qq && apt-get install -y -qq curl >/dev/null "
                    f"&& curl -fsSL {raw} -o /worker_entry.sh && bash /worker_entry.sh'")
 
