@@ -1,0 +1,46 @@
+# Layer 1 — ~1 hour subset of the three-arm comparison: evolution vs greedy LoRA
+# vs risk LoRA, on `medium` only (the discriminating target), 3 seeds, budget 256
+# (= 32 LoRA gradient steps). SERIAL (MLX). Resumable.
+#
+#   caffeinate -dimsu nohup python3 run_layer1.py \
+#       --config configs/layer1_lora_1h.yaml --out results_layer1_lora >> results_layer1_lora_run.log 2>&1 &
+#
+# Writes to the SAME results_layer1_lora/ as the full configs/layer1_lora.yaml, with
+# matching method names (single temp -> no temp suffix), so this is a resumable
+# head-start: a later full run skips these and just adds easy/harder.
+#
+# The question: do the LoRA arms learn at all over 32 steps, and does risk-seeking
+# pull ahead of greedy (the Layer-0 ranking) once the proposer is an LLM?
+
+models:
+  - mlx-community/Qwen2.5-3B-Instruct-4bit
+arms: [best_of_n, evolution, greedy_lora, risk_lora]
+targets: [medium]
+temperatures: [1.0]
+seeds: 3
+budget: 256
+batch_size: 8
+max_tokens: 48
+n_data_shown: 12
+
+evolution:
+  archive_size: 12
+  n_inspirations: 5
+
+greedy_lora:
+  lora_layers: 8
+  lora_rank: 8
+  lora_scale: 2.0
+  lora_dropout: 0.0
+  lr: 1.0e-4
+  kl_coef: 0.1         # trust-region KL to base model (prevents token-spam drift)
+
+risk_lora:
+  lora_layers: 8
+  lora_rank: 8
+  lora_scale: 2.0
+  lora_dropout: 0.0
+  lr: 1.0e-4
+  kl_coef: 0.1
+  mode: quantile
+  epsilon: 0.25

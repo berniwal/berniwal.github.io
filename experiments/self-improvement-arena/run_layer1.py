@@ -41,10 +41,13 @@ from sia.verifier import Verifier  # noqa: E402
 from layer1.llm_evolution import LLMEvolutionProposer, load_model  # noqa: E402
 from layer1.lora_proposer import LoRAProposer  # noqa: E402
 
-# The three Layer 1 arms, mirroring Layer 0's evolution / greedy / risk.
-ARMS = ("evolution", "greedy_lora", "risk_lora")
+# Layer 1 arms. best_of_n is the no-learning floor (frozen weights, data-only
+# prompt, no archive); evolution adds in-context learning; the LoRA arms add
+# weight updates. So:  evolution - best_of_n = in-context lift; lora - best_of_n
+# = fine-tuning lift.
+ARMS = ("best_of_n", "evolution", "greedy_lora", "risk_lora")
 # Arms that update model weights (LoRA mutates the model in place) -> each run
-# needs its own freshly-loaded model; the evolution arm can reuse one.
+# needs its own freshly-loaded model; best_of_n and evolution reuse one (frozen).
 LORA_ARMS = ("greedy_lora", "risk_lora")
 
 
@@ -55,8 +58,10 @@ def model_tag(model_id: str) -> str:
 
 
 def build_proposer(arm, task, rng, model, tok, hp):
-    """Construct the proposer for one of the three arms from a single hp dict.
+    """Construct the proposer for one of the arms from a single hp dict.
     Each proposer absorbs unused keys via **hp, so a merged dict is fine."""
+    if arm == "best_of_n":  # control: evolution minus the archive (no learning)
+        return LLMEvolutionProposer(task, rng, model, tok, use_archive=False, **hp)
     if arm == "evolution":
         return LLMEvolutionProposer(task, rng, model, tok, **hp)
     if arm == "greedy_lora":

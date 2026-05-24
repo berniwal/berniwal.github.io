@@ -16,10 +16,10 @@
 
 models:
   - mlx-community/Qwen2.5-3B-Instruct-4bit
-arms: [evolution, greedy_lora, risk_lora]
+arms: [best_of_n, evolution, greedy_lora, risk_lora]
 targets: [easy, medium, harder]
 temperatures: [1.0]
-seeds: 3
+seeds: 5
 budget: 256          # LLM generations per run
 batch_size: 8        # generations per ask() == samples per LoRA step
 max_tokens: 48
@@ -33,16 +33,19 @@ evolution:
 greedy_lora:
   lora_layers: 8       # adapt the last N transformer blocks
   lora_rank: 8
-  lora_scale: 20.0
+  lora_scale: 2.0
   lora_dropout: 0.0
   lr: 1.0e-4
+  kl_coef: 0.1         # trust-region KL penalty to the base model (prevents the
+  #                      reward-hacking drift into token-spam; 0 = pure PG, unstable)
 
 risk_lora:
   lora_layers: 8
   lora_rank: 8
-  lora_scale: 20.0
+  lora_scale: 2.0
   lora_dropout: 0.0
   lr: 1.0e-4
+  kl_coef: 0.1
   mode: quantile       # DSR risk-seeking (top-epsilon). Also available:
   epsilon: 0.25        #   mode: cvar      -> risk-AVERSE lower-tail mirror (Tamar 2014)
   #                        mode: entropic  -> soft tilt (set beta + beta_rule below)

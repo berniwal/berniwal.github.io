@@ -34,13 +34,17 @@ class LLMEvolutionProposer(Proposer):
     def __init__(self, task, rng, model, tokenizer, batch_size: int = 8,
                  archive_size: int = 12, n_inspirations: int = 5,
                  temperature: float = 0.8, max_tokens: int = 48,
-                 n_data_shown: int = 12, **hp):
+                 n_data_shown: int = 12, use_archive: bool = True, **hp):
         super().__init__(task, rng, **hp)
         self.model = model
         self.tok = tokenizer
         self.batch_size = batch_size
         self.archive_size = archive_size
         self.n_inspirations = n_inspirations
+        # use_archive=False -> the prompt is data-only and nothing is fed back:
+        # this turns the arm into the BEST-OF-N control (frozen weights, no
+        # in-context learning) -- the shared floor for evolution and the LoRA arms.
+        self.use_archive = use_archive
         self.max_tokens = max_tokens
         self.n_data_shown = n_data_shown
         from mlx_lm.sample_utils import make_sampler
@@ -48,6 +52,8 @@ class LLMEvolutionProposer(Proposer):
         # (reward, mse, infix, Node), kept sorted best-first (highest reward)
         self.archive: list[tuple[float, float, str, Node]] = []
         self._last_valid_frac = float("nan")
+        self._last_prompt = ""               # decoded prompt text (for the app)
+        self._last_responses: list[str] = []  # raw model outputs (for the app)
 
     # --- prompt construction -------------------------------------------------
     def _data_block(self) -> str:
@@ -63,7 +69,7 @@ class LLMEvolutionProposer(Proposer):
                  "straight lines.\nReply with ONLY the formula for f(x) on a single "
                  "line — no words, no 'y =', no code fences.")
         msg = f"{rules}\n\nData points:\n{self._data_block()}\n"
-        if self.archive:  # program-database inspiration (the evolution signal)
+        if self.use_archive and self.archive:  # program-database inspiration (the evolution signal)
             best = self.archive[: self.n_inspirations]
             lines = "\n".join(f"  {infix}   (squared error {mse:.3f}, lower is better)"
                               for _, mse, infix, _ in best)
@@ -71,6 +77,7 @@ class LLMEvolutionProposer(Proposer):
                     "that lowers the error — keep the parts that help and try a "
                     f"structurally different idea if the error is large:\n{lines}\n")
         msg += "\nNew formula for f(x):"
+        self._last_prompt = msg  # surfaced to the app for inspection
         return self.tok.apply_chat_template(
             [{"role": "user", "content": msg}], add_generation_prompt=True)
 
@@ -78,11 +85,12 @@ class LLMEvolutionProposer(Proposer):
     def ask(self) -> list[Node]:
         from mlx_lm import generate
         prompt = self._prompt()
-        cands, n_valid = [], 0
+        cands, raw, n_valid = [], [], 0
         for _ in range(self.batch_size):
             text = generate(self.model, self.tok, prompt=prompt,
                             max_tokens=self.max_tokens, sampler=self._sampler,
                             verbose=False)
+            raw.append(text)
             node = parse_expression(text)
             if node is None:
                 cands.append(INVALID)
@@ -90,6 +98,7 @@ class LLMEvolutionProposer(Proposer):
                 cands.append(node)
                 n_valid += 1
         self._last_valid_frac = n_valid / max(self.batch_size, 1)
+        self._last_responses = raw  # raw outputs for the app
         return cands
 
     def tell(self, candidates: list[Node], results: list[Result]) -> None:
@@ -112,3 +121,8 @@ class LLMEvolutionProposer(Proposer):
         return {"policy_entropy": float("nan"),
                 "valid_fraction": self._last_valid_frac,
                 "archive_best": self.archive[0][0] if self.archive else 0.0}
+
+    def last_io(self) -> dict:
+        """The prompt sent and the raw responses from the last ask() -- for the app
+        to display what the LLM actually saw and produced."""
+        return {"prompt": self._last_prompt, "responses": list(self._last_responses)}

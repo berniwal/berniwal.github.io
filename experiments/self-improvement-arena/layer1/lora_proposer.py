@@ -80,8 +80,16 @@ class LoRAProposer(Proposer):
                  batch_size: int = 8, temperature: float = 1.0, max_tokens: int = 48,
                  n_data_shown: int = 12,
                  # LoRA / optimizer
-                 lora_layers: int = 8, lora_rank: int = 8, lora_scale: float = 20.0,
+                 lora_layers: int = 8, lora_rank: int = 8, lora_scale: float = 2.0,
                  lora_dropout: float = 0.0, lr: float = 1e-4,
+                 # trust region: KL penalty to the frozen BASE model (prevents the
+                 # policy from drifting off-distribution into token-spam). This is the
+                 # ingredient real LLM-RL (GRPO/RS-GRPO/PPO) uses and pure weighted-SFT
+                 # lacks. NOTE: distinct from target_kl below (that is the entropic
+                 # beta-rule's target, unrelated). GRPO uses 0.04, but our smaller
+                 # setup (tiny batch, no advantage normalization) needs more KL to
+                 # stay stable -- 0.04 re-broke it in smoke tests, 0.1 held.
+                 kl_coef: float = 0.1,
                  # risk-arm objective knobs (mirror Layer 0's rl_risk)
                  mode: str = "quantile", epsilon: float = 0.25, beta: float = 2.0,
                  beta_rule: str = "fixed", target_ess: float = 0.3,
@@ -106,6 +114,7 @@ class LoRAProposer(Proposer):
         self.lora_scale = lora_scale
         self.lora_dropout = lora_dropout
         self.lr = lr
+        self.kl_coef = kl_coef
         # risk objective config
         self.mode = mode
         self.epsilon = epsilon
@@ -119,6 +128,10 @@ class LoRAProposer(Proposer):
         self._last_valid_frac = float("nan")
         self._last_beta = float("nan")
         self._last_loss = float("nan")
+        self._last_kl = float("nan")
+        self._last_prompt = ""               # decoded prompt text (for the app)
+        self._last_responses: list[str] = []  # raw model outputs (for the app)
+        self._lora_modules = []              # LoRALinear layers (for toggling the adapter)
         self.opt = None
         self._setup_model()  # attach LoRA + build optimizer (MLX)
 
@@ -138,6 +151,7 @@ class LoRAProposer(Proposer):
                  "straight lines.\nReply with ONLY the formula for f(x) on a single "
                  "line — no words, no 'y =', no code fences.")
         msg = f"{rules}\n\nData points:\n{self._data_block()}\n\nNew formula for f(x):"
+        self._last_prompt = msg  # surfaced to the app for inspection
         # apply_chat_template(tokenize=True default) -> token ids, same as evolution
         return self.tok.apply_chat_template(
             [{"role": "user", "content": msg}], add_generation_prompt=True)
@@ -156,6 +170,7 @@ class LoRAProposer(Proposer):
                 n_valid += 1
             completions.append(list(toks))
         self._last_valid_frac = n_valid / max(self.batch_size, 1)
+        self._last_responses = [text for text, _ in samples]  # raw outputs for the app
         # stash for tell(): the gradient step needs the exact prompt + completions
         self._pending_prompt = prompt
         self._pending_completions = completions
@@ -190,7 +205,13 @@ class LoRAProposer(Proposer):
         return {"policy_entropy": float("nan"),      # no token-entropy probe for the LLM
                 "valid_fraction": self._last_valid_frac,
                 "beta": self._last_beta,
-                "loss": self._last_loss}
+                "loss": self._last_loss,
+                "kl": self._last_kl}
+
+    def last_io(self) -> dict:
+        """The prompt sent and the raw responses from the last ask() -- for the app
+        to display what the LLM actually saw and produced."""
+        return {"prompt": self._last_prompt, "responses": list(self._last_responses)}
 
     # --- MLX-touching methods (lazy imports; the only non-portable code) ------
     def _setup_model(self) -> None:
@@ -204,6 +225,7 @@ class LoRAProposer(Proposer):
         rest of the arm is API-stable. See layer1/README.md for the pinned version.
         """
         import mlx.optimizers as optim
+        from mlx_lm.tuner.lora import LoRALinear
         from mlx_lm.tuner.utils import linear_to_lora_layers
         from mlx_lm.sample_utils import make_sampler
 
@@ -214,6 +236,10 @@ class LoRAProposer(Proposer):
         self.model.train()
         self.opt = optim.Adam(learning_rate=self.lr)
         self._sampler = make_sampler(temp=self.temperature)
+        # Handles to the LoRA layers so we can momentarily zero the adapter
+        # (scale=0 -> pure base model) to get reference logprobs for the KL penalty.
+        self._lora_modules = [m for _, m in self.model.named_modules()
+                              if isinstance(m, LoRALinear)]
 
     def _sample_batch(self, prompt_tokens) -> list[tuple[str, list[int]]]:
         """Sample ``batch_size`` completions from the current LoRA-adapted policy.
@@ -232,13 +258,36 @@ class LoRAProposer(Proposer):
             out.append((text, toks))
         return out
 
-    def _lora_step(self, prompt_tokens, completions, weights) -> None:
-        """One reward-weighted policy-gradient step on the LoRA params.
+    def _ref_logprobs(self, inputs, targets):
+        """Per-token log pi of ``targets`` under the BASE model (LoRA disabled).
+        Computed with the adapter momentarily zeroed (scale=0) so no second model
+        copy is needed; returned as a constant (no gradient)."""
+        import mlx.core as mx
+        import mlx.nn as nn
+        saved = [m.scale for m in self._lora_modules]
+        for m in self._lora_modules:
+            m.scale = 0.0  # adapter off -> pure base model
+        try:
+            logits = self.model(inputs)
+            ref_logp = -nn.losses.cross_entropy(logits, targets)  # (B, T-1)
+            mx.eval(ref_logp)
+        finally:
+            for m, s in zip(self._lora_modules, saved):
+                m.scale = s
+        return mx.stop_gradient(ref_logp)
 
-        loss = sum_i  w_i * sum_t CE(logits_t, completion_token_t)   (completion
-        positions only). Minimizing this maximizes sum_i w_i * log pi(completion_i),
-        i.e. it pushes probability toward high-weight completions and away from
-        low/negative-weight ones — the weighted-SFT / policy-gradient objective.
+    def _lora_step(self, prompt_tokens, completions, weights) -> None:
+        """One reward-weighted policy-gradient step on the LoRA params, with a
+        trust-region KL penalty to the frozen base model.
+
+        loss = sum_i w_i * sum_t CE(logits_t, token_t)            (PG term)
+             + kl_coef * sum_{i,t} [ exp(d) - d - 1 ],  d = logpi_ref - logpi_theta
+                                                          (k3 KL(theta||ref) >= 0)
+
+        The PG term pushes probability toward high-weight completions; the KL term
+        keeps the policy near the base distribution so it cannot reward-hack into
+        off-distribution token-spam (the failure mode of pure weighted-SFT). This is
+        the GRPO/RS-GRPO/PPO trust region, applied to the LoRA params (base frozen).
         """
         import mlx.core as mx
         import mlx.nn as nn
@@ -263,17 +312,27 @@ class LoRAProposer(Proposer):
             mask[i, P:len(s)] = 1.0  # completion tokens occupy [P, len(s))
         batch = mx.array(batch)
         # logits at position t predict token t+1, so targets/mask shift left by one
+        inputs = batch[:, :-1]
         targets = batch[:, 1:]
         tgt_mask = mx.array(mask[:, 1:])
         wv = mx.array(w)
+        # reference (base-model) per-token logprobs -- a constant for the KL term
+        ref_logp = self._ref_logprobs(inputs, targets) if self.kl_coef > 0 else None
 
         def loss_fn(model):
-            logits = model(batch[:, :-1])                  # (B, T-1, V)
+            logits = model(inputs)                          # (B, T-1, V)
             ce = nn.losses.cross_entropy(logits, targets)  # (B, T-1), -log pi per token
             per_sample = (ce * tgt_mask).sum(axis=1)        # sum over completion tokens
-            return (wv * per_sample).sum()                  # reward-weighted PG loss
+            pg = (wv * per_sample).sum()                    # reward-weighted PG loss
+            if ref_logp is None:
+                return pg, mx.array(0.0)
+            d = ref_logp - (-ce)                            # logpi_ref - logpi_theta
+            kl_tok = mx.exp(d) - d - 1.0                     # k3 estimator, >= 0
+            kl = (kl_tok * tgt_mask).sum()
+            return pg + self.kl_coef * kl, kl
 
-        loss, grads = nn.value_and_grad(self.model, loss_fn)(self.model)
+        (loss, kl), grads = nn.value_and_grad(self.model, loss_fn)(self.model)
         self.opt.update(self.model, grads)
         mx.eval(self.model.parameters(), self.opt.state)
         self._last_loss = float(loss)
+        self._last_kl = float(kl)

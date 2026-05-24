@@ -15,9 +15,11 @@ the Layer 1 (LLM) builder is here too but is only ever exercised on Apple Silico
 """
 from __future__ import annotations
 
+import concurrent.futures
 import importlib.util
 import platform
 import sys
+import threading
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,7 +57,7 @@ LAYER0_PRESETS: dict[str, dict] = {
                                                    beta_rule="fixed", beta=2.0)),
 }
 
-LAYER1_ARMS = ("evolution", "greedy_lora", "risk_lora")
+LAYER1_ARMS = ("best_of_n", "evolution", "greedy_lora", "risk_lora")
 
 
 @dataclass
@@ -102,7 +104,10 @@ def build_layer1_state(arm: str, task, seed: int, model, tokenizer,
 
     rng = np.random.default_rng(seed)
     common = dict(batch_size=batch_size, max_tokens=max_tokens)
-    if arm == "evolution":
+    if arm == "best_of_n":  # control: evolution minus the archive (no learning)
+        proposer = LLMEvolutionProposer(task, rng, model, tokenizer,
+                                        use_archive=False, **common, **hp)
+    elif arm == "evolution":
         proposer = LLMEvolutionProposer(task, rng, model, tokenizer, **common, **hp)
     elif arm == "greedy_lora":
         proposer = LoRAProposer(task, rng, model, tokenizer, arm="greedy", **common, **hp)
@@ -152,6 +157,89 @@ def fit_overlay(task, expr: Node | None, n: int = 200):
     return xs, y_target, y_pred
 
 
+def last_io(state: MethodState) -> dict:
+    """Prompt + raw responses from the proposer's last ask() (Layer 1 only).
+    Empty for Layer 0 proposers, which have no text I/O."""
+    p = state.proposer
+    return p.last_io() if hasattr(p, "last_io") else {"prompt": "", "responses": []}
+
+
+def _batch_rows(cands, rewards, k: int = 8) -> list[tuple[str, int, float]]:
+    """Most frequent expressions in a batch as (infix, count, reward)."""
+    counts = Counter(tuple(to_prefix(c)) for c in cands)
+    rep: dict[tuple, tuple[str, float]] = {}
+    for c, r in zip(cands, rewards):
+        key = tuple(to_prefix(c))
+        if key not in rep:
+            rep[key] = (to_infix(c), r)
+    return [(rep[key][0], n, rep[key][1]) for key, n in counts.most_common(k)]
+
+
+@dataclass
+class Frame:
+    """A snapshot of one batch in a full run, enough to replay/inspect it later."""
+    batch: int
+    calls: int
+    best: float                       # best-so-far reward up to this batch
+    best_infix: str
+    best_expr: Node | None             # for the fit overlay
+    batch_mean: float                  # this batch's mean reward (the learning signal)
+    valid_frac: float
+    rows: list                         # (infix, count, reward) for this batch
+    prompt: str
+    responses: list
+
+
+@dataclass
+class RunReplay:
+    """A whole Layer-1 run, recorded batch-by-batch so the UI can step through it
+    after all the (slow) computation is done."""
+    arm: str
+    target: str
+    budget: int
+    batch_size: int
+    frames: list                       # list[Frame]
+
+
+def run_batch(state: MethodState) -> Frame:
+    """Run ONE batch on an existing Layer-1 MethodState and return its Frame
+    (best-so-far, this batch's proposals, prompt + raw responses). Lets a UI drive
+    the loop -- one mlx_call per batch -- so it can show a progress bar between
+    batches. ``run_full`` just calls this in a loop."""
+    ver, proposer = state.verifier, state.proposer
+    cands = proposer.ask()
+    results = [ver(c) for c in cands]
+    proposer.tell(cands, results)
+    rewards = [r.reward for r in results]
+    for c, r in zip(cands, rewards):
+        if r > state.best:
+            state.best, state.best_expr = r, c
+    state.steps += 1
+    diag = proposer.diagnostics() if hasattr(proposer, "diagnostics") else {}
+    io = proposer.last_io() if hasattr(proposer, "last_io") else {"prompt": "", "responses": []}
+    return Frame(
+        batch=state.steps, calls=ver.calls, best=state.best,
+        best_infix=to_infix(state.best_expr) if state.best_expr is not None else "",
+        best_expr=state.best_expr,
+        batch_mean=float(np.mean(rewards)) if rewards else 0.0,
+        valid_frac=float(diag.get("valid_fraction", float("nan"))),
+        rows=_batch_rows(cands, rewards), prompt=io["prompt"], responses=io["responses"])
+
+
+def run_full(arm: str, task, seed: int, model, tokenizer, budget: int,
+             batch_size: int = 8, max_tokens: int = 48, **hp) -> RunReplay:
+    """Run one Layer-1 arm to ``budget`` verifier calls, recording a Frame per batch.
+    Convenience wrapper for headless use; the UI builds the state and calls
+    ``run_batch`` per batch directly so it can render a progress bar."""
+    state = build_layer1_state(arm, task, seed, model, tokenizer,
+                               batch_size=batch_size, max_tokens=max_tokens, **hp)
+    frames: list[Frame] = []
+    while state.verifier.calls < budget:
+        frames.append(run_batch(state))
+    return RunReplay(arm=arm, target=task.name, budget=budget,
+                     batch_size=batch_size, frames=frames)
+
+
 def batch_summary(state: MethodState, k: int = 8) -> list[tuple[str, int, float]]:
     """Most frequent expressions in the latest batch as ``(infix, count, reward)``.
     When a policy mode-collapses, one row's count approaches the whole batch -- the
@@ -163,6 +251,29 @@ def batch_summary(state: MethodState, k: int = 8) -> list[tuple[str, int, float]
         if key not in rep:
             rep[key] = (to_infix(c), r)
     return [(rep[key][0], n, rep[key][1]) for key, n in counts.most_common(k)]
+
+
+# --- MLX threading shim (required under Streamlit) ---------------------------
+# MLX streams are THREAD-LOCAL, but Streamlit dispatches each rerun on a thread
+# from a pool -- so loading the model on one rerun's thread and generating on the
+# next raises "There is no Stream(gpu, N) in current thread." Funnelling every
+# MLX-touching call (model load, LoRA attach, generate, gradient step) through one
+# persistent single worker thread keeps them all on one stream. Layer 0 never uses
+# this. The pool is created lazily so importing this module stays MLX-free.
+_mlx_pool = None
+_mlx_lock = threading.Lock()
+
+
+def mlx_call(fn, *args, **kwargs):
+    """Run ``fn(*args, **kwargs)`` on the dedicated MLX worker thread and return
+    its result. Use for ALL MLX-touching work in the Streamlit app so model load
+    and stepping share one thread (and thus one MLX stream)."""
+    global _mlx_pool
+    with _mlx_lock:
+        if _mlx_pool is None:
+            _mlx_pool = concurrent.futures.ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="mlx")
+    return _mlx_pool.submit(fn, *args, **kwargs).result()
 
 
 # --- Layer 1 capability detection (runtime, not install-time) ----------------
