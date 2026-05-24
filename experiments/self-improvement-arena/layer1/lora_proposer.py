@@ -172,7 +172,11 @@ class LoRAProposer(Proposer):
         samples = self._sample_batch(prompt)  # list[(text, token_ids)]
         cands, completions, n_valid = [], [], 0
         for text, toks in samples:
-            node = parse_expression(text, const_placeholder=self.const_placeholder)
+            if self.const_placeholder:           # C placeholder + BFGS constant-fitting
+                from layer1.constfit import parse_and_fit
+                node = parse_and_fit(text, self.task.x_train, self.task.y_train)
+            else:
+                node = parse_expression(text)
             if node is None:
                 cands.append(INVALID)
             else:

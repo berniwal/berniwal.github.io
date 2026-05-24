@@ -102,7 +102,11 @@ class LLMEvolutionProposer(Proposer):
                             max_tokens=self.max_tokens, sampler=self._sampler,
                             verbose=False)
             raw.append(text)
-            node = parse_expression(text, const_placeholder=self.const_placeholder)
+            if self.const_placeholder:           # C placeholder + BFGS constant-fitting
+                from layer1.constfit import parse_and_fit
+                node = parse_and_fit(text, self.task.x_train, self.task.y_train)
+            else:
+                node = parse_expression(text)
             if node is None:
                 cands.append(INVALID)
             else:

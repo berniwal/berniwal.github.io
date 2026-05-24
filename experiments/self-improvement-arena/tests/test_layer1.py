@@ -170,6 +170,22 @@ def test_arm_validation():
             pass
 
 
+def test_constfit_recovers_structure():
+    """The BFGS reward: a C-skeleton the LLM would propose, fit to the data, recovers
+    the target (no MLX needed -- just sia + scipy)."""
+    from layer1.constfit import parse_and_fit
+    from sia.task import make_task
+    from sia.verifier import Verifier
+    task = make_task("medium", seed=0)          # x^2 + sin(x)
+    # the LLM's structure with C placeholders; BFGS should fit C -> (1, 1, 0)
+    node = parse_and_fit("C*x*x + C*sin(x) + C", task.x_train, task.y_train)
+    assert node is not None
+    assert Verifier(task).success(node)          # held-out recovery
+    # a skeleton with a spurious extra term still recovers (cos coefficient -> ~0)
+    node2 = parse_and_fit("C*x*x + C*sin(x) + C*cos(x)", task.x_train, task.y_train)
+    assert node2 is not None and Verifier(task).success(node2)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

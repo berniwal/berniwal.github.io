@@ -208,12 +208,12 @@ with tab_l1:
                                      "off solutions; lower = commits more but risks "
                                      "degeneration. GRPO uses 0.04."))
         l1_const = st.checkbox(
-            "Constant placeholder C  (C := 1)", value=False,
-            help="DSR-style: the prompt asks the model to write C for any number, and we "
-                 "score with all constants = 1 (a stand-in until BFGS fitting). It nudges "
-                 "the model toward structure rather than guessing coefficients. Note: on "
-                 "its own this does NOT recover the target on the base model — RL is the "
-                 "lever; this is just the interface.")
+            "Constant placeholder C  (BFGS-fit)", value=False,
+            help="DSR-style constant-fitting: the prompt asks the model to write C for any "
+                 "number, and the constants are then BFGS-fit to the data — so the reward "
+                 "scores the STRUCTURE's best fit, not the model's guessed coefficients. "
+                 "Lets it propose skeletons like C*x*x + C*sin(x); ~10% of base samples "
+                 "already recover medium this way (vs ~0 with free numeric constants).")
 
         # ---------- A. Full run + step-through (the main investigation tool) ----------
         st.markdown("##### Full run, then step through it")

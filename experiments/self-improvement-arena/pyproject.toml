@@ -33,7 +33,10 @@ dependencies = [
 app = ["streamlit>=1.30"]
 # Layer 1 LLM proposer (evolution + LoRA arms). Apple Silicon / macOS only --
 # the marker makes this a no-op on other platforms instead of a hard failure.
-layer1 = ["mlx-lm>=0.31 ; platform_machine == 'arm64' and sys_platform == 'darwin'"]
+layer1 = [
+    "mlx-lm>=0.31 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "scipy>=1.10",  # BFGS constant-fitting for LLM proposals (layer1/constfit.py); all platforms
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
