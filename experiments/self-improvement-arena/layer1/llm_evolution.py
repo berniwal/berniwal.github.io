@@ -34,11 +34,15 @@ class LLMEvolutionProposer(Proposer):
     def __init__(self, task, rng, model, tokenizer, batch_size: int = 8,
                  archive_size: int = 12, n_inspirations: int = 5,
                  temperature: float = 0.8, max_tokens: int = 48,
-                 n_data_shown: int = 12, use_archive: bool = True, **hp):
+                 n_data_shown: int = 12, use_archive: bool = True,
+                 const_placeholder: bool = False, **hp):
         super().__init__(task, rng, **hp)
         self.model = model
         self.tok = tokenizer
         self.batch_size = batch_size
+        # DSR-style constant placeholder: prompt the model to use `C` for numbers and
+        # score with all constants = 1 (it proposes structure, not coefficients).
+        self.const_placeholder = const_placeholder
         self.archive_size = archive_size
         self.n_inspirations = n_inspirations
         # use_archive=False -> the prompt is data-only and nothing is fed back:
@@ -62,9 +66,16 @@ class LLMEvolutionProposer(Proposer):
         return "\n".join(f"  x = {x[i]:+.3f}   y = {y[i]:+.3f}" for i in idx)
 
     def _prompt(self) -> str:
+        if self.const_placeholder:
+            vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
+                     "cos, and the constant placeholder C. Use C wherever you need a "
+                     "number or coefficient (e.g. C*x*x + C*sin(x) + C) — its value is "
+                     "chosen automatically; do NOT write explicit numbers.")
+        else:
+            vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
+                     "cos, and numeric constants.")
         rules = ("You are doing symbolic regression. Find a formula y = f(x) that fits "
-                 "the data.\nAllowed: the variable x, operators + - * /, the functions "
-                 "sin and cos, and numeric constants.\nThe data may be nonlinear or "
+                 f"the data.\n{vocab}\nThe data may be nonlinear or "
                  "periodic — consider terms like x*x, x*x*x, or sin/cos, not just "
                  "straight lines.\nReply with ONLY the formula for f(x) on a single "
                  "line — no words, no 'y =', no code fences.")
@@ -91,7 +102,7 @@ class LLMEvolutionProposer(Proposer):
                             max_tokens=self.max_tokens, sampler=self._sampler,
                             verbose=False)
             raw.append(text)
-            node = parse_expression(text)
+            node = parse_expression(text, const_placeholder=self.const_placeholder)
             if node is None:
                 cands.append(INVALID)
             else:

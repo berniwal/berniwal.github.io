@@ -183,6 +183,18 @@ def test_base_grammar_unchanged_by_extension():
     assert make_task("medium", seed=0).grammar.tokens == TOKENS
 
 
+def test_const_placeholder_parsing():
+    """const_placeholder: the symbol C and any numeric literal collapse to 1.0, so the
+    LLM proposes structure; without the flag bare C is rejected (unchanged behavior)."""
+    assert parse_expression("C*x*x + C*sin(x)") is None          # bare C unknown by default
+    n = parse_expression("C*x*x + C*sin(x)", const_placeholder=True)
+    assert n is not None and evaluate(n, np.array([1.5])) is not None
+    from sia.expression import to_infix
+    assert to_infix(n) == "(((1.0 * x) * x) + (1.0 * sin(x)))"    # == x*x + sin(x)
+    n2 = parse_expression("2.5*x - 3.1", const_placeholder=True)  # numbers -> 1.0
+    assert to_infix(n2) == "((1.0 * x) - 1.0)"
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import copy
 import math
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -272,10 +273,27 @@ def _candidate_strings(text: str):
                 yield c
 
 
-def parse_expression(text: str) -> Node | None:
+def _consts_to_one(node: Node) -> None:
+    """Set every numeric-constant leaf to 1.0 in place (the variable x is left)."""
+    if not node.children:
+        if node.op != "x":
+            node.op = "1.0"
+    else:
+        for c in node.children:
+            _consts_to_one(c)
+
+
+def parse_expression(text: str, const_placeholder: bool = False) -> Node | None:
     """Parse an LLM's free-form reply into a Node, or None if no candidate is a
     valid in-grammar expression. Tries each line/segment and returns the first
-    that parses (so leading prose is tolerated)."""
+    that parses (so leading prose is tolerated).
+
+    ``const_placeholder``: DSR-style constant token. The bare symbol ``C`` (or
+    ``const``) is treated as a placeholder and, together with any numeric literal,
+    is set to 1.0 — so the model proposes *structure* (``C*x*x + C*sin(x)``) and we
+    score it with all constants = 1 (a stand-in until BFGS constant-fitting)."""
+    if const_placeholder:
+        text = re.sub(r"\bC\b|\bconst\b", "1", text)
     for cand in _candidate_strings(text):
         try:
             tree = ast.parse(cand, mode="eval")
@@ -283,5 +301,7 @@ def parse_expression(text: str) -> Node | None:
             continue
         node = _from_ast(tree)
         if node is not None:
+            if const_placeholder:
+                _consts_to_one(node)
             return node
     return None

@@ -78,7 +78,7 @@ class LoRAProposer(Proposer):
 
     def __init__(self, task, rng, model, tokenizer, arm: str = "greedy",
                  batch_size: int = 8, temperature: float = 1.0, max_tokens: int = 48,
-                 n_data_shown: int = 12,
+                 n_data_shown: int = 12, const_placeholder: bool = False,
                  # LoRA / optimizer
                  lora_layers: int = 8, lora_rank: int = 8, lora_scale: float = 2.0,
                  lora_dropout: float = 0.0, lr: float = 1e-4,
@@ -108,6 +108,7 @@ class LoRAProposer(Proposer):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.n_data_shown = n_data_shown
+        self.const_placeholder = const_placeholder  # DSR-style C placeholder (C:=1)
         # LoRA / optim config
         self.lora_layers = lora_layers
         self.lora_rank = lora_rank
@@ -146,9 +147,16 @@ class LoRAProposer(Proposer):
         return "\n".join(f"  x = {x[i]:+.3f}   y = {y[i]:+.3f}" for i in idx)
 
     def _prompt_tokens(self):
+        if self.const_placeholder:
+            vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
+                     "cos, and the constant placeholder C. Use C wherever you need a "
+                     "number or coefficient (e.g. C*x*x + C*sin(x) + C) — its value is "
+                     "chosen automatically; do NOT write explicit numbers.")
+        else:
+            vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
+                     "cos, and numeric constants.")
         rules = ("You are doing symbolic regression. Find a formula y = f(x) that fits "
-                 "the data.\nAllowed: the variable x, operators + - * /, the functions "
-                 "sin and cos, and numeric constants.\nThe data may be nonlinear or "
+                 f"the data.\n{vocab}\nThe data may be nonlinear or "
                  "periodic — consider terms like x*x, x*x*x, or sin/cos, not just "
                  "straight lines.\nReply with ONLY the formula for f(x) on a single "
                  "line — no words, no 'y =', no code fences.")
@@ -164,7 +172,7 @@ class LoRAProposer(Proposer):
         samples = self._sample_batch(prompt)  # list[(text, token_ids)]
         cands, completions, n_valid = [], [], 0
         for text, toks in samples:
-            node = parse_expression(text)
+            node = parse_expression(text, const_placeholder=self.const_placeholder)
             if node is None:
                 cands.append(INVALID)
             else:

@@ -207,6 +207,12 @@ with tab_l1:
                                      "(LoRA arms). Higher = more stable but snaps back "
                                      "off solutions; lower = commits more but risks "
                                      "degeneration. GRPO uses 0.04."))
+        l1_const = st.checkbox(
+            "Constant placeholder C  (C := 1)", value=False,
+            help="DSR-style: the prompt asks the model to use C for any number, and we "
+                 "score with all constants = 1. It then proposes STRUCTURE "
+                 "(C*x*x + C*sin(x)) instead of guessing coefficients — which is what "
+                 "lets it land x*x + sin(x). (A stand-in until BFGS constant-fitting.)")
 
         # ---------- A. Full run + step-through (the main investigation tool) ----------
         st.markdown("##### Full run, then step through it")
@@ -227,7 +233,7 @@ with tab_l1:
                 state = eng.mlx_call(
                     eng.build_layer1_state, arm, t1, seed, model, tok,
                     batch_size=l1_bs, max_tokens=l1_tok, temperature=l1_temp,
-                    reward_mode=reward_mode, kl_coef=l1_kl)
+                    reward_mode=reward_mode, kl_coef=l1_kl, const_placeholder=l1_const)
             # Drive the loop here (one mlx_call per batch) so the progress bar updates.
             pbar = st.progress(0.0, text=f"batch 0/{n_batches}")
             frames = []
@@ -320,7 +326,7 @@ with tab_l1:
                 st.session_state.l1 = eng.mlx_call(
                     eng.build_layer1_state, arm, t1, seed, model, tok,
                     batch_size=l1_bs, max_tokens=l1_tok, temperature=l1_temp,
-                    reward_mode=reward_mode, kl_coef=l1_kl)
+                    reward_mode=reward_mode, kl_coef=l1_kl, const_placeholder=l1_const)
                 st.session_state.l1_task = t1
             if b.button("Step (1 batch)", use_container_width=True,
                         disabled="l1" not in st.session_state):
