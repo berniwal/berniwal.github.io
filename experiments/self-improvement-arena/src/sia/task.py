@@ -68,6 +68,17 @@ NGUYEN_RANGES = {
     "nguyen-4": (-1.0, 1.0), "nguyen-5": (-1.0, 1.0), "nguyen-6": (-1.0, 1.0),
     "nguyen-7": (0.0, 2.0), "nguyen-8": (0.0, 4.0),
 }
+# Human-readable formulas for display (Nguyen targets have no exact grammar tree).
+NGUYEN_FORMULAS = {
+    "nguyen-1": "x^3 + x^2 + x",
+    "nguyen-2": "x^4 + x^3 + x^2 + x",
+    "nguyen-3": "x^5 + x^4 + x^3 + x^2 + x",
+    "nguyen-4": "x^6 + x^5 + x^4 + x^3 + x^2 + x",
+    "nguyen-5": "sin(x^2)*cos(x) - 1",
+    "nguyen-6": "sin(x) + sin(x + x^2)",
+    "nguyen-7": "log(x+1) + log(x^2+1)",
+    "nguyen-8": "sqrt(x)",
+}
 
 
 @dataclass

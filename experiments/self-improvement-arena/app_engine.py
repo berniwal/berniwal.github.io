@@ -36,7 +36,7 @@ for _p in (str(ROOT / "src"), str(ROOT)):
 from sia.expression import Node, evaluate, to_infix, to_prefix  # noqa: E402
 from sia.metrics import unique_fraction  # noqa: E402
 from sia.proposers import get_proposer  # noqa: E402
-from sia.task import NGUYEN_FNS, TARGET_FNS, make_task  # noqa: E402
+from sia.task import NGUYEN_FNS, NGUYEN_FORMULAS, TARGET_FNS, make_task  # noqa: E402
 from sia.verifier import Verifier  # noqa: E402
 
 # Layer 0 method presets, keyed to match sia.plotting.STYLE (so colors/labels are
@@ -165,8 +165,11 @@ def step(state: MethodState, n_steps: int = 1) -> None:
 
 def target_label(task) -> str:
     """Human-readable target formula for the caption. Nguyen tasks carry no exact
-    grammar tree (target_expr is None), so fall back to the benchmark name."""
-    return to_infix(task.target_expr) if task.target_expr is not None else task.name
+    grammar tree (target_expr is None), so use their known formula string."""
+    if task.target_expr is not None:
+        return to_infix(task.target_expr)
+    formula = NGUYEN_FORMULAS.get(task.name)
+    return f"{task.name}:  {formula}" if formula else task.name
 
 
 def _target_y(task, xs: np.ndarray) -> np.ndarray:
