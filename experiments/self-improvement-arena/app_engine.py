@@ -36,25 +36,31 @@ for _p in (str(ROOT / "src"), str(ROOT)):
 from sia.expression import Node, evaluate, to_infix, to_prefix  # noqa: E402
 from sia.metrics import unique_fraction  # noqa: E402
 from sia.proposers import get_proposer  # noqa: E402
-from sia.task import make_task  # noqa: E402
+from sia.task import NGUYEN_FNS, TARGET_FNS, make_task  # noqa: E402
 from sia.verifier import Verifier  # noqa: E402
 
 # Layer 0 method presets, keyed to match sia.plotting.STYLE (so colors/labels are
 # shared with the offline figures). `hp` excludes batch_size, which the app sets.
+# DSR-faithful hyperparameters (Petersen et al. 2021, Table 3): lr 5e-4, entropy
+# 0.005, risk eps 0.05, lengths 4-30. `batch_size` is set by the app's slider; the
+# `constraints` and hierarchical-entropy toggles are applied in build_layer0_state.
 LAYER0_PRESETS: dict[str, dict] = {
     "random": dict(proposer="random", hp=dict(max_depth=4)),
     "gp": dict(proposer="gp", hp=dict(tournament_size=5, crossover_rate=0.6,
                                       mutation_rate=0.3, immigrant_rate=0.1,
                                       max_depth=4, max_complexity=30)),
-    "cvar": dict(proposer="risk", hp=dict(hidden=32, max_length=24, lr=0.01,
-                                          ent_coef=0.01, mode="cvar", epsilon=0.1)),
-    "greedy": dict(proposer="greedy", hp=dict(hidden=32, max_length=24, lr=0.01,
-                                              ent_coef=0.01)),
-    "risk": dict(proposer="risk", hp=dict(hidden=32, max_length=24, lr=0.01,
-                                          ent_coef=0.01, mode="quantile", epsilon=0.1)),
-    "risk_entropic": dict(proposer="risk", hp=dict(hidden=32, max_length=24, lr=0.01,
-                                                   ent_coef=0.01, mode="entropic",
-                                                   beta_rule="fixed", beta=2.0)),
+    "cvar": dict(proposer="risk", hp=dict(hidden=32, max_length=30, min_length=4,
+                                          lr=0.0005, ent_coef=0.005, mode="cvar",
+                                          epsilon=0.05)),
+    "greedy": dict(proposer="greedy", hp=dict(hidden=32, max_length=30, min_length=4,
+                                              lr=0.0005, ent_coef=0.005)),
+    "risk": dict(proposer="risk", hp=dict(hidden=32, max_length=30, min_length=4,
+                                          lr=0.0005, ent_coef=0.005, mode="quantile",
+                                          epsilon=0.05)),
+    "risk_entropic": dict(proposer="risk", hp=dict(hidden=32, max_length=30, min_length=4,
+                                                   lr=0.0005, ent_coef=0.005,
+                                                   mode="entropic", beta_rule="fixed",
+                                                   beta=2.0)),
 }
 
 LAYER1_ARMS = ("best_of_n", "evolution", "greedy_lora", "risk_lora")
@@ -82,14 +88,21 @@ class MethodState:
 
 
 def build_layer0_state(key: str, task, seed: int, batch_size: int,
-                       reward_mode: str = "mse") -> MethodState:
+                       reward_mode: str = "mse", constraints: bool = True,
+                       hierarchical: bool = False) -> MethodState:
     """Instantiate one Layer 0 method (fresh proposer + its own verifier) on the
-    shared task, seeded for reproducibility."""
+    shared task, seeded for reproducibility. ``constraints`` and ``hierarchical``
+    (entropy) apply only to the RNN arms (greedy/risk/cvar/entropic)."""
     preset = LAYER0_PRESETS[key]
     rng = np.random.default_rng(seed)
     hp = dict(preset["hp"], batch_size=batch_size)
     if preset["proposer"] == "gp":
         hp["pop_size"] = batch_size  # keep population == batch for a clean budget
+    if preset["proposer"] in ("greedy", "risk"):     # RNN arms get the toggles
+        hp["constraints"] = constraints
+        if hierarchical:                              # Landajuela 2021 settings
+            hp["entropy_gamma"] = 0.85
+            hp["ent_coef"] = 0.02
     proposer = get_proposer(preset["proposer"])(task, rng, **hp)
     return MethodState(key=key, proposer=proposer,
                        verifier=Verifier(task, reward_mode=reward_mode))
@@ -150,6 +163,21 @@ def step(state: MethodState, n_steps: int = 1) -> None:
         state.last_rewards = [r.reward for r in results]
 
 
+def target_label(task) -> str:
+    """Human-readable target formula for the caption. Nguyen tasks carry no exact
+    grammar tree (target_expr is None), so fall back to the benchmark name."""
+    return to_infix(task.target_expr) if task.target_expr is not None else task.name
+
+
+def _target_y(task, xs: np.ndarray) -> np.ndarray:
+    """Smooth target curve. Uses the exact tree when present, else the benchmark
+    function (Nguyen targets have no grammar tree)."""
+    if task.target_expr is not None:
+        return evaluate(task.target_expr, xs)
+    fn = NGUYEN_FNS.get(task.name) or TARGET_FNS.get(task.name)
+    return fn(xs)
+
+
 def fit_overlay(task, expr: Node | None, n: int = 200):
     """Smooth curves for the 'is it fitting the data' plot: the true target f(x)
     and (if any) the current best expression, both over the training x-range.
@@ -157,7 +185,7 @@ def fit_overlay(task, expr: Node | None, n: int = 200):
     lo, hi = float(task.x_train.min()), float(task.x_train.max())
     xs = np.linspace(lo, hi, n)
     with np.errstate(all="ignore"):
-        y_target = evaluate(task.target_expr, xs)
+        y_target = _target_y(task, xs)
     y_pred = None
     if expr is not None:
         with np.errstate(all="ignore"):

@@ -62,14 +62,19 @@ def _fit_fig(task, expr, color="#d95f02"):
 # --- top bar: only the shared task controls (no sidebar) ---------------------
 st.title("Self-Improvement Arena")
 tc = st.columns([1, 1, 1, 3])
-target = tc[0].selectbox("Target  f(x)", ["easy", "medium", "harder"], index=1)
+target = tc[0].selectbox(
+    "Target  f(x)",
+    ["easy", "medium", "harder"] + [f"nguyen-{i}" for i in range(1, 9)], index=1,
+    help="easy/medium/harder use the base grammar; nguyen-* use DSR's Koza grammar "
+         "{+,-,*,/,sin,cos,exp,log,x} (no constants).")
 seed = int(tc[1].number_input("Seed", min_value=0, max_value=9999, value=0, step=1))
 reward_mode = tc[2].selectbox(
     "Reward", ["mse", "nrmse"], index=0,
     help="mse: 1/(1+MSE). nrmse: 1/(1+RMSE/std(y)) — scale-invariant (DSR-style); "
          "predict-the-mean = 0.5 on every target, gentler gradient.")
 task = eng.make_task(target, seed=seed)
-tc[3].caption(f"f(x) = {to_infix(task.target_expr)}  ·  reward = **{reward_mode}**")
+tc[3].caption(f"f(x) = {eng.target_label(task)}  ·  reward = **{reward_mode}**  ·  "
+              f"grammar = {len(task.grammar.tokens)} tokens")
 
 tab_l0, tab_l1 = st.tabs(["Layer 0  (search / RL)", "Layer 1  (LLM / MLX)"])
 
@@ -77,17 +82,28 @@ tab_l0, tab_l1 = st.tabs(["Layer 0  (search / RL)", "Layer 1  (LLM / MLX)"])
 # Layer 0 tab: its own controls + plots (left), scoreboard + batch (right)
 # =====================================================================
 with tab_l0:
-    ctrl = st.columns([1, 3])
-    batch_size = int(ctrl[0].select_slider("Batch size", options=[20, 50, 100, 200],
-                                           value=200))
-    methods = ctrl[1].multiselect(
+    ctrl = st.columns([1, 1, 1, 2])
+    batch_size = int(ctrl[0].select_slider("Batch size", options=[100, 200, 500, 1000],
+                                           value=1000,
+                                           help="DSR uses 1000; lower it for snappier "
+                                                "stepping."))
+    constraints = ctrl[1].checkbox(
+        "Constraints", value=True,
+        help="DSR's 4 a-priori constraints (no nested trig / all-constant operands / "
+             "inverse-of-unary; min+max length). Off = the collapse regime.")
+    hierarchical = ctrl[2].checkbox(
+        "Hierarchical entropy", value=False,
+        help="Discount the entropy bonus by gamma^t so early/structural tokens weigh "
+             "most (Landajuela 2021): sets gamma=0.85, ent_coef=0.02.")
+    methods = ctrl[3].multiselect(
         "Methods", options=list(eng.LAYER0_PRESETS),
         default=list(eng.LAYER0_PRESETS), format_func=lambda k: STYLE[k][1])
 
-    sig = (target, seed, batch_size, tuple(methods), reward_mode)
+    sig = (target, seed, batch_size, tuple(methods), reward_mode, constraints, hierarchical)
     if st.session_state.get("sig") != sig:
         st.session_state.states = {
-            m: eng.build_layer0_state(m, task, seed, batch_size, reward_mode)
+            m: eng.build_layer0_state(m, task, seed, batch_size, reward_mode,
+                                      constraints, hierarchical)
             for m in methods}
         st.session_state.sig = sig
     states = st.session_state.states
@@ -104,7 +120,8 @@ with tab_l0:
         n_step = 1000
     if sc[4].button("Reset", use_container_width=True):
         st.session_state.states = {
-            m: eng.build_layer0_state(m, task, seed, batch_size, reward_mode)
+            m: eng.build_layer0_state(m, task, seed, batch_size, reward_mode,
+                                      constraints, hierarchical)
             for m in methods}
         states = st.session_state.states
     if n_step:
