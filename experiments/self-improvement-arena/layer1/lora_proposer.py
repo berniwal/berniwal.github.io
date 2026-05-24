@@ -149,9 +149,9 @@ class LoRAProposer(Proposer):
     def _prompt_tokens(self):
         if self.const_placeholder:
             vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
-                     "cos, and the constant placeholder C. Write C in place of EVERY "
-                     "numeric constant or coefficient (never write an actual number); "
-                     "each C's value is chosen automatically.")
+                     "cos, and the constant placeholder C. Write C in place of every "
+                     "numeric constant or coefficient -- for example write C*x + C "
+                     "instead of 2.5*x + 1.3. Each C's value is chosen automatically.")
         else:
             vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
                      "cos, and numeric constants.")
