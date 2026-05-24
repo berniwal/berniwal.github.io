@@ -73,8 +73,9 @@ reward_mode = tc[2].selectbox(
     help="mse: 1/(1+MSE). nrmse: 1/(1+RMSE/std(y)) — scale-invariant (DSR-style); "
          "predict-the-mean = 0.5 on every target, gentler gradient.")
 task = eng.make_task(target, seed=seed)
-tc[3].caption(f"f(x) = {eng.target_label(task)}  ·  reward = **{reward_mode}**  ·  "
-              f"grammar = {len(task.grammar.tokens)} tokens")
+tc[3].caption(f"f(x) = {eng.target_label(task)}  ·  reward = **{reward_mode}**")
+tc[3].caption(f"grammar ({len(task.grammar.tokens)} tokens): "
+              f"{{{', '.join(task.grammar.tokens)}}}")
 
 tab_l0, tab_l1 = st.tabs(["Layer 0  (search / RL)", "Layer 1  (LLM / MLX)"])
 
