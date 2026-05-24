@@ -209,10 +209,11 @@ with tab_l1:
                                      "degeneration. GRPO uses 0.04."))
         l1_const = st.checkbox(
             "Constant placeholder C  (C := 1)", value=False,
-            help="DSR-style: the prompt asks the model to use C for any number, and we "
-                 "score with all constants = 1. It then proposes STRUCTURE "
-                 "(C*x*x + C*sin(x)) instead of guessing coefficients — which is what "
-                 "lets it land x*x + sin(x). (A stand-in until BFGS constant-fitting.)")
+            help="DSR-style: the prompt asks the model to write C for any number, and we "
+                 "score with all constants = 1 (a stand-in until BFGS fitting). It nudges "
+                 "the model toward structure rather than guessing coefficients. Note: on "
+                 "its own this does NOT recover the target on the base model — RL is the "
+                 "lever; this is just the interface.")
 
         # ---------- A. Full run + step-through (the main investigation tool) ----------
         st.markdown("##### Full run, then step through it")

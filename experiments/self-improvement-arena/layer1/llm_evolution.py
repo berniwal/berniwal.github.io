@@ -68,9 +68,9 @@ class LLMEvolutionProposer(Proposer):
     def _prompt(self) -> str:
         if self.const_placeholder:
             vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
-                     "cos, and the constant placeholder C. Use C wherever you need a "
-                     "number or coefficient (e.g. C*x*x + C*sin(x) + C) — its value is "
-                     "chosen automatically; do NOT write explicit numbers.")
+                     "cos, and the constant placeholder C. Write C in place of EVERY "
+                     "numeric constant or coefficient (never write an actual number); "
+                     "each C's value is chosen automatically.")
         else:
             vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
                      "cos, and numeric constants.")
