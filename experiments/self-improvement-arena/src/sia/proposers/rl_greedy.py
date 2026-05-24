@@ -26,7 +26,7 @@ class RLGreedy(Proposer):
         seed = int(rng.integers(1 << 30)) if seed is None else seed
         self.policy = RNNPolicy(hidden=hidden, max_length=max_length, lr=lr, seed=seed,
                                 constraints=constraints, min_length=min_length,
-                                entropy_gamma=entropy_gamma)
+                                entropy_gamma=entropy_gamma, tokens=task.grammar.tokens)
 
     def ask(self):
         return self.policy.sample(self.batch_size, self.rng)

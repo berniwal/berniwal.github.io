@@ -29,6 +29,17 @@ ARITY = {
     **{t: 0 for t in TERMINALS},
 }
 
+# --- Extended (Koza / Nguyen) operators -------------------------------------
+# Used ONLY when the Koza grammar is selected (a toggle). exp/log let the standard
+# Nguyen suite be searched with DSR's library {+,-,*,/,sin,cos,exp,log,x}; there
+# are NO constant terminals (constants are constructed, e.g. 1 = x/x), matching
+# DSR's no-const standard Nguyen setup. The base grammar/TOKENS above are left
+# untouched, so existing Layer-0 runs reproduce byte-for-byte.
+TRIG = ("sin", "cos")                     # for the no-nested-trig constraint
+EXTRA_UNARY = ("exp", "log")
+INVERSE = {"exp": "log", "log": "exp"}    # for the no-inverse-of-unary constraint
+ARITY.update({op: 1 for op in EXTRA_UNARY})
+
 
 @dataclass(frozen=True)
 class Grammar:
@@ -45,6 +56,13 @@ class Grammar:
 
 
 GRAMMAR = Grammar()
+
+# The Koza/Nguyen grammar (toggle): DSR's ℒ₀ = {+,-,*,/,sin,cos,exp,log,x}, no
+# constant terminals. Select it via make_task(..., suite="nguyen").
+KOZA_UNARY = UNARY + EXTRA_UNARY
+KOZA_TOKENS = tuple(BINARY) + tuple(KOZA_UNARY) + tuple(VARS)
+KOZA_GRAMMAR = Grammar(binary=BINARY, unary=KOZA_UNARY, terminals=VARS,
+                       tokens=KOZA_TOKENS)
 
 
 @dataclass
@@ -86,6 +104,10 @@ def evaluate(node: Node, x: np.ndarray) -> np.ndarray:
         return np.sin(evaluate(node.children[0], x))
     if op == "cos":
         return np.cos(evaluate(node.children[0], x))
+    if op == "exp":  # may overflow -> inf; verifier treats non-finite as invalid
+        return np.exp(evaluate(node.children[0], x))
+    if op == "log":  # log of <=0 -> nan/-inf -> invalid; that's the protection
+        return np.log(evaluate(node.children[0], x))
     raise ValueError(f"unknown op: {op!r}")
 
 

@@ -161,6 +161,28 @@ def test_hierarchical_entropy_knob():
     assert not np.allclose(flat, hier)                # the discount changes the update
 
 
+def test_nguyen_suite_koza_and_reachable():
+    """Nguyen tasks select the Koza grammar (exp/log, NO constant terminals), and
+    the exact target is reachable + scores a recovering reward."""
+    from sia.task import make_task
+    t = make_task("nguyen-1", n_points=20, seed=0)
+    assert {"exp", "log"}.issubset(t.grammar.tokens)      # extended ops present
+    assert "1.0" not in t.grammar.tokens                   # no constant terminals (Koza)
+    # exact Nguyen-1 (x^3 + x^2 + x) recovers
+    X = leaf("x")
+    x2 = Node("*", [X, X]); x3 = Node("*", [X, x2])
+    tree = Node("+", [Node("+", [x3, x2]), X])
+    ver = Verifier(t)
+    assert ver(tree).reward > 0.95 and ver.success(tree)
+
+
+def test_base_grammar_unchanged_by_extension():
+    """The base grammar/vocab is untouched by the Koza extension (reproducibility)."""
+    from sia.expression import TOKENS
+    assert TOKENS == ("+", "-", "*", "/", "sin", "cos", "x", "1.0", "2.0", "0.5")
+    assert make_task("medium", seed=0).grammar.tokens == TOKENS
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

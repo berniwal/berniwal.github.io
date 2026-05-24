@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .expression import GRAMMAR, Grammar, Node, leaf
+from .expression import GRAMMAR, KOZA_GRAMMAR, Grammar, Node, leaf
 
 
 def _b(op: str, a: Node, c: Node) -> Node:
@@ -47,6 +47,28 @@ TARGET_FNS = {
     "harder": lambda x: x ** 3 - x + np.cos(2.0 * x),
 }
 
+# --- Nguyen benchmark suite (single-variable, Nguyen-1..8) -------------------
+# DSR's standard Nguyen targets, searched over the Koza library
+# {+,-,*,/,sin,cos,exp,log,x} (KOZA_GRAMMAR) -- NO constant terminals (constants
+# are constructed, e.g. 1 = x/x). Per-benchmark sampling ranges from the DSO
+# benchmarks spec. Nguyen-9..12 (two-variable) are deferred (need a 2nd variable).
+NGUYEN_FNS = {
+    "nguyen-1": lambda x: x**3 + x**2 + x,
+    "nguyen-2": lambda x: x**4 + x**3 + x**2 + x,
+    "nguyen-3": lambda x: x**5 + x**4 + x**3 + x**2 + x,
+    "nguyen-4": lambda x: x**6 + x**5 + x**4 + x**3 + x**2 + x,
+    "nguyen-5": lambda x: np.sin(x**2) * np.cos(x) - 1.0,
+    "nguyen-6": lambda x: np.sin(x) + np.sin(x + x**2),
+    "nguyen-7": lambda x: np.log(x + 1.0) + np.log(x**2 + 1.0),
+    "nguyen-8": lambda x: np.sqrt(x),
+}
+# (lo, hi) sampling range per benchmark (DSO: U[-1,1] for 1-6, U[0,2] for 7, U[0,4] for 8)
+NGUYEN_RANGES = {
+    "nguyen-1": (-1.0, 1.0), "nguyen-2": (-1.0, 1.0), "nguyen-3": (-1.0, 1.0),
+    "nguyen-4": (-1.0, 1.0), "nguyen-5": (-1.0, 1.0), "nguyen-6": (-1.0, 1.0),
+    "nguyen-7": (0.0, 2.0), "nguyen-8": (0.0, 4.0),
+}
+
 
 @dataclass
 class Task:
@@ -61,21 +83,27 @@ class Task:
 
 def make_task(name: str, n_points: int = 30, x_range: tuple = (-3.0, 3.0),
               seed: int = 0) -> Task:
-    if name not in TARGET_FNS:
-        raise ValueError(f"unknown task {name!r}; choices: {list(TARGET_FNS)}")
+    """Build a task. Names in TARGET_FNS use the base grammar (our 3 targets);
+    names in NGUYEN_FNS use the Koza grammar + their per-benchmark range."""
+    if name in NGUYEN_FNS:                       # Nguyen suite -> Koza grammar
+        fn = NGUYEN_FNS[name]
+        lo, hi = NGUYEN_RANGES[name]
+        grammar, target_expr = KOZA_GRAMMAR, None
+    elif name in TARGET_FNS:                     # our base 3 targets
+        fn = TARGET_FNS[name]
+        lo, hi = x_range
+        grammar, target_expr = GRAMMAR, TARGET_EXPRS[name]
+    else:
+        raise ValueError(f"unknown task {name!r}; choices: "
+                         f"{list(TARGET_FNS) + list(NGUYEN_FNS)}")
     rng = np.random.default_rng(seed)
-    fn = TARGET_FNS[name]
-    lo, hi = x_range
     x_train = np.sort(rng.uniform(lo, hi, size=n_points))
     # Held-out points are independently sampled in the same range, so the success
     # check rewards generalization rather than memorizing the training x's.
     x_heldout = np.sort(rng.uniform(lo, hi, size=n_points))
     return Task(
-        name=name,
-        grammar=GRAMMAR,
-        x_train=x_train,
-        y_train=fn(x_train),
-        x_heldout=x_heldout,
-        y_heldout=fn(x_heldout),
-        target_expr=TARGET_EXPRS[name],
+        name=name, grammar=grammar,
+        x_train=x_train, y_train=fn(x_train),
+        x_heldout=x_heldout, y_heldout=fn(x_heldout),
+        target_expr=target_expr,
     )
