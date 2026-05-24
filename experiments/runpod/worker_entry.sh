@@ -33,6 +33,8 @@ sync_up() {
 sync_down() {
   [ -n "$RESULTS_LOCAL" ] || return 0
   mkdir -p "$RESULTS_LOCAL"
+  # only pull if a prior run actually exists in the bucket (quiet on first run)
+  gsutil ls "$GCS_DEST/results/" >/dev/null 2>&1 || { log "no prior results; fresh run"; return 0; }
   gsutil -m rsync -r "$GCS_DEST/results" "$RESULTS_LOCAL" || true
 }
 
@@ -68,7 +70,10 @@ cd "$WORK/repo/$WORKDIR"
 RESULTS_LOCAL="$(pwd)/results"
 
 log "installing package"
-pip install -e . --quiet
+# The base image's Python is externally-managed (PEP 668); the pod is ephemeral so
+# installing into the system env is fine. Fail fast if it doesn't install, so we
+# never run the experiment with missing deps.
+python3 -m pip install --break-system-packages -q -e . || { log "FATAL: pip install failed"; exit 1; }
 
 log "pulling prior results from $GCS_DEST/results (resume)"
 sync_down
