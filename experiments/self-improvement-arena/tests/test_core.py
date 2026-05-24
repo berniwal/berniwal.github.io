@@ -145,6 +145,22 @@ def test_dsr_constraints_enforced():
     assert any(nested_trig(t) for t in free) or any(all_const_operator(t) for t in free)
 
 
+def test_hierarchical_entropy_knob():
+    """entropy_gamma=1 reproduces the flat bonus (deterministic, backward-compatible);
+    gamma<1 changes the gradient update (the discount actually does something)."""
+    from sia.policy import RNNPolicy
+
+    def one_update(gamma):
+        pol = RNNPolicy(hidden=8, max_length=12, seed=0, entropy_gamma=gamma)
+        pol.sample(64, np.random.default_rng(3))      # same seed+rng -> same trajectories
+        pol.reinforce(np.linspace(-1.0, 1.0, 64), ent_coef=0.05)
+        return pol.p["Who"].copy()
+
+    flat, flat_again, hier = one_update(1.0), one_update(1.0), one_update(0.5)
+    assert np.allclose(flat, flat_again)              # gamma=1 is deterministic / unchanged
+    assert not np.allclose(flat, hier)                # the discount changes the update
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

@@ -52,7 +52,8 @@ class _Adam:
 class RNNPolicy:
     def __init__(self, hidden: int = 32, max_length: int = 24, lr: float = 0.01,
                  grad_clip: float = 5.0, seed: int = 0,
-                 constraints: bool = False, min_length: int = 4):
+                 constraints: bool = False, min_length: int = 4,
+                 entropy_gamma: float = 1.0):
         self.H = hidden
         self.L = max_length
         self.grad_clip = grad_clip
@@ -61,6 +62,11 @@ class RNNPolicy:
         # the existing reproducible results. On -> the four constraints below.
         self.constraints = constraints
         self.min_length = min_length
+        # Hierarchical-entropy discount (Landajuela et al. 2021): the entropy bonus at
+        # token position t is weighted by entropy_gamma**t, so EARLY (structural) tokens
+        # get the most exploration pressure -- counters "early commitment". gamma=1.0 is
+        # the flat per-token entropy bonus (original DSR / our prior behavior).
+        self.entropy_gamma = entropy_gamma
         rng = np.random.default_rng(seed)
         s = 0.1
         self.p = {
@@ -212,14 +218,18 @@ class RNNPolicy:
         g = {k: np.zeros_like(v) for k, v in self.p.items()}
         dh_next = np.zeros((B, self.H))
 
-        for s in reversed(steps):
+        for t in range(len(steps) - 1, -1, -1):  # reverse order, but track position t
+            s = steps[t]
             probs, a, active = s["probs"], s["a"], s["active"][:, None]
             onehot = np.zeros((B, V))
             onehot[np.arange(B), a] = 1.0
             logp = np.log(probs + 1e-12)
             ent = -(probs * logp).sum(1, keepdims=True)
-            # gradient of the (maximized) objective wrt logits
-            d_obj = w * (onehot - probs) - ent_coef * probs * (logp + ent)
+            # gradient of the (maximized) objective wrt logits. The entropy bonus at
+            # position t is discounted by entropy_gamma**t (hierarchical entropy):
+            # gamma=1 -> flat (every token equal); gamma<1 -> early tokens weigh most.
+            ent_w = ent_coef * (self.entropy_gamma ** t)
+            d_obj = w * (onehot - probs) - ent_w * probs * (logp + ent)
             # loss = -objective; mask inactive steps; average over batch
             dO = -(d_obj * active) / B
 
