@@ -70,6 +70,7 @@ class MethodState:
     calls: list[int] = field(default_factory=list)        # cumulative verifier calls
     best_reward: list[float] = field(default_factory=list)  # best-so-far per step
     diversity: list[float] = field(default_factory=list)    # unique fraction per batch
+    success_frac: list[float] = field(default_factory=list)  # frac of batch solving (held-out)
     entropy: list[float] = field(default_factory=list)      # policy entropy (NaN if n/a)
     valid_frac: list[float] = field(default_factory=list)   # LLM valid parse frac (NaN if n/a)
     best: float = 0.0
@@ -80,7 +81,8 @@ class MethodState:
     last_rewards: list[float] = field(default_factory=list)
 
 
-def build_layer0_state(key: str, task, seed: int, batch_size: int) -> MethodState:
+def build_layer0_state(key: str, task, seed: int, batch_size: int,
+                       reward_mode: str = "mse") -> MethodState:
     """Instantiate one Layer 0 method (fresh proposer + its own verifier) on the
     shared task, seeded for reproducibility."""
     preset = LAYER0_PRESETS[key]
@@ -89,11 +91,13 @@ def build_layer0_state(key: str, task, seed: int, batch_size: int) -> MethodStat
     if preset["proposer"] == "gp":
         hp["pop_size"] = batch_size  # keep population == batch for a clean budget
     proposer = get_proposer(preset["proposer"])(task, rng, **hp)
-    return MethodState(key=key, proposer=proposer, verifier=Verifier(task))
+    return MethodState(key=key, proposer=proposer,
+                       verifier=Verifier(task, reward_mode=reward_mode))
 
 
 def build_layer1_state(arm: str, task, seed: int, model, tokenizer,
-                       batch_size: int = 8, max_tokens: int = 48, **hp) -> MethodState:
+                       batch_size: int = 8, max_tokens: int = 48,
+                       reward_mode: str = "mse", **hp) -> MethodState:
     """Instantiate one Layer 1 (LLM) arm. Imports the proposers lazily -- and the
     proposers themselves import MLX lazily -- so this is only reachable on a box
     where mlx-lm is installed (Apple Silicon). NOT exercised in CI on Linux."""
@@ -113,7 +117,8 @@ def build_layer1_state(arm: str, task, seed: int, model, tokenizer,
         proposer = LoRAProposer(task, rng, model, tokenizer, arm="greedy", **common, **hp)
     else:  # risk_lora
         proposer = LoRAProposer(task, rng, model, tokenizer, arm="risk", **common, **hp)
-    return MethodState(key=arm, proposer=proposer, verifier=Verifier(task))
+    return MethodState(key=arm, proposer=proposer,
+                       verifier=Verifier(task, reward_mode=reward_mode))
 
 
 def step(state: MethodState, n_steps: int = 1) -> None:
@@ -124,15 +129,19 @@ def step(state: MethodState, n_steps: int = 1) -> None:
         results = [state.verifier(c) for c in cands]
         state.proposer.tell(cands, results)
         state.steps += 1
+        n_solved = 0
         for c, r in zip(cands, results):
             if r.reward > state.best:
                 state.best, state.best_expr = r.reward, c
-            if state.evals_to_solve is None and state.verifier.success(c):
-                state.success = True
-                state.evals_to_solve = state.verifier.calls
+            if state.verifier.success(c):  # held-out solve (does not cost a call)
+                n_solved += 1
+                if state.evals_to_solve is None:
+                    state.success = True
+                    state.evals_to_solve = state.verifier.calls
         state.calls.append(state.verifier.calls)
         state.best_reward.append(state.best)
         state.diversity.append(unique_fraction(cands))
+        state.success_frac.append(n_solved / len(cands) if cands else 0.0)
         diag = (state.proposer.diagnostics()
                 if hasattr(state.proposer, "diagnostics") else {})
         state.entropy.append(float(diag.get("policy_entropy", float("nan"))))
@@ -188,6 +197,9 @@ class Frame:
     rows: list                         # (infix, count, reward) for this batch
     prompt: str
     responses: list
+    diversity: float = float("nan")    # unique fraction of this batch (collapse -> ~0)
+    pg_loss: float = float("nan")      # policy-gradient term (LoRA arms; signed)
+    kl_term: float = float("nan")      # KL's contribution to the loss (kl_coef * KL)
 
 
 @dataclass
@@ -223,16 +235,21 @@ def run_batch(state: MethodState) -> Frame:
         best_expr=state.best_expr,
         batch_mean=float(np.mean(rewards)) if rewards else 0.0,
         valid_frac=float(diag.get("valid_fraction", float("nan"))),
-        rows=_batch_rows(cands, rewards), prompt=io["prompt"], responses=io["responses"])
+        rows=_batch_rows(cands, rewards), prompt=io["prompt"], responses=io["responses"],
+        diversity=unique_fraction(cands),
+        pg_loss=float(diag.get("pg_loss", float("nan"))),
+        kl_term=float(diag.get("kl_term", float("nan"))))
 
 
 def run_full(arm: str, task, seed: int, model, tokenizer, budget: int,
-             batch_size: int = 8, max_tokens: int = 48, **hp) -> RunReplay:
+             batch_size: int = 8, max_tokens: int = 48,
+             reward_mode: str = "mse", **hp) -> RunReplay:
     """Run one Layer-1 arm to ``budget`` verifier calls, recording a Frame per batch.
     Convenience wrapper for headless use; the UI builds the state and calls
     ``run_batch`` per batch directly so it can render a progress bar."""
     state = build_layer1_state(arm, task, seed, model, tokenizer,
-                               batch_size=batch_size, max_tokens=max_tokens, **hp)
+                               batch_size=batch_size, max_tokens=max_tokens,
+                               reward_mode=reward_mode, **hp)
     frames: list[Frame] = []
     while state.verifier.calls < budget:
         frames.append(run_batch(state))

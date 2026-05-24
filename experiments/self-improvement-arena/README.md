@@ -278,6 +278,13 @@ external exploration, just not by tuning β.
 
 ## The CVaR ↔ DSR ↔ Jiang ↔ TTT-Discover lineage note
 
+> The same insight — *optimize the best outcomes, not the average* — keeps getting
+> rediscovered across RL sub-communities, each time bolted onto whatever
+> policy-gradient method is current: vanilla REINFORCE (DSR, 2021, hard quantile) →
+> GRPO (RS-GRPO, 2025, soft entropic). The risk measure and the RL backbone both
+> change, but the move away from `E[R]` is the through-line — and it traces back to
+> risk-sensitive control in the 1970s.
+
 This sandbox's risk-seeking quantile arm **is** essentially
 [Deep Symbolic Regression](https://arxiv.org/abs/1912.04871) (Petersen et al., 2021):
 an RNN emits expression tokens, trained with a risk-seeking policy gradient on the
@@ -297,12 +304,32 @@ the deliberately wrong-direction baseline; `risk` (DSR) is its mirror.
 
 The entropic line rediscovered the same idea in *soft* form:
 
-- [**Jiang et al. (2025)**](https://arxiv.org/abs/2509.24261) introduced the entropic
-  objective `J_β = (1/β) log E[e^{βR}]` with a **constant β**.
+- [**Jiang et al. (2025)**](https://arxiv.org/abs/2509.24261) put the entropic
+  objective `J_β = (1/β) log E[e^{βR}]` (constant β) inside **GRPO** — so vs DSR both
+  the *risk measure* (soft exponential tilt, not a hard quantile) **and** the *RL
+  backbone* (GRPO, not vanilla REINFORCE) differ. Jiang **does** trace the entropic
+  objective to the classic **exponential-utility / risk-sensitive control** criterion
+  (Howard & Matheson, 1972), so the *entropic* lineage is properly credited.
 - [**TTT-Discover (2026)**](https://arxiv.org/abs/2601.16175) uses `J_β` with an
   **adaptive β** (KL-constrained), and cites Jiang et al. for the objective — calling
   it concurrent work.
-- **Neither cites DSR.** (Verified from the TTT-Discover reference list.)
+- **The gap is *across threads*, not within them.** The *entropic* thread
+  (Howard-Matheson → Jiang → TTT) and the *quantile/CVaR* thread (Tamar → DSR) are each
+  well-traced internally, but **neither cites the other** — even though they're the
+  same "optimize the tail, not the mean" idea reached from two directions (soft
+  exponential tilt vs hard quantile). Neither entropic paper cites DSR.
+- **The quantile thread also reaches GRPO.**
+  [**RiskPO (2025)**](https://arxiv.org/abs/2510.00911) is the *quantile/VaR* mirror of
+  Jiang's *entropic* move: it swaps GRPO's mean advantage for a **Mixed Value-at-Risk**
+  objective — a fixed-coefficient blend of two quantile regions (defaults α=0.2, β=0.8,
+  ω=0.5), with the quantile thresholds estimated online and only the policy trained (no
+  learned weighting). It targets the same entropy-collapse failure we see in greedy RL.
+  It is, in effect, RiskPO ≈ a weighted combination of this sandbox's
+  [`risk`/`cvar`](src/sia/objectives.py) arms at several ε levels — plus a *bundling*
+  trick (risk taken over sums of several questions' rewards, to give the quantile
+  estimator a richer distribution). We don't implement the blend here — the single-cut
+  `risk` arm already makes the point — but RiskPO is the natural GRPO-era endpoint of
+  the quantile line, just as Jiang is for the entropic line.
 
 Yet the hard top-ε quantile is essentially a limiting case of the soft exponential
 tilt — both abandon expected reward for the same reason. The 2021 → 2025 gap with no
@@ -311,6 +338,28 @@ rediscovered across sub-communities (RL for program search vs. test-time LLM
 training). Our Finding 3 adds a wrinkle: in this setting the two are *not*
 interchangeable — the hard quantile is markedly more collapse-resistant than the soft
 tilt.
+
+### Aside: two "normalizations" that sound alike but aren't (and which we use)
+
+Reading the GRPO-lineage papers, two different things both get called *normalization*,
+and it's easy to conflate them:
+
+1. **GRPO advantage std-normalization** — GRPO divides the advantage by the spread of
+   rewards *within a prompt's group*: `A_i = (R_i − mean) / std`. [**Dr.GRPO** (Liu et
+   al., 2025)](https://arxiv.org/abs/2503.20783) showed that `/std` introduces a
+   *question-difficulty bias* (low-variance prompts get their gradient amplified), and
+   that GRPO's per-response length-averaging adds a *length bias*. Both are removed in
+   "GRPO done right"; Jiang's RS-GRPO follows suit.
+2. **NRMSE reward normalization** (ours, optional) — divides the *error* by the spread
+   of the *target values* `std(y)` to make the **reward** scale-invariant across tasks.
+   This is reward *shaping*, on a different axis entirely from the advantage estimator.
+
+These are orthogonal: one normalizes the **advantage** by reward-spread-within-a-prompt;
+the other normalizes the **reward** by target-spread-within-a-task. Worth flagging
+because our LoRA arms already sit on the Dr.GRPO side of (1): the advantage is plain
+`R_i − mean(R)` with **no `/std`**, and the loss **sums** over completion tokens rather
+than length-averaging (`(ce·mask).sum()`), so it dodges *both* GRPO biases by
+construction — while NRMSE (2) remains a separate, opt-in reward-shaping knob.
 
 ---
 
@@ -418,6 +467,10 @@ results_scaling/     scaling figures + tables (committed); raw logs (gitignored)
 
 ## References
 
+- **Risk-Sensitive Markov Decision Processes** — Howard & Matheson, *Management
+  Science*, 1972. The exponential-utility / entropic objective `(1/β) log E[e^{βR}]` —
+  the original "optimize the tail, not the mean" criterion underlying the modern
+  risk-seeking objectives (and cited as such by Jiang et al.).
 - **Deep Symbolic Regression** — Petersen et al., ICLR 2021. Risk-seeking policy
   gradient for symbolic regression. [arXiv:1912.04871](https://arxiv.org/abs/1912.04871)
 - **Policy Gradients Beyond Expectations: Conditional Value-at-Risk** — Tamar,
@@ -429,11 +482,21 @@ results_scaling/     scaling figures + tables (committed); raw logs (gitignored)
 - **Regularized Evolution for Image Classifier Architecture Search** — Real et al.,
   AAAI 2019. Evolution competitive with / faster than RL on a verifiable reward.
   [arXiv:1802.01548](https://arxiv.org/abs/1802.01548)
+- **DeepSeekMath (GRPO)** — Shao et al., 2024. Group Relative Policy Optimization;
+  the k3 KL-to-reference estimator our LoRA trust region copies.
+  [arXiv:2402.03300](https://arxiv.org/abs/2402.03300)
+- **Understanding R1-Zero-Like Training (Dr.GRPO)** — Liu et al., 2025. Identifies
+  GRPO's advantage std-normalization (difficulty bias) and length-normalization bias;
+  removes both. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783)
 - **Risk-Sensitive RL for Alleviating Exploration Dilemmas in LLMs** — Jiang et al.,
   2025. Entropic objective `J_β` (constant β); RS-GRPO. (Cited by TTT-Discover as
   concurrent work.) [arXiv:2509.24261](https://arxiv.org/abs/2509.24261)
 - **TTT-Discover** — 2026. Test-time training with the entropic objective `J_β` and
   KL-adaptive β. [arXiv:2601.16175](https://arxiv.org/abs/2601.16175)
+- **RiskPO: Risk-based Policy Optimization via Verifiable Reward** — 2025. Swaps GRPO's
+  mean advantage for a Mixed Value-at-Risk (multi-quantile) objective to alleviate
+  entropy collapse — the quantile/VaR mirror of Jiang's entropic move.
+  [arXiv:2510.00911](https://arxiv.org/abs/2510.00911)
 - **AlphaEvolve** — Novikov et al., 2025. LLM evolutionary coding agent for algorithm
   discovery. [arXiv:2506.13131](https://arxiv.org/abs/2506.13131)
 - **ThetaEvolve** — 2025. LLM program-database evolution; relevant for Layer 1.

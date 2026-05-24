@@ -87,6 +87,22 @@ def test_verifier_counts_calls():
     assert ver.calls == 100
 
 
+def test_nrmse_reward_mode():
+    task = make_task("medium", seed=0)
+    v = Verifier(task, length_penalty=0.0, reward_mode="nrmse")
+    # exact target -> NRMSE 0 -> reward ~1
+    assert v(task.target_expr).reward > 0.999
+    # predicting the mean -> RMSE = std(y) -> NRMSE = 1 -> reward exactly 0.5
+    mean_node = leaf(repr(float(np.mean(task.y_train))))
+    assert abs(v(mean_node).reward - 0.5) < 1e-9, v(mean_node).reward
+    # bad mode rejected
+    try:
+        Verifier(task, reward_mode="bogus")
+        assert False, "should have raised"
+    except ValueError:
+        pass
+
+
 def test_invalid_expression_scores_zero():
     from sia.expression import Node, leaf
     task = make_task("easy", seed=0)

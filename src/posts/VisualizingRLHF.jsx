@@ -1943,6 +1943,25 @@ export default function VisualizingRLHF() {
           (sample multiple chains of thought, reward the ones that get
           the right answer). This is the mechanism behind DeepSeek-R1.
         </p>
+        <p>
+          GRPO's cheap baseline has since spawned a small family of fixes worth
+          knowing.{' '}
+          <a className="viz-link" href="https://arxiv.org/abs/2503.20783" target="_blank" rel="noreferrer">Dr.GRPO</a>{' '}
+          (2025) notes that the <Katex tex="(r_i-\mu)/\sigma" /> normalization and
+          GRPO's per-response length-averaging quietly <em>bias</em> the gradient — the{' '}
+          <Katex tex="1/\sigma" /> over-weights low-variance (too-easy or too-hard)
+          prompts and length-averaging over-weights longer answers — and removes both.{' '}
+          <a className="viz-link" href="https://arxiv.org/abs/2503.14476" target="_blank" rel="noreferrer">DAPO</a>{' '}
+          (2025) drops the KL-to-reference term entirely and instead uses{' '}
+          <em>clip-higher</em> (an asymmetric trust region) to keep exploration alive and
+          avoid entropy collapse — the recipe behind a 50-point AIME run on a 32B base.
+          And{' '}
+          <a className="viz-link" href="https://arxiv.org/abs/2507.18071" target="_blank" rel="noreferrer">GSPO</a>{' '}
+          (Qwen, 2025) argues GRPO's <em>per-token</em> importance ratio is noisy over
+          long generations and moves the ratio and clipping to the <em>sequence</em>{' '}
+          level — more stable training, and what powers the latest Qwen3 (especially
+          MoE) models.
+        </p>
 
         <h2>5. RLAIF — when the labeler is also a model</h2>
         <p>

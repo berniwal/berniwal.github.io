@@ -128,7 +128,9 @@ class LoRAProposer(Proposer):
         self._last_valid_frac = float("nan")
         self._last_beta = float("nan")
         self._last_loss = float("nan")
+        self._last_pg = float("nan")
         self._last_kl = float("nan")
+        self._last_kl_term = float("nan")
         self._last_prompt = ""               # decoded prompt text (for the app)
         self._last_responses: list[str] = []  # raw model outputs (for the app)
         self._lora_modules = []              # LoRALinear layers (for toggling the adapter)
@@ -206,7 +208,9 @@ class LoRAProposer(Proposer):
                 "valid_fraction": self._last_valid_frac,
                 "beta": self._last_beta,
                 "loss": self._last_loss,
-                "kl": self._last_kl}
+                "pg_loss": self._last_pg,            # PG term (signed)
+                "kl": self._last_kl,                 # raw KL (k3)
+                "kl_term": self._last_kl_term}       # kl_coef * KL (its loss contribution)
 
     def last_io(self) -> dict:
         """The prompt sent and the raw responses from the last ask() -- for the app
@@ -325,14 +329,17 @@ class LoRAProposer(Proposer):
             per_sample = (ce * tgt_mask).sum(axis=1)        # sum over completion tokens
             pg = (wv * per_sample).sum()                    # reward-weighted PG loss
             if ref_logp is None:
-                return pg, mx.array(0.0)
-            d = ref_logp - (-ce)                            # logpi_ref - logpi_theta
-            kl_tok = mx.exp(d) - d - 1.0                     # k3 estimator, >= 0
-            kl = (kl_tok * tgt_mask).sum()
-            return pg + self.kl_coef * kl, kl
+                kl = mx.array(0.0)
+            else:
+                d = ref_logp - (-ce)                        # logpi_ref - logpi_theta
+                kl_tok = mx.exp(d) - d - 1.0                 # k3 estimator, >= 0
+                kl = (kl_tok * tgt_mask).sum()
+            return pg + self.kl_coef * kl, (pg, kl)         # aux: the two components
 
-        (loss, kl), grads = nn.value_and_grad(self.model, loss_fn)(self.model)
+        (loss, (pg, kl)), grads = nn.value_and_grad(self.model, loss_fn)(self.model)
         self.opt.update(self.model, grads)
         mx.eval(self.model.parameters(), self.opt.state)
         self._last_loss = float(loss)
-        self._last_kl = float(kl)
+        self._last_pg = float(pg)                # PG term (signed)
+        self._last_kl = float(kl)                # raw KL (k3)
+        self._last_kl_term = float(self.kl_coef * kl)  # KL's contribution to the loss

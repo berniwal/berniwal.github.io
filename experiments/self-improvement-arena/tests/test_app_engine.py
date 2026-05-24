@@ -27,7 +27,9 @@ def test_presets_all_build_and_step():
         assert s.steps == 2
         assert s.verifier.calls == 2 * 20            # budget == batch_size per step
         assert len(s.best_reward) == 2 and len(s.diversity) == 2
+        assert len(s.success_frac) == 2
         assert 0.0 <= s.diversity[-1] <= 1.0
+        assert 0.0 <= s.success_frac[-1] <= 1.0
 
 
 def test_step_accumulates_budget_and_history():

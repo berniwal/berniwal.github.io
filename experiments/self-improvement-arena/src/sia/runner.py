@@ -21,10 +21,11 @@ from .verifier import Verifier
 def run_method(method: str, proposer_name: str, target: str, budget: int, seed: int,
                proposer_hp: dict, n_points: int = 30, x_range=(-3.0, 3.0),
                length_penalty: float = 0.001, eps_success: float = 1e-6,
-               log_every: int = 1) -> RunLog:
+               reward_mode: str = "mse", log_every: int = 1) -> RunLog:
     # Same dataset for every method at a given (target, seed) -> a fair contest.
     task = make_task(target, n_points=n_points, x_range=tuple(x_range), seed=seed)
-    ver = Verifier(task, length_penalty=length_penalty, eps_success=eps_success)
+    ver = Verifier(task, length_penalty=length_penalty, eps_success=eps_success,
+                   reward_mode=reward_mode)
     rng = np.random.default_rng(seed)
     proposer = get_proposer(proposer_name)(task, rng, **proposer_hp)
 
@@ -68,7 +69,7 @@ def _run_job(job: dict) -> RunLog:
         target=job["target"], budget=job["budget"], seed=job["seed"],
         proposer_hp=job["hp"], n_points=job["n_points"], x_range=job["x_range"],
         length_penalty=job["length_penalty"], eps_success=job["eps_success"],
-        log_every=job["log_every"],
+        reward_mode=job["reward_mode"], log_every=job["log_every"],
     )
     if job["path"] is not None:  # atomic write -> a crash mid-write can't corrupt
         path = Path(job["path"])
@@ -119,6 +120,7 @@ def run_experiment(config: dict, log_dir=None, resume: bool = True,
                     budget=config["budget"], n_points=config["n_points"],
                     x_range=config["x_range"], length_penalty=config["length_penalty"],
                     eps_success=float(config["eps_success"]),
+                    reward_mode=config.get("reward_mode", "mse"),
                     log_every=config.get("log_every", 1),
                 ))
 
