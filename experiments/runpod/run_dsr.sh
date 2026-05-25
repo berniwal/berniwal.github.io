@@ -49,6 +49,10 @@ git clone --depth 1 https://github.com/dso-org/deep-symbolic-optimization.git /w
 cd /workspace/dsr/dso
 python -m pip install --upgrade "pip<24" "setuptools<60" wheel "cython<3" "numpy<=1.19"
 python -m pip install -e . 2>&1 | tail -30
+# TF 1.14's generated code is incompatible with protobuf >=3.20 ("Descriptors cannot
+# not be created directly"); pin the old runtime. Belt-and-suspenders env var too.
+python -m pip install "protobuf<3.20"
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 python -c "import dso, tensorflow as tf; print('[dsr] import OK: tf', tf.__version__)" \
   || { echo "[dsr] FATAL: DSR/TF import failed after install"; exit 1; }
 
