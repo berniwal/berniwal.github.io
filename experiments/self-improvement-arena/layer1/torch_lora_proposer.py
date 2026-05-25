@@ -28,7 +28,7 @@ import torch.nn.functional as F
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(_HERE), "src"))
 sys.path.insert(0, os.path.dirname(_HERE))  # for `import layer1.constfit`
-from sia.expression import Node, leaf, parse_expression  # noqa: E402
+from sia.expression import Node, leaf, parse_expression, to_infix  # noqa: E402
 from sia.objectives import (cvar_weights, entropic_weights, greedy_weights,  # noqa: E402
                             quantile_weights)
 from sia.verifier import Result  # noqa: E402
@@ -45,8 +45,10 @@ class TorchLoRAProposer:
                  const_placeholder=True, n_data_shown=12,
                  ppo_epochs=2, clip_low=0.2, clip_high=0.28, trunc_is=2.0,
                  std_normalize=False, seed=0, dtype="bfloat16"):
-        if arm not in ("greedy", "risk", "best_of_n"):
-            raise ValueError("arm must be greedy, risk, or best_of_n")
+        if arm not in ("greedy", "risk", "best_of_n", "evolution"):
+            raise ValueError("arm must be greedy, risk, best_of_n, or evolution")
+        self.archive: list[tuple[float, str]] = []  # (reward, expr) for the evolution arm
+        self.archive_k = 6                           # top-K exemplars fed back into the prompt
         if mode not in ("quantile", "entropic", "cvar"):
             raise ValueError("mode must be quantile/entropic/cvar")
         self.task = task
@@ -101,11 +103,16 @@ class TorchLoRAProposer:
         else:
             vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
                      "cos, and numeric constants.")
+        archive_block = ""
+        if self.arm == "evolution" and self.archive:  # AlphaEvolve-style: best-so-far in prompt
+            ex = "\n".join(f"  f(x) = {expr}   (score {r:.3f})" for r, expr in self.archive)
+            archive_block = ("\n\nBest formulas found so far -- propose a DIFFERENT formula "
+                             f"that fits better than these:\n{ex}")
         return ("You are doing symbolic regression. Find a formula y = f(x) that fits "
                 f"the data.\n{vocab}\nThe data may be nonlinear or periodic -- consider "
                 "terms like x*x, x*x*x, or sin/cos, not just straight lines.\nReply with "
                 "ONLY the formula for f(x) on a single line -- no words, no 'y =', no code "
-                f"fences.\n\nData points:\n{self._data_block()}\n\nNew formula for f(x):")
+                f"fences.\n\nData points:\n{self._data_block()}{archive_block}\n\nNew formula for f(x):")
 
     def _prompt_ids(self) -> torch.Tensor:
         ids = self.tok.apply_chat_template(
@@ -185,7 +192,17 @@ class TorchLoRAProposer:
     def tell(self, candidates, results: list[Result]) -> None:
         if getattr(self, "_pending", None) is None:
             return
-        if self.arm == "best_of_n":      # no-training baseline: just keep sampling
+        if self.arm in ("best_of_n", "evolution"):  # no weight update for these arms
+            if self.arm == "evolution":              # update the in-context archive instead
+                for cand, r in zip(candidates, results):
+                    if cand is not INVALID:
+                        self.archive.append((r.reward, to_infix(cand)))
+                # dedupe by expr, keep the top-K by reward
+                best = {}
+                for r, e in self.archive:
+                    if e not in best or r > best[e]:
+                        best[e] = r
+                self.archive = sorted(((r, e) for e, r in best.items()), reverse=True)[:self.archive_k]
             self._pending = None
             return
         seqs, comp_mask, old_logp = self._pending

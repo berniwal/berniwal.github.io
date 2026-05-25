@@ -27,7 +27,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
     ap.add_argument("--target", default="medium")
-    ap.add_argument("--arm", default="risk", choices=["greedy", "risk", "best_of_n"])
+    ap.add_argument("--arm", default="risk",
+                    choices=["greedy", "risk", "best_of_n", "evolution"])
     ap.add_argument("--const-tol", type=float, default=1e-3,
                     help="snap fitted constants within this tol before the symbolic check")
     ap.add_argument("--mode", default="quantile", choices=["quantile", "entropic", "cvar"])
@@ -86,7 +87,7 @@ def main():
         d = prop.diagnostics()
         rs = [r.reward for r in results]
         batch_mean = sum(rs) / len(rs)        # the real "is the policy improving?" signal
-        history.append(dict(round=rd, calls=ver.calls, best=best,
+        history.append(dict(round=rd, calls=ver.calls, best=best, best_expr=best_expr,
                             valid=d["valid_fraction"], loss=d["loss"],
                             batch_best=max(rs), batch_mean=batch_mean))
         print(f"[r{rd:03d}] calls={ver.calls} best={best:.4f} "
