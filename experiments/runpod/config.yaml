@@ -19,7 +19,7 @@ image: google/cloud-sdk:slim
 #   CPU instance_id format: <tier>-<vCPU>-<GB RAM>, e.g. cpu3c-16-32 (16 vCPU / 32 GB).
 #   Layer 0 is pure-numpy and embarrassingly parallel -> more vCPUs = faster, no GPU.
 cpu_instance_id: cpu5c-16-32   # 5 GHz, 16 vCPU / 32 GB (often sold out -- see availability.py)
-gpu_type_id: "NVIDIA RTX PRO 4500 Blackwell"   # 28 vCPU, secure, usually in stock
+gpu_type_id: "NVIDIA RTX 2000 Ada Generation"   # ~32 vCPU secure ~$0.24/hr (cheap, CPU-bound work; vCPU varies by host -- see availability.py)
 # GPU cloud tier: SECURE = vetted T3/T4 datacenters (reliable, default); COMMUNITY =
 # cheaper third-party hosts. (CPU instances are always RunPod-managed; no tier.)
 cloud_type: SECURE
