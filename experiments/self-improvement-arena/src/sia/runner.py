@@ -5,6 +5,7 @@ for every method -> the only difference between methods is the proposer.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -16,6 +17,39 @@ from .metrics import RunLog, unique_fraction
 from .proposers import get_proposer
 from .task import make_task
 from .verifier import Verifier
+
+
+def available_cpus() -> int:
+    """Best-effort count of *usable* CPUs in this (possibly containerized) env.
+
+    ``os.cpu_count()`` reports the host's cores, which over-counts inside a quota- or
+    affinity-limited container (e.g. a "28 vCPU" RunPod pod on a 64-core host). Take
+    the min of: the CPU-affinity mask, the cgroup CPU quota (v2 then v1), and
+    ``os.cpu_count()`` -- so a parallel run neither oversubscribes a capped container
+    nor overcounts when pinned to a subset of cores.
+    """
+    counts: list[int] = []
+    n = os.cpu_count()
+    if n:
+        counts.append(n)
+    try:
+        counts.append(len(os.sched_getaffinity(0)))  # Linux; respects core pinning
+    except AttributeError:
+        pass  # not on macOS/Windows
+    try:  # cgroup v2: "<quota> <period>" or "max <period>"
+        quota, period = Path("/sys/fs/cgroup/cpu.max").read_text().split()
+        if quota != "max":
+            counts.append(max(1, int(float(quota) / float(period))))
+    except (OSError, ValueError):
+        pass
+    try:  # cgroup v1
+        q = int(Path("/sys/fs/cgroup/cpu/cpu.cfs_quota_us").read_text())
+        p = int(Path("/sys/fs/cgroup/cpu/cpu.cfs_period_us").read_text())
+        if q > 0 and p > 0:
+            counts.append(max(1, q // p))
+    except (OSError, ValueError):
+        pass
+    return min(counts) if counts else 1
 
 
 def run_method(method: str, proposer_name: str, target: str, budget: int, seed: int,

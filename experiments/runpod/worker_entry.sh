@@ -69,6 +69,11 @@ git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$WORK/repo"
 cd "$WORK/repo/$WORKDIR"
 RESULTS_LOCAL="$(pwd)/results"
 
+# Visibility: what this pod actually allocated us (nproc respects affinity; host total
+# from /proc/cpuinfo). The API's vCPU is only a lower bound -- experiment scripts that
+# auto-detect (available_cpus) size their worker pool to the real allocation.
+log "usable CPUs: nproc=$(nproc 2>/dev/null) (host total $(grep -c ^processor /proc/cpuinfo 2>/dev/null))"
+
 log "installing package"
 # The base image's Python is externally-managed (PEP 668); the pod is ephemeral so
 # installing into the system env is fine. Fail fast if it doesn't install, so we

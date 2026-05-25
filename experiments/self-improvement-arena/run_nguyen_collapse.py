@@ -23,10 +23,9 @@ prints a recovery table.
 from __future__ import annotations
 
 import argparse
-import os
 
 from sia.expression import parse_expression, sympy_equivalent
-from sia.runner import run_experiment
+from sia.runner import available_cpus, run_experiment
 from sia.task import NGUYEN_SYMPY
 
 # DSR-faithful policy/training hyperparameters (dso config_regression.json), shared
@@ -54,9 +53,12 @@ def main():
     ap.add_argument("--budget", type=int, default=2_000_000)
     ap.add_argument("--targets", default="nguyen-3,nguyen-4")
     ap.add_argument("--max-lengths", default="30,64")
-    ap.add_argument("--workers", type=int, default=os.cpu_count() or 1)
+    ap.add_argument("--workers", type=int, default=0,
+                    help="0 = auto-detect usable CPUs (container-aware)")
     args = ap.parse_args()
 
+    workers = args.workers or available_cpus()
+    print(f"workers={workers} (auto-detected {available_cpus()} usable CPUs)", flush=True)
     targets = [t.strip() for t in args.targets.split(",") if t.strip()]
     max_lengths = [int(x) for x in args.max_lengths.split(",") if x.strip()]
 
@@ -74,7 +76,7 @@ def main():
         log_dir = f"results/nguyen-collapse/maxlen{L}/logs"
         print(f"\n### max_length={L}  ({len(targets)} targets x 2 methods x "
               f"{args.seeds} seeds) ->  {log_dir}", flush=True)
-        logs = run_experiment(cfg, log_dir=log_dir, resume=True, workers=args.workers)
+        logs = run_experiment(cfg, log_dir=log_dir, resume=True, workers=workers)
         all_results[L] = recovery_table(logs, targets, args.seeds)
 
     print("\n\n================ Nguyen collapse sweep (SymPy recovery) ================")
