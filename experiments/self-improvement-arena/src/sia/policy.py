@@ -227,6 +227,13 @@ class RNNPolicy:
         c = self._cache
         steps, B, V = c["steps"], c["B"], self.V
         w = weights.reshape(B, 1)
+        # PG term is averaged over the SAMPLES THAT CONTRIBUTE (nonzero weight), the
+        # entropy term over the whole batch -- DSR keeps these two normalizations
+        # separate. For greedy/entropic every sample contributes (n_pg == B -> no
+        # change); for the risk/cvar tail arms only ~eps*B do, so this restores DSR's
+        # 1/(eps N) risk-gradient scale. Previously both used 1/N, making the risk
+        # gradient ~eps (e.g. 20x at eps=0.05) too weak at the shared learning rate.
+        n_pg = max(int(np.count_nonzero(weights)), 1)
         g = {k: np.zeros_like(v) for k, v in self.p.items()}
         dh_next = np.zeros((B, self.H))
 
@@ -241,9 +248,9 @@ class RNNPolicy:
             # position t is discounted by entropy_gamma**t (hierarchical entropy):
             # gamma=1 -> flat (every token equal); gamma<1 -> early tokens weigh most.
             ent_w = ent_coef * (self.entropy_gamma ** t)
-            d_obj = w * (onehot - probs) - ent_w * probs * (logp + ent)
-            # loss = -objective; mask inactive steps; average over batch
-            dO = -(d_obj * active) / B
+            # PG term averaged over contributing samples (n_pg); entropy over the batch (B)
+            d_obj = (w * (onehot - probs)) / n_pg - (ent_w * probs * (logp + ent)) / B
+            dO = -(d_obj * active)
 
             g["Who"] += s["h"].T @ dO
             g["bo"] += dO.sum(0)
