@@ -167,10 +167,13 @@ def to_sympy(node: Node):
 
 def sympy_equivalent(node: Node, target_str: str) -> bool:
     """True iff ``node`` is exactly symbolically equivalent to ``target_str``
-    (DSR's recovery criterion). Robust to CAS hiccups: any failure -> False."""
-    try:
-        import sympy as sp
+    (DSR's recovery criterion). Robust to CAS hiccups (a bad expression -> False),
+    but a MISSING sympy raises loudly: sympy is a required dependency, and silently
+    returning False would mis-report every run as 0% recovery (it once did, on a pod
+    where sympy wasn't installed)."""
+    import sympy as sp  # required dep -- let ImportError propagate, do NOT swallow it
 
+    try:
         expr = to_sympy(node)
         target = sp.sympify(target_str)
         return bool(sp.simplify(expr - target) == 0)

@@ -3,7 +3,7 @@
 # Layer 0 (the numpy search/RL core) is the only required install. Everything
 # heavier is an OPTIONAL extra, composed for what your machine supports:
 #
-#   pip install -e .              # Layer 0: search + RL, runs anywhere (numpy only)
+#   pip install -e .              # Layer 0: search + RL, runs anywhere (numpy + sympy)
 #   pip install -e ".[app]"       # + the Streamlit visualizer (Layer 0 stepping)
 #   pip install -e ".[app,layer1]"  # + LLM/LoRA arms, on Apple Silicon
 #
@@ -25,6 +25,7 @@ dependencies = [
     "numpy>=1.24",
     "matplotlib>=3.7",
     "pyyaml>=6.0",
+    "sympy>=1.12",   # exact-symbolic recovery check (DSR criterion); used by runner/verifier
 ]
 
 [project.optional-dependencies]
