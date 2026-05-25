@@ -55,9 +55,12 @@ def gql(key: str, query: str) -> dict:
 
 
 def cmd_gpu(key: str, args) -> None:
+    # minVcpu/minMemory = the host CPU/RAM you get with this GPU at gpuCount (host-
+    # dependent, NOT tied to VRAM) -- decisive for CPU-bound sweeps run on a GPU pod.
     q = """query { gpuTypes {
       id displayName memoryInGb communityCloud secureCloud
-      lowestPrice(input:{gpuCount:%d}) { uninterruptablePrice minimumBidPrice stockStatus }
+      lowestPrice(input:{gpuCount:%d}) {
+        uninterruptablePrice minimumBidPrice stockStatus minVcpu minMemory }
     } }""" % args.gpu_count
     rows = []
     for g in gql(key, q)["gpuTypes"]:
@@ -65,22 +68,26 @@ def cmd_gpu(key: str, args) -> None:
         price = lp.get("uninterruptablePrice")
         rows.append(dict(price=price, bid=lp.get("minimumBidPrice"),
                          stock=lp.get("stockStatus"), vram=g.get("memoryInGb"),
+                         vcpu=lp.get("minVcpu"), ram=lp.get("minMemory"),
                          comm=g.get("communityCloud"), name=g["displayName"], id=g["id"]))
     rows = [r for r in rows if r["price"] is not None]
     if not args.all:
         rows = [r for r in rows if r["stock"]]
     if args.max_price is not None:
         rows = [r for r in rows if r["price"] <= args.max_price]
-    rows.sort(key=lambda r: r["price"])
+    rows.sort(key=lambda r: -(r["vcpu"] or 0) if args.by_vcpu else r["price"])
 
-    print(f"{'on-demand':>9} {'spot':>6} {'stock':>7} {'vram':>6} {'cloud':>9}  GPU  [id]")
+    print(f"{'on-demand':>9} {'spot':>6} {'vCPU':>5} {'RAM':>6} {'vram':>6} {'stock':>7} "
+          f"{'cloud':>9}  GPU  [id]")
     for r in rows:
         cloud = "community" if r["comm"] else "secure"
         bid = f"${r['bid']}" if r["bid"] else "-"
-        print(f"{'$'+str(r['price']):>9} {bid:>6} {str(r['stock'] or '-'):>7} "
-              f"{str(r['vram'])+'GB':>6} {cloud:>9}  {r['name']}  [{r['id']}]")
+        print(f"{'$'+str(r['price']):>9} {bid:>6} {str(r['vcpu']):>5} {str(r['ram'])+'GB':>6} "
+              f"{str(r['vram'])+'GB':>6} {str(r['stock'] or '-'):>7} {cloud:>9}  "
+              f"{r['name']}  [{r['id']}]")
     print(f"\n{len(rows)} GPU type(s)"
           f"{' in stock' if not args.all else ''}; gpuCount={args.gpu_count}. "
+          "Set launch --workers to the vCPU shown. "
           "Launch:  python launch.py --gpu --gpu-type \"<id>\" --exp <name> --cmd \"...\"")
 
 
@@ -138,6 +145,8 @@ def main() -> None:
     g.add_argument("--all", action="store_true", help="include out-of-stock types")
     g.add_argument("--max-price", type=float, help="only show <= this on-demand $/hr")
     g.add_argument("--gpu-count", type=int, default=1)
+    g.add_argument("--by-vcpu", action="store_true",
+                   help="sort by vCPU desc (best for CPU-bound sweeps) instead of price")
 
     c = sub.add_parser("cpu", help="list CPU flavor specs; --probe for availability")
     c.add_argument("--probe", action="store_true",
