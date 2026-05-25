@@ -29,7 +29,7 @@ for SEED in $(echo "${SEEDS:-0}" | tr ',' ' '); do
       --target "${TARGET:-medium}" --arm "${ARM:-risk}" --mode "${MODE:-quantile}" \
       --rounds "${ROUNDS:-60}" --batch "${BATCH:-32}" --max-new-tokens "${MAXNEW:-48}" \
       --temperature "${TEMP:-1.0}" --lr "${LR:-1e-5}" --epsilon "${EPSILON:-0.25}" \
-      --x-range "${XRANGE:--1,1}" --n-points "${NPOINTS:-20}" \
+      --x-range="${XRANGE:--1,1}" --n-points "${NPOINTS:-20}" \
       --seed "$SEED" --out results/layer1-torch ${EXTRA:-} 2>&1 | tail -45
   echo "[l1] ELAPSED=$(( $(date +%s) - START ))s  TARGET=${TARGET:-medium} ARM=${ARM:-risk} MODE=${MODE:-quantile} seed=$SEED"
 done
