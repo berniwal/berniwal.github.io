@@ -36,6 +36,22 @@ config.yaml      bucket, repo, image, default pod flavors
 > base64-encoded into an env var; RunPod key passed so the pod can remove itself).
 > `*.json` and `*.log` are gitignored here so a key never lands in the repo.
 
+## Check availability + pricing first
+
+RunPod's managed CPU instances are frequently sold out, while cheap **community
+GPUs** (whose 4-16 vCPUs run the CPU-only Layer-0 sweeps fine, GPU idle) are usually
+available and often *cheaper*. Query before launching:
+
+```bash
+python availability.py gpu                        # cheapest in-stock GPUs (price + stock)
+python availability.py gpu --all --max-price 0.3  # incl. out-of-stock, <= $0.30/hr
+python availability.py cpu                         # CPU flavor specs (API has no CPU price/stock)
+python availability.py cpu --probe --vcpu 8,16,32  # real CPU availability (create+terminate)
+```
+
+GPU `stockStatus` is High/Medium/Low (None = sold out). To run a CPU sweep on a GPU
+pod, `launch.py --gpu --gpu-type "<id>"` and set `--workers` to the pod's vCPUs.
+
 ## Run an experiment
 
 ```bash
