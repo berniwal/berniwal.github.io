@@ -63,6 +63,8 @@ def main() -> None:
                     help="subdir inside the repo to cd into before running --cmd "
                          "(e.g. experiments/<other-project>) -- this is how you point "
                          "the launcher at a different project")
+    ap.add_argument("--disk", type=int, default=cfg["container_disk_gb"],
+                    help="container disk GB (bump for torch+CUDA wheels, e.g. 40)")
     ap.add_argument("--push-interval", type=int, default=cfg["push_interval"])
     ap.add_argument("--no-terminate", action="store_true",
                     help="leave the pod running after the command (for debugging)")
@@ -99,7 +101,7 @@ def main() -> None:
                    f"&& curl -fsSL {raw} -o /worker_entry.sh && bash /worker_entry.sh'")
 
     common = dict(image_name=cfg["image"], env=env, docker_args=docker_args,
-                  container_disk_in_gb=cfg["container_disk_gb"])
+                  container_disk_in_gb=args.disk)
     tier = f" [{args.cloud_type}]" if args.gpu else ""
     print(f"launching {'GPU' if args.gpu else 'CPU'} pod{tier} '{args.exp}' -> {gcs_dest}/")
     try:

@@ -38,6 +38,15 @@ layer1 = [
     "mlx-lm>=0.31 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
     "scipy>=1.10",  # BFGS constant-fitting for LLM proposals (layer1/constfit.py); all platforms
 ]
+# Portable (PyTorch/CUDA) Layer 1 for GPU pods (RunPod) -- the non-Apple path that
+# runs the GRPO LLM proposer. Install on the pod; not needed for Layer 0 or MLX.
+layer1-gpu = [
+    "torch>=2.2",
+    "transformers>=4.44",
+    "peft>=0.11",
+    "accelerate>=0.30",
+    "scipy>=1.10",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
