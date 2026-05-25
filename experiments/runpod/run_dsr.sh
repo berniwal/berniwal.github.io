@@ -70,7 +70,7 @@ IFS=',' read -ra TASK_LIST <<< "$TASKS"
 for arm in "${ARM_LIST[@]}"; do
   CFG="/workspace/cfg-${arm}.json"
   python - "$arm" "$NSAMPLES" "/workspace/dsrlog/${arm}" "$CFG" <<'PY'
-import sys, json, commentjson
+import sys, os, json, commentjson
 arm, nsamp, logdir, out = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
 cfg = commentjson.load(open("dso/config/config_regression.json"))
 tr = cfg.setdefault("training", {})
@@ -87,15 +87,24 @@ if arm in ("vpg", "vpg_nops", "vpg_rnn"):  # vanilla PG: no quantile filter; EWM
         cfg.setdefault("policy", {})["cell"] = "rnn"
 else:                            # risk-seeking (DSR): top-5% filter, quantile baseline
     tr["epsilon"] = 0.05
+if os.environ.get("PAPER_FAITHFUL") == "1":  # revert post-2021 drift to the paper's setup
+    pr = cfg.setdefault("prior", {})
+    pr.setdefault("length", {})["max_"] = 30       # paper max length 30 (current code: 64)
+    pr.setdefault("soft_length", {})["on"] = False  # not in the paper
+    pr.setdefault("uniform_arity", {})["on"] = False  # not in the paper
+    cfg.setdefault("policy", {})["max_length"] = 30
 tr["n_samples"] = nsamp
 cfg.setdefault("experiment", {})["logdir"] = logdir
 json.dump(cfg, open(out, "w"), indent=1)
 sm = cfg.get("state_manager", {})
-print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d cell=%s parent=%s sibling=%s action=%s"
+pl = cfg.get("prior", {}).get("length", {})
+print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d cell=%s max_len=%s "
+      "soft_length=%s uniform_arity=%s parent=%s sibling=%s"
       % (arm, tr["epsilon"], tr.get("baseline", "R_e"), nsamp,
-         cfg.get("policy", {}).get("cell", "lstm"),
-         sm.get("observe_parent", "default"), sm.get("observe_sibling", "default"),
-         sm.get("observe_action", "default")))
+         cfg.get("policy", {}).get("cell", "lstm"), pl.get("max_", "default"),
+         cfg.get("prior", {}).get("soft_length", {}).get("on", "default"),
+         cfg.get("prior", {}).get("uniform_arity", {}).get("on", "default"),
+         sm.get("observe_parent", "default"), sm.get("observe_sibling", "default")))
 PY
   for task in "${TASK_LIST[@]}"; do
     START=$(date +%s)
