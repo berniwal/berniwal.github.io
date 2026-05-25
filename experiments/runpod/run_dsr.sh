@@ -43,6 +43,19 @@ python -m pip --version || { echo "[dsr] FATAL: pip missing in env"; exit 1; }
 rm -rf /workspace/dsr
 git clone --depth 1 https://github.com/dso-org/deep-symbolic-optimization.git /workspace/dsr
 cd /workspace/dsr/dso
+# Cell-ablation support: DSR's make_cell only knows lstm/gru. Add a basic (Elman/tanh)
+# RNN option so we can test whether the LSTM cell (vs our plain RNN) drives the collapse.
+python - <<'PY'
+p = "dso/policy/rnn_policy.py"
+s = open(p).read()
+needle = "                if name == 'gru':"
+ins = ("                if name == 'rnn':\n"
+       "                    return tf.nn.rnn_cell.BasicRNNCell(num_units)\n")
+if "name == 'rnn'" not in s:
+    assert needle in s, "make_cell gru branch not found -- DSR layout changed"
+    open(p, "w").write(s.replace(needle, ins + needle, 1))
+    print("[dsr] patched make_cell: added 'rnn' (BasicRNNCell)")
+PY
 python -m pip install --upgrade "pip<24" "setuptools<60" wheel "cython<3" "numpy<=1.19"
 python -m pip install -e . 2>&1 | tail -20
 # TF1.14's generated code breaks under protobuf>=3.20 ("Descriptors cannot not be created").
@@ -61,23 +74,26 @@ import sys, json, commentjson
 arm, nsamp, logdir, out = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
 cfg = commentjson.load(open("dso/config/config_regression.json"))
 tr = cfg.setdefault("training", {})
-if arm in ("vpg", "vpg_nops"):  # vanilla PG: no quantile filter; EWMA-of-mean baseline
+if arm in ("vpg", "vpg_nops", "vpg_rnn"):  # vanilla PG: no quantile filter; EWMA-of-mean
     tr["epsilon"] = None         # (default baseline "R_e" sets b=quantile -> crashes for VPG)
     tr["baseline"] = "ewma_R"
-    if arm == "vpg_nops":        # ABLATION: drop parent/sibling tree obs, observe prev-action
+    if arm == "vpg_nops":        # ABLATION 1: drop parent/sibling tree obs, observe prev-action
         sm = commentjson.load(open("dso/config/config_common.json")).get("state_manager", {})
         sm["observe_parent"] = False
         sm["observe_sibling"] = False
         sm["observe_action"] = True   # must observe something (their assert)
         cfg["state_manager"] = sm
+    elif arm == "vpg_rnn":       # ABLATION 2: basic (Elman) RNN cell instead of LSTM
+        cfg.setdefault("policy", {})["cell"] = "rnn"
 else:                            # risk-seeking (DSR): top-5% filter, quantile baseline
     tr["epsilon"] = 0.05
 tr["n_samples"] = nsamp
 cfg.setdefault("experiment", {})["logdir"] = logdir
 json.dump(cfg, open(out, "w"), indent=1)
 sm = cfg.get("state_manager", {})
-print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d parent=%s sibling=%s action=%s"
+print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d cell=%s parent=%s sibling=%s action=%s"
       % (arm, tr["epsilon"], tr.get("baseline", "R_e"), nsamp,
+         cfg.get("policy", {}).get("cell", "lstm"),
          sm.get("observe_parent", "default"), sm.get("observe_sibling", "default"),
          sm.get("observe_action", "default")))
 PY
