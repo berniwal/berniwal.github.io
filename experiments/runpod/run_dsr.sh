@@ -1,31 +1,29 @@
 #!/usr/bin/env bash
-# Runs ON a RunPod pod (via launch.py --cmd) to cross-check DSR's OWN implementation.
+# Runs ON a RunPod pod (via launch.py --cmd) to cross-check DSR's OWN implementation:
+# does their vanilla PG (VPG) collapse on Nguyen where our greedy does not?
 #
-# DSR pins a 2019 stack (tensorflow==1.14, numpy<=1.19, numba==0.53.1, Cython), which
-# needs Python 3.7 -- impossible on the cloud-sdk image's modern Python. So we install
-# Miniconda and build an isolated py37 env for DSR, while the harness's system gsutil
-# still handles the GCS sync. DSR's output (summary.csv etc.) is copied into ./results
-# so the worker syncs it to gs://runpod-experiments/<exp>/results/.
+# DSR pins a 2019 stack (tensorflow==1.14, numpy<=1.19, numba==0.53.1, Cython) needing
+# Python 3.7 -- impossible on the cloud-sdk image's modern Python -- so we build an
+# isolated Miniconda py37 env while the harness's system gsutil handles GCS sync. DSR's
+# output is copied into ./results so the worker syncs it to gs://.../<exp>/results/.
 #
 # Env knobs (set in launch.py --cmd):
-#   TASK=Nguyen-3   EPSILON=null (VPG) | 0.05 (risk)   NSAMPLES=200000   SEED=0
-#   RUNS=1          NCORES=1   (DSR's per-task parallelism)
-#
-# Calibration: small NSAMPLES, 1 run -> confirms the env builds + times one job so we
-# can extrapolate the full 2,000,000-sample sweep before committing to it.
-set -uxo pipefail   # -x traces every step into worker.log (this IS the calibration output)
+#   TASKS=Nguyen-3,Nguyen-4   ARMS=vpg,risk   RUNS=25 (seeds)   NSAMPLES=2000000
+#   NCORES=25 (DSR parallel runs)   START_SEED=0
+# Calibration smoke: TASKS=Nguyen-3 ARMS=vpg RUNS=1 NSAMPLES=200000 NCORES=1
+set -uxo pipefail   # -x traces every step into worker.log
 
-TASK="${TASK:-Nguyen-3}"
-EPSILON="${EPSILON:-null}"          # null -> vanilla PG; 0.05 -> risk-seeking
-NSAMPLES="${NSAMPLES:-200000}"      # full benchmark uses 2000000
-SEED="${SEED:-0}"
-RUNS="${RUNS:-1}"
-NCORES="${NCORES:-1}"
+TASKS="${TASKS:-Nguyen-3,Nguyen-4}"
+ARMS="${ARMS:-vpg,risk}"
+RUNS="${RUNS:-25}"
+NSAMPLES="${NSAMPLES:-2000000}"
+NCORES="${NCORES:-25}"
+START_SEED="${START_SEED:-0}"
 
-# Capture the harness's synced results dir BEFORE we cd anywhere (cwd = the workdir).
-RESULTS_DIR="$PWD/results/dsr-${TASK}-eps${EPSILON}-n${NSAMPLES}"
+# Synced results dir, captured BEFORE any cd (cwd = the harness workdir).
+RESULTS_DIR="$PWD/results/dsr-collapse"
 mkdir -p "$RESULTS_DIR"
-echo "[dsr] nproc=$(nproc)  results->$RESULTS_DIR"
+echo "[dsr] nproc=$(nproc)  TASKS=$TASKS ARMS=$ARMS RUNS=$RUNS NSAMPLES=$NSAMPLES NCORES=$NCORES"
 
 apt-get update -qq && apt-get install -y -qq build-essential wget git >/dev/null 2>&1 || true
 
@@ -35,53 +33,67 @@ if [ ! -x /opt/conda/bin/conda ]; then
   bash /tmp/mc.sh -b -p /opt/conda
 fi
 set +u; source /opt/conda/etc/profile.d/conda.sh
-# conda-forge + --override-channels avoids the recent `defaults`-channel ToS prompt
-# that silently fails non-interactive `conda create`. Do NOT suppress output.
+# conda-forge + --override-channels avoids the `defaults`-channel ToS block; ship pip.
 conda create -y -n dsr -c conda-forge --override-channels python=3.7 pip
 conda activate dsr; set -u
-command -v python >/dev/null || { echo "[dsr] FATAL: py37 env not created/active"; conda info --envs; exit 1; }
-python --version
+command -v python >/dev/null || { echo "[dsr] FATAL: py37 env not created"; conda info --envs; exit 1; }
 python -m pip --version || { echo "[dsr] FATAL: pip missing in env"; exit 1; }
 
-# 2) Clone + install DSR into the py37 env.
+# 2) Clone + install DSR.
 rm -rf /workspace/dsr
 git clone --depth 1 https://github.com/dso-org/deep-symbolic-optimization.git /workspace/dsr
 cd /workspace/dsr/dso
 python -m pip install --upgrade "pip<24" "setuptools<60" wheel "cython<3" "numpy<=1.19"
-python -m pip install -e . 2>&1 | tail -30
-# TF 1.14's generated code is incompatible with protobuf >=3.20 ("Descriptors cannot
-# not be created directly"); pin the old runtime. Belt-and-suspenders env var too.
+python -m pip install -e . 2>&1 | tail -20
+# TF1.14's generated code breaks under protobuf>=3.20 ("Descriptors cannot not be created").
 python -m pip install "protobuf<3.20"
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 python -c "import dso, tensorflow as tf; print('[dsr] import OK: tf', tf.__version__)" \
-  || { echo "[dsr] FATAL: DSR/TF import failed after install"; exit 1; }
+  || { echo "[dsr] FATAL: DSR/TF import failed"; exit 1; }
 
-# 3) Build a config: chosen epsilon (VPG=null), reduced n_samples, our logdir.
-#    DSR configs use // comments -> load with commentjson (installed with DSR).
-python - "$EPSILON" "$NSAMPLES" <<'PY'
+# 3) For each arm x task: build the arm's config and run RUNS seeds.
+IFS=',' read -ra ARM_LIST <<< "$ARMS"
+IFS=',' read -ra TASK_LIST <<< "$TASKS"
+for arm in "${ARM_LIST[@]}"; do
+  CFG="/workspace/cfg-${arm}.json"
+  python - "$arm" "$NSAMPLES" "/workspace/dsrlog/${arm}" "$CFG" <<'PY'
 import sys, json, commentjson
-eps_s, nsamp = sys.argv[1], int(sys.argv[2])
+arm, nsamp, logdir, out = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
 cfg = commentjson.load(open("dso/config/config_regression.json"))
 tr = cfg.setdefault("training", {})
-if eps_s == "null":            # vanilla PG: no quantile filter, EWMA-of-mean baseline
-    tr["epsilon"] = None       # (default baseline "R_e" sets b=quantile -> crashes for VPG)
+if arm == "vpg":               # vanilla PG: no quantile filter; EWMA-of-mean baseline
+    tr["epsilon"] = None        # (default baseline "R_e" sets b=quantile -> crashes for VPG)
     tr["baseline"] = "ewma_R"
-else:                          # risk-seeking: top-eps filter, quantile baseline (default R_e)
-    tr["epsilon"] = float(eps_s)
+else:                           # risk-seeking (DSR): top-5% filter, quantile baseline
+    tr["epsilon"] = 0.05
 tr["n_samples"] = nsamp
-cfg.setdefault("experiment", {})["logdir"] = "/workspace/dsrlog"
-json.dump(cfg, open("/workspace/calib.json", "w"), indent=1)
-print("[dsr] config: epsilon=%r baseline=%s n_samples=%d"
-      % (tr["epsilon"], tr.get("baseline", "R_e"), nsamp))
+cfg.setdefault("experiment", {})["logdir"] = logdir
+json.dump(cfg, open(out, "w"), indent=1)
+print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d"
+      % (arm, tr["epsilon"], tr.get("baseline", "R_e"), nsamp))
 PY
+  for task in "${TASK_LIST[@]}"; do
+    START=$(date +%s)
+    python -m dso.run "$CFG" --b "$task" --runs "$RUNS" --seed "$START_SEED" \
+        --n_cores_task "$NCORES" 2>&1 | tail -15
+    echo "[dsr] ELAPSED=$(( $(date +%s) - START ))s  arm=$arm task=$task runs=$RUNS n=$NSAMPLES"
+  done
+  mkdir -p "$RESULTS_DIR/${arm}"
+  cp -r /workspace/dsrlog/${arm}/* "$RESULTS_DIR/${arm}/" 2>/dev/null || true
+done
 
-# 4) Run + time it (this number drives the full-run sizing decision).
-START=$(date +%s)
-python -m dso.run /workspace/calib.json --b "$TASK" --runs "$RUNS" --seed "$SEED" \
-    --n_cores_task "$NCORES" 2>&1 | tail -50
-echo "[dsr] ELAPSED=$(( $(date +%s) - START ))s  for TASK=$TASK EPSILON=$EPSILON NSAMPLES=$NSAMPLES"
-
-# 5) Copy DSR's output into the synced results dir (summary.csv + config).
-cp -r /workspace/dsrlog/* "$RESULTS_DIR/" 2>/dev/null || true
-ls -R "$RESULTS_DIR" 2>/dev/null | head -40
+# 4) Summarize recovery (success = exact symbolic, DSR's criterion) into worker.log.
+python - "$RESULTS_DIR" <<'PY'
+import glob, csv, os, sys
+root = sys.argv[1]
+print("\n===== DSR recovery: success=symbolic (rows=seeds) =====")
+for f in sorted(glob.glob(os.path.join(root, "**", "summary.csv"), recursive=True)):
+    rows = list(csv.DictReader(open(f)))
+    if not rows:
+        continue
+    n = len(rows)
+    succ = sum(str(r.get("success")).strip().lower() in ("true", "1") for r in rows)
+    tag = f.replace(root, "").strip("/").split("/summary.csv")[0]
+    print("  %-50s success=%d/%d" % (tag, succ, n))
+PY
 echo "[dsr] done"
