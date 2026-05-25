@@ -62,11 +62,17 @@ python - "$EPSILON" "$NSAMPLES" <<'PY'
 import sys, json, commentjson
 eps_s, nsamp = sys.argv[1], int(sys.argv[2])
 cfg = commentjson.load(open("dso/config/config_regression.json"))
-cfg.setdefault("training", {})["epsilon"] = None if eps_s == "null" else float(eps_s)
-cfg["training"]["n_samples"] = nsamp
+tr = cfg.setdefault("training", {})
+if eps_s == "null":            # vanilla PG: no quantile filter, EWMA-of-mean baseline
+    tr["epsilon"] = None       # (default baseline "R_e" sets b=quantile -> crashes for VPG)
+    tr["baseline"] = "ewma_R"
+else:                          # risk-seeking: top-eps filter, quantile baseline (default R_e)
+    tr["epsilon"] = float(eps_s)
+tr["n_samples"] = nsamp
 cfg.setdefault("experiment", {})["logdir"] = "/workspace/dsrlog"
 json.dump(cfg, open("/workspace/calib.json", "w"), indent=1)
-print("[dsr] config: epsilon=%r n_samples=%d" % (cfg["training"]["epsilon"], nsamp))
+print("[dsr] config: epsilon=%r baseline=%s n_samples=%d"
+      % (tr["epsilon"], tr.get("baseline", "R_e"), nsamp))
 PY
 
 # 4) Run + time it (this number drives the full-run sizing decision).
