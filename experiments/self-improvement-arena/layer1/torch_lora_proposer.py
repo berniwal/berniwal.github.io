@@ -116,11 +116,11 @@ class TorchLoRAProposer:
     @torch.no_grad()
     def _generate(self, prompt_ids):
         plen = prompt_ids.shape[1]
-        out = self.model.generate(
-            prompt_ids.repeat(self.batch_size, 1),
+        inp = prompt_ids.repeat(self.batch_size, 1)
+        seqs = self.model.generate(
+            inp, attention_mask=torch.ones_like(inp),
             do_sample=True, temperature=self.temperature, top_p=self.top_p,
-            max_new_tokens=self.max_new_tokens, pad_token_id=self.tok.pad_token_id)
-        seqs = out  # (B, plen + gen)
+            max_new_tokens=self.max_new_tokens, pad_token_id=self.tok.pad_token_id)  # (B, plen+gen)
         comp_mask = torch.zeros_like(seqs, dtype=torch.float32)
         comp_mask[:, plen:] = (seqs[:, plen:] != self.tok.pad_token_id).float()
         texts = self.tok.batch_decode(seqs[:, plen:], skip_special_tokens=True)

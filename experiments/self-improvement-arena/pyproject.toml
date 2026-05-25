@@ -41,8 +41,10 @@ layer1 = [
 # Portable (PyTorch/CUDA) Layer 1 for GPU pods (RunPod) -- the non-Apple path that
 # runs the GRPO LLM proposer. Install on the pod; not needed for Layer 0 or MLX.
 layer1-gpu = [
+    # NOTE: on a GPU pod install torch from the CUDA index matching the host driver
+    # (see run_layer1_torch.sh, e.g. cu124); the PyPI default may be too new.
     "torch>=2.2",
-    "transformers>=4.44",
+    "transformers>=4.44,<5",   # 5.x changed generate internals (KeyError with peft)
     "peft>=0.11",
     "accelerate>=0.30",
     "scipy>=1.10",

@@ -12,12 +12,15 @@ set -uxo pipefail
 echo "[l1] nproc=$(nproc)"
 nvidia-smi -L || echo "[l1] WARNING: no nvidia-smi (no GPU?)"
 
-# torch+CUDA + transformers + peft + accelerate (the layer1-gpu extra). Large (~GB);
-# launch with --disk 40.
-python3 -m pip install --break-system-packages -q -e ".[layer1-gpu]" 2>&1 | tail -15
-python3 -c "import torch; print('[l1] torch', torch.__version__, 'cuda', torch.cuda.is_available(), \
-  (torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU-ONLY'))" \
-  || { echo "[l1] FATAL: torch import failed"; exit 1; }
+# torch built for the host's CUDA: default PyPI torch is a cu130 build that needs a
+# newer driver than RunPod hosts provide (12.7) and silently falls back to CPU. Pin
+# the cu124 build (driver >=12.4). Then transformers <5 (5.x changed generate
+# internals -> KeyError) + peft/accelerate/scipy. Large (~GB); launch with --disk 40.
+python3 -m pip install --break-system-packages -q torch --index-url https://download.pytorch.org/whl/cu124
+python3 -m pip install --break-system-packages -q "transformers>=4.44,<5" "peft>=0.11" "accelerate>=0.30" scipy 2>&1 | tail -8
+python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; \
+  print('[l1] torch', torch.__version__, 'cuda', torch.cuda.get_device_name(0))" \
+  || { echo '[l1] FATAL: torch/CUDA not available'; exit 1; }
 
 START=$(date +%s)
 python3 run_layer1_torch.py \
