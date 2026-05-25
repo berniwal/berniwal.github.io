@@ -35,16 +35,21 @@ if [ ! -x /opt/conda/bin/conda ]; then
   bash /tmp/mc.sh -b -p /opt/conda
 fi
 set +u; source /opt/conda/etc/profile.d/conda.sh
-conda create -y -n dsr python=3.7 >/dev/null 2>&1
+# conda-forge + --override-channels avoids the recent `defaults`-channel ToS prompt
+# that silently fails non-interactive `conda create`. Do NOT suppress output.
+conda create -y -n dsr -c conda-forge --override-channels python=3.7
 conda activate dsr; set -u
+command -v python >/dev/null || { echo "[dsr] FATAL: py37 env not created/active"; conda info --envs; exit 1; }
 python --version
 
 # 2) Clone + install DSR into the py37 env.
 rm -rf /workspace/dsr
 git clone --depth 1 https://github.com/dso-org/deep-symbolic-optimization.git /workspace/dsr
 cd /workspace/dsr/dso
-python -m pip install --upgrade "pip<24" "setuptools<60" wheel "cython<3" "numpy<=1.19" >/dev/null
-python -m pip install -e . 2>&1 | tail -25
+python -m pip install --upgrade "pip<24" "setuptools<60" wheel "cython<3" "numpy<=1.19"
+python -m pip install -e . 2>&1 | tail -30
+python -c "import dso, tensorflow as tf; print('[dsr] import OK: tf', tf.__version__)" \
+  || { echo "[dsr] FATAL: DSR/TF import failed after install"; exit 1; }
 
 # 3) Build a config: chosen epsilon (VPG=null), reduced n_samples, our logdir.
 #    DSR configs use // comments -> load with commentjson (installed with DSR).
