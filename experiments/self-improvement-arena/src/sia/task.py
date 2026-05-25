@@ -68,6 +68,22 @@ NGUYEN_RANGES = {
     "nguyen-4": (-1.0, 1.0), "nguyen-5": (-1.0, 1.0), "nguyen-6": (-1.0, 1.0),
     "nguyen-7": (0.0, 2.0), "nguyen-8": (0.0, 4.0),
 }
+# SymPy-parseable target strings, for the strict (exact-symbolic) recovery check.
+TARGET_SYMPY = {
+    "easy": "x**2 + 1",
+    "medium": "x**2 + sin(x)",
+    "harder": "x**3 - x + cos(2*x)",
+}
+NGUYEN_SYMPY = {
+    "nguyen-1": "x**3 + x**2 + x",
+    "nguyen-2": "x**4 + x**3 + x**2 + x",
+    "nguyen-3": "x**5 + x**4 + x**3 + x**2 + x",
+    "nguyen-4": "x**6 + x**5 + x**4 + x**3 + x**2 + x",
+    "nguyen-5": "sin(x**2)*cos(x) - 1",
+    "nguyen-6": "sin(x) + sin(x + x**2)",
+    "nguyen-7": "log(x + 1) + log(x**2 + 1)",
+    "nguyen-8": "sqrt(x)",
+}
 # Human-readable formulas for display (Nguyen targets have no exact grammar tree).
 NGUYEN_FORMULAS = {
     "nguyen-1": "x^3 + x^2 + x",
@@ -90,6 +106,7 @@ class Task:
     x_heldout: np.ndarray
     y_heldout: np.ndarray
     target_expr: Node
+    target_sympy: str = ""   # SymPy-parseable target, for exact-symbolic recovery
 
 
 def make_task(name: str, n_points: int = 30, x_range: tuple = (-3.0, 3.0),
@@ -100,10 +117,12 @@ def make_task(name: str, n_points: int = 30, x_range: tuple = (-3.0, 3.0),
         fn = NGUYEN_FNS[name]
         lo, hi = NGUYEN_RANGES[name]
         grammar, target_expr = KOZA_GRAMMAR, None
+        target_sympy = NGUYEN_SYMPY[name]
     elif name in TARGET_FNS:                     # our base 3 targets
         fn = TARGET_FNS[name]
         lo, hi = x_range
         grammar, target_expr = GRAMMAR, TARGET_EXPRS[name]
+        target_sympy = TARGET_SYMPY[name]
     else:
         raise ValueError(f"unknown task {name!r}; choices: "
                          f"{list(TARGET_FNS) + list(NGUYEN_FNS)}")
@@ -116,5 +135,5 @@ def make_task(name: str, n_points: int = 30, x_range: tuple = (-3.0, 3.0),
         name=name, grammar=grammar,
         x_train=x_train, y_train=fn(x_train),
         x_heldout=x_heldout, y_heldout=fn(x_heldout),
-        target_expr=target_expr,
+        target_expr=target_expr, target_sympy=target_sympy,
     )

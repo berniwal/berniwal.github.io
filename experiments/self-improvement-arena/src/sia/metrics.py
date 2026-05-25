@@ -25,8 +25,13 @@ class RunLog:
     best_reward: list = field(default_factory=list)   # best-so-far reward
     diversity: list = field(default_factory=list)      # unique fraction per batch
     policy_entropy: list = field(default_factory=list)  # NaN if not an RL policy
-    success: bool = False
+    success: bool = False               # NUMERIC recovery: held-out MSE < eps_success
     evals_to_solve: int | None = None
+    # SYMBOLIC recovery: best expr is exactly symbolically equivalent to the target
+    # (SymPy), DSR's strict definition. Only tracked when run with track_symbolic=True;
+    # left False/None otherwise (so old logs still load).
+    success_symbolic: bool = False
+    evals_to_solve_symbolic: int | None = None
     best_expr: str = ""
 
     def to_dict(self) -> dict:

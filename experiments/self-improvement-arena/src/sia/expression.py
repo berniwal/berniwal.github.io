@@ -128,6 +128,56 @@ def to_infix(node: Node) -> str:
     return f"({to_infix(a)} {node.op} {to_infix(b)})"
 
 
+# --- SymPy bridge (DSR-style exact symbolic recovery) -----------------------
+# DSR judges "recovery" by EXACT symbolic equivalence to the target (via a CAS),
+# not by a numeric error threshold. On a bounded interval a smooth non-target
+# (e.g. exp/trig combo) can fit a polynomial to MSE < 1e-6 yet be a different
+# function -- so numeric "solve" overcounts. These helpers give the strict check.
+def to_sympy(node: Node):
+    """Convert a Node tree to a SymPy expression (variable ``x``). Numeric leaves
+    become exact Rationals so simplification is not defeated by float noise."""
+    import sympy as sp
+
+    x = sp.Symbol("x")
+
+    def conv(n: Node):
+        if not n.children:
+            return x if n.op == "x" else sp.Rational(n.op)
+        a = conv(n.children[0])
+        if n.op == "+":
+            return a + conv(n.children[1])
+        if n.op == "-":
+            return a - conv(n.children[1])
+        if n.op == "*":
+            return a * conv(n.children[1])
+        if n.op == "/":
+            return a / conv(n.children[1])
+        if n.op == "sin":
+            return sp.sin(a)
+        if n.op == "cos":
+            return sp.cos(a)
+        if n.op == "exp":
+            return sp.exp(a)
+        if n.op == "log":
+            return sp.log(a)
+        raise ValueError(f"to_sympy: unknown op {n.op!r}")
+
+    return conv(node)
+
+
+def sympy_equivalent(node: Node, target_str: str) -> bool:
+    """True iff ``node`` is exactly symbolically equivalent to ``target_str``
+    (DSR's recovery criterion). Robust to CAS hiccups: any failure -> False."""
+    try:
+        import sympy as sp
+
+        expr = to_sympy(node)
+        target = sp.sympify(target_str)
+        return bool(sp.simplify(expr - target) == 0)
+    except Exception:
+        return False
+
+
 # --- Prefix (Polish) serialization ------------------------------------------
 def to_prefix(node: Node) -> list[str]:
     out = [node.op]

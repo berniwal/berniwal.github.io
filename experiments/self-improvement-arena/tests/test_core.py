@@ -195,6 +195,34 @@ def test_const_placeholder_parsing():
     assert to_infix(n2) == "((1.0 * x) - 1.0)"
 
 
+def test_symbolic_recovery_is_stricter_than_numeric():
+    """DSR's strict recovery = exact symbolic equivalence (SymPy). A smooth
+    non-target can fit a polynomial to MSE<1e-6 on in-range points yet NOT be
+    that polynomial -- numeric "solve" must not be mistaken for symbolic recovery."""
+    from sia.expression import from_prefix, sympy_equivalent, to_sympy
+    from sia.task import NGUYEN_SYMPY, make_task
+
+    # the exact Nguyen-1 tree is symbolically equivalent
+    X = leaf("x")
+    x2 = Node("*", [X, X]); x3 = Node("*", [X, x2])
+    exact = Node("+", [Node("+", [x3, x2]), X])
+    assert sympy_equivalent(exact, NGUYEN_SYMPY["nguyen-1"])
+
+    # a numeric near-fit to Nguyen-3 (found by a real run) is NOT symbolic recovery:
+    # it tracks the target closely on in-range points yet is a different function
+    approx = from_prefix(["*", "exp", "x", "/", "x", "cos", "x"])  # exp(x)*(x/cos(x))
+    t3 = make_task("nguyen-3", n_points=20, x_range=(-1.0, 1.0), seed=0)
+    y = evaluate(approx, t3.x_heldout)
+    nmse = float(np.mean((y - t3.y_heldout) ** 2)) / float(np.var(t3.y_heldout))
+    assert nmse < 1e-2                                           # numerically a close fit
+    assert not sympy_equivalent(approx, NGUYEN_SYMPY["nguyen-3"])  # but not recovery
+
+    # to_sympy uses exact rationals (0.5 -> 1/2), so base-target consts compare exactly
+    half = Node("/", [X, Node("+", [X, X])])                    # x/(x+x) == 1/2
+    import sympy as sp
+    assert sp.simplify(to_sympy(half) - sp.Rational(1, 2)) == 0
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .expression import to_infix
+from .expression import sympy_equivalent, to_infix
 from .metrics import RunLog, unique_fraction
 from .proposers import get_proposer
 from .task import make_task
@@ -21,7 +21,8 @@ from .verifier import Verifier
 def run_method(method: str, proposer_name: str, target: str, budget: int, seed: int,
                proposer_hp: dict, n_points: int = 30, x_range=(-3.0, 3.0),
                length_penalty: float = 0.001, eps_success: float = 1e-6,
-               reward_mode: str = "mse", log_every: int = 1) -> RunLog:
+               reward_mode: str = "mse", log_every: int = 1,
+               track_symbolic: bool = False) -> RunLog:
     # Same dataset for every method at a given (target, seed) -> a fair contest.
     task = make_task(target, n_points=n_points, x_range=tuple(x_range), seed=seed)
     ver = Verifier(task, length_penalty=length_penalty, eps_success=eps_success,
@@ -34,6 +35,9 @@ def run_method(method: str, proposer_name: str, target: str, budget: int, seed: 
     best_expr = None
     has_diag = hasattr(proposer, "diagnostics")
     batch_idx = 0
+    # Cache CAS verdicts per distinct expression so the (rare, gated) symbolic
+    # check never re-simplifies the same candidate twice within a run.
+    sym_cache: dict[str, bool] = {}
 
     while ver.calls < budget:
         candidates = proposer.ask()
@@ -44,10 +48,24 @@ def run_method(method: str, proposer_name: str, target: str, budget: int, seed: 
         for c, r in zip(candidates, results):
             if r.reward > best:
                 best, best_expr = r.reward, c
-            # success/evals-to-solve is exact regardless of log_every (checked here)
-            if log.evals_to_solve is None and ver.success(c):
+            # NUMERIC recovery: held-out MSE < eps_success. Exact regardless of
+            # log_every (checked here). ver.success does not consume budget.
+            passed = ver.success(c)
+            if log.evals_to_solve is None and passed:
                 log.success = True
                 log.evals_to_solve = ver.calls
+            # SYMBOLIC recovery (DSR's strict criterion): gate on the cheap numeric
+            # pass first (an exactly-equivalent expr always fits to ~0), then ask the
+            # CAS. Cache per infix so repeated near-fits don't re-trigger SymPy.
+            if track_symbolic and log.evals_to_solve_symbolic is None and passed:
+                key = to_infix(c)
+                eq = sym_cache.get(key)
+                if eq is None:
+                    eq = sympy_equivalent(c, task.target_sympy)
+                    sym_cache[key] = eq
+                if eq:
+                    log.success_symbolic = True
+                    log.evals_to_solve_symbolic = ver.calls
 
         # Downsample the curve for very long runs; the final point is always kept.
         if batch_idx % log_every == 0 or ver.calls >= budget:
@@ -70,6 +88,7 @@ def _run_job(job: dict) -> RunLog:
         proposer_hp=job["hp"], n_points=job["n_points"], x_range=job["x_range"],
         length_penalty=job["length_penalty"], eps_success=job["eps_success"],
         reward_mode=job["reward_mode"], log_every=job["log_every"],
+        track_symbolic=job.get("track_symbolic", False),
     )
     if job["path"] is not None:  # atomic write -> a crash mid-write can't corrupt
         path = Path(job["path"])
@@ -122,6 +141,7 @@ def run_experiment(config: dict, log_dir=None, resume: bool = True,
                     eps_success=float(config["eps_success"]),
                     reward_mode=config.get("reward_mode", "mse"),
                     log_every=config.get("log_every", 1),
+                    track_symbolic=config.get("track_symbolic", False),
                 ))
 
     t0 = time.time()
