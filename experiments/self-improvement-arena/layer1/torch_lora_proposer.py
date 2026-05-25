@@ -39,7 +39,7 @@ INVALID = leaf("1.0")  # placeholder scored ~0 by the verifier (an unparseable s
 class TorchLoRAProposer:
     def __init__(self, task, model_id="Qwen/Qwen2.5-0.5B-Instruct", arm="risk",
                  mode="quantile", epsilon=0.25, beta=2.0, beta_rule="fixed",
-                 target_ess=0.3, target_kl=1.0, batch_size=16, lr=1e-6,
+                 target_ess=0.3, target_kl=1.0, batch_size=16, micro_batch=8, lr=1e-6,
                  weight_decay=0.1, lora_rank=16, lora_alpha=32, lora_dropout=0.0,
                  max_new_tokens=48, temperature=1.0, top_p=0.95,
                  const_placeholder=True, n_data_shown=12,
@@ -54,6 +54,7 @@ class TorchLoRAProposer:
         self.epsilon, self.beta, self.beta_rule = epsilon, beta, beta_rule
         self.target_ess, self.target_kl = target_ess, target_kl
         self.batch_size = batch_size
+        self.micro = micro_batch   # forward/backward chunk size (bounds peak GPU memory)
         self.max_new_tokens, self.temperature, self.top_p = max_new_tokens, temperature, top_p
         self.const_placeholder, self.n_data_shown = const_placeholder, n_data_shown
         self.ppo_epochs = ppo_epochs
@@ -124,7 +125,9 @@ class TorchLoRAProposer:
         comp_mask = torch.zeros_like(seqs, dtype=torch.float32)
         comp_mask[:, plen:] = (seqs[:, plen:] != self.tok.pad_token_id).float()
         texts = self.tok.batch_decode(seqs[:, plen:], skip_special_tokens=True)
-        old_logp = self._token_logprobs(seqs)  # pi_old, per-token (B, T-1)
+        # pi_old per-token, computed in no-grad micro-chunks so peak memory stays bounded
+        old_logp = torch.cat([self._token_logprobs(seqs[s:s + self.micro])
+                              for s in range(0, seqs.shape[0], self.micro)], dim=0)
         return seqs, comp_mask[:, 1:], old_logp, texts, plen
 
     def _token_logprobs(self, seqs, grad=False):
@@ -184,22 +187,28 @@ class TorchLoRAProposer:
             return
         seqs, comp_mask, old_logp = self._pending
         adv = torch.tensor(self._weights(results), dtype=torch.float32, device=self.device)
-        adv_tok = adv.unsqueeze(1)            # (B,1) broadcast over completion tokens
         cl, ch, tc = 1 - self.clip_low, 1 + self.clip_high, self.trunc_is
+        B = seqs.shape[0]
+        total_mask = comp_mask.sum().clamp(min=1)   # normalize over the FULL batch's tokens
         for _ in range(self.ppo_epochs):
-            logp = self._token_logprobs(seqs, grad=True)        # (B, T-1)
-            ratio = torch.exp(logp - old_logp)
-            ratio = torch.clamp(ratio, max=tc)                  # truncated importance sampling
-            unclipped = ratio * adv_tok
-            clipped = torch.clamp(ratio, cl, ch) * adv_tok
-            surr = torch.minimum(unclipped, clipped)            # GRPO clipped surrogate
-            loss = -(surr * comp_mask).sum() / comp_mask.sum().clamp(min=1)
             self.opt.zero_grad()
-            loss.backward()
+            ep_loss = 0.0
+            # Micro-batch with gradient accumulation: each chunk's graph is freed by its
+            # own backward(), so peak memory ~ self.micro, not the full batch (attention
+            # activations are O(T^2)*batch*layers and OOM the GPU at batch 32).
+            for s in range(0, B, self.micro):
+                sl = slice(s, s + self.micro)
+                logp = self._token_logprobs(seqs[sl], grad=True)        # (m, T-1)
+                ratio = torch.clamp(torch.exp(logp - old_logp[sl]), max=tc)  # truncated IS
+                a = adv[sl].unsqueeze(1)
+                surr = torch.minimum(ratio * a, torch.clamp(ratio, cl, ch) * a)  # GRPO surrogate
+                loss = -(surr * comp_mask[sl]).sum() / total_mask
+                loss.backward()
+                ep_loss += float(loss.detach())
             torch.nn.utils.clip_grad_norm_(
                 (p for p in self.model.parameters() if p.requires_grad), 1.0)
             self.opt.step()
-            self._last_loss = float(loss.detach())
+            self._last_loss = ep_loss
         self._pending = None
 
     def diagnostics(self) -> dict:
