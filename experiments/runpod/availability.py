@@ -59,11 +59,18 @@ def cmd_gpu(key: str, args) -> None:
     # gpuCount (host-dependent, NOT tied to VRAM; the actual pod can give more -- e.g.
     # a "28 vCPU" pod landed on a 32-core EPYC). Decisive for CPU-bound sweeps on a
     # GPU pod: pick by this floor, then size --workers to the pod's real nproc.
+    #
+    # PRICE depends on the cloud tier: lowestPrice WITHOUT a cloud filter returns a
+    # cross-tier floor (often the community price), which under-quotes a secure launch
+    # (a "$0.34" RTX PRO 4500 actually bills $0.74 on secure). Pass secureCloud to get
+    # the price for the tier you will actually launch on.
+    cloud_filter = {"SECURE": ", secureCloud:true",
+                    "COMMUNITY": ", secureCloud:false", "ANY": ""}[args.cloud_type]
     q = """query { gpuTypes {
       id displayName memoryInGb communityCloud secureCloud
-      lowestPrice(input:{gpuCount:%d}) {
+      lowestPrice(input:{gpuCount:%d%s}) {
         uninterruptablePrice minimumBidPrice stockStatus minVcpu minMemory }
-    } }""" % args.gpu_count
+    } }""" % (args.gpu_count, cloud_filter)
     rows = []
     for g in gql(key, q)["gpuTypes"]:
         lp = g.get("lowestPrice") or {}
@@ -82,16 +89,20 @@ def cmd_gpu(key: str, args) -> None:
     print(f"{'$/hr≥':>9} {'spot':>6} {'vCPU≥':>5} {'RAM≥':>6} {'vram':>6} {'stock':>7} "
           f"{'cloud':>9}  GPU  [id]")
     for r in rows:
-        cloud = "community" if r["comm"] else "secure"
+        # when filtered by tier the price IS that tier's; label it so (the per-type
+        # communityCloud flag would mislabel a secure-priced row as "community").
+        cloud = args.cloud_type.lower() if args.cloud_type != "ANY" \
+            else ("community" if r["comm"] else "secure")
         bid = f"${r['bid']}" if r["bid"] else "-"
         print(f"{'$'+str(r['price']):>9} {bid:>6} {str(r['vcpu']):>5} {str(r['ram'])+'GB':>6} "
               f"{str(r['vram'])+'GB':>6} {str(r['stock'] or '-'):>7} {cloud:>9}  "
               f"{r['name']}  [{r['id']}]")
     print(f"\n{len(rows)} GPU type(s)"
-          f"{' in stock' if not args.all else ''}; gpuCount={args.gpu_count}.")
-    print("NOTE: $/hr and vCPU/RAM are FLOORS (cheapest datacenter); the pod you are "
-          "actually placed on can cost more and have more cores -- check the real rate "
-          "with `runpod.get_pods()[*]['costPerHr']` after launch.")
+          f"{' in stock' if not args.all else ''}; gpuCount={args.gpu_count}; "
+          f"tier={args.cloud_type}.")
+    print("NOTE: $/hr is the cheapest-datacenter floor FOR THIS TIER; vCPU/RAM are "
+          "floors too. The placed pod can cost a touch more / have more cores -- "
+          "launch.py prints the real costPerHr after create.")
     print("Launch:  python launch.py --gpu --gpu-type \"<id>\" --exp <name> --cmd \"...\"")
 
 
@@ -151,6 +162,10 @@ def main() -> None:
     g.add_argument("--gpu-count", type=int, default=1)
     g.add_argument("--by-vcpu", action="store_true",
                    help="sort by vCPU desc (best for CPU-bound sweeps) instead of price")
+    g.add_argument("--cloud-type", default="SECURE",
+                   choices=["SECURE", "COMMUNITY", "ANY"],
+                   help="price/stock for this tier (default SECURE, matching launch). "
+                        "ANY = cross-tier floor (under-quotes a secure launch).")
 
     c = sub.add_parser("cpu", help="list CPU flavor specs; --probe for availability")
     c.add_argument("--probe", action="store_true",

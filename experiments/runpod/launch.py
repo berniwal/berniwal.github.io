@@ -44,6 +44,10 @@ def main() -> None:
                          "'python3 run_ablation.py --budget 2000000 --seeds 20' "
                          "(NOT run_overnight.sh -- that's macOS/caffeinate only)")
     ap.add_argument("--gpu", action="store_true", help="GPU pod (default: CPU)")
+    ap.add_argument("--max-price", type=float,
+                    help="abort + terminate if the placed pod's costPerHr ($/hr) exceeds "
+                         "this -- guards against landing in a pricier datacenter than the "
+                         "advertised floor")
     ap.add_argument("--cpu-instance", default=cfg["cpu_instance_id"])
     ap.add_argument("--gpu-type", default=cfg["gpu_type_id"])
     ap.add_argument("--cloud-type", default=cfg.get("cloud_type", "SECURE"),
@@ -110,6 +114,30 @@ def main() -> None:
 
     pid = pod.get("id", "?") if isinstance(pod, dict) else pod
     print(f"  pod id: {pid}")
+
+    # Report the REAL billed rate (advertised lowestPrice is only a floor; the placed
+    # datacenter can cost more). Optionally abort if it exceeds --max-price.
+    cost = pod.get("costPerHr") if isinstance(pod, dict) else None
+    if cost is None:
+        try:
+            for p in runpod.get_pods():
+                if (p.get("id") if isinstance(p, dict) else None) == pid:
+                    cost = p.get("costPerHr")
+                    break
+        except Exception:
+            pass
+    if cost is not None:
+        print(f"  costPerHr: ${cost}")
+        if args.max_price is not None and float(cost) > args.max_price:
+            print(f"  !! ${cost}/hr exceeds --max-price ${args.max_price} -> terminating")
+            try:
+                runpod.terminate_pod(pid)
+            except Exception as e:
+                print(f"  terminate failed ({e!r}); remove pod {pid} manually")
+            sys.exit(1)
+    elif args.max_price is not None:
+        print("  warning: could not read costPerHr; --max-price not enforced")
+
     print(f"  watch:  gsutil cat {gcs_dest}/worker.log   (appears after first push)")
     print(f"  fetch:  python fetch.py --exp {args.exp}")
 
