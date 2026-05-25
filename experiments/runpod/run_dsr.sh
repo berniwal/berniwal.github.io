@@ -61,16 +61,25 @@ import sys, json, commentjson
 arm, nsamp, logdir, out = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
 cfg = commentjson.load(open("dso/config/config_regression.json"))
 tr = cfg.setdefault("training", {})
-if arm == "vpg":               # vanilla PG: no quantile filter; EWMA-of-mean baseline
-    tr["epsilon"] = None        # (default baseline "R_e" sets b=quantile -> crashes for VPG)
+if arm in ("vpg", "vpg_nops"):  # vanilla PG: no quantile filter; EWMA-of-mean baseline
+    tr["epsilon"] = None         # (default baseline "R_e" sets b=quantile -> crashes for VPG)
     tr["baseline"] = "ewma_R"
-else:                           # risk-seeking (DSR): top-5% filter, quantile baseline
+    if arm == "vpg_nops":        # ABLATION: drop parent/sibling tree obs, observe prev-action
+        sm = commentjson.load(open("dso/config/config_common.json")).get("state_manager", {})
+        sm["observe_parent"] = False
+        sm["observe_sibling"] = False
+        sm["observe_action"] = True   # must observe something (their assert)
+        cfg["state_manager"] = sm
+else:                            # risk-seeking (DSR): top-5% filter, quantile baseline
     tr["epsilon"] = 0.05
 tr["n_samples"] = nsamp
 cfg.setdefault("experiment", {})["logdir"] = logdir
 json.dump(cfg, open(out, "w"), indent=1)
-print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d"
-      % (arm, tr["epsilon"], tr.get("baseline", "R_e"), nsamp))
+sm = cfg.get("state_manager", {})
+print("[dsr] %s config: epsilon=%r baseline=%s n_samples=%d parent=%s sibling=%s action=%s"
+      % (arm, tr["epsilon"], tr.get("baseline", "R_e"), nsamp,
+         sm.get("observe_parent", "default"), sm.get("observe_sibling", "default"),
+         sm.get("observe_action", "default")))
 PY
   for task in "${TASK_LIST[@]}"; do
     START=$(date +%s)
