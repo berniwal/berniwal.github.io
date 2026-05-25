@@ -46,6 +46,10 @@ def main() -> None:
     ap.add_argument("--gpu", action="store_true", help="GPU pod (default: CPU)")
     ap.add_argument("--cpu-instance", default=cfg["cpu_instance_id"])
     ap.add_argument("--gpu-type", default=cfg["gpu_type_id"])
+    ap.add_argument("--cloud-type", default=cfg.get("cloud_type", "SECURE"),
+                    choices=["SECURE", "COMMUNITY"],
+                    help="GPU cloud tier (default from config). SECURE = vetted T3/T4 "
+                         "datacenters (reliable); COMMUNITY = cheaper third-party hosts.")
     ap.add_argument("--repo-url", default=cfg["repo_url"],
                     help="repo to clone + run (default: this repo). NOTE: worker_entry.sh "
                          "is fetched from this repo's experiments/runpod/, so a different "
@@ -92,11 +96,12 @@ def main() -> None:
 
     common = dict(image_name=cfg["image"], env=env, docker_args=docker_args,
                   container_disk_in_gb=cfg["container_disk_gb"])
-    print(f"launching {'GPU' if args.gpu else 'CPU'} pod '{args.exp}' -> {gcs_dest}/")
+    tier = f" [{args.cloud_type}]" if args.gpu else ""
+    print(f"launching {'GPU' if args.gpu else 'CPU'} pod{tier} '{args.exp}' -> {gcs_dest}/")
     try:
         if args.gpu:
             pod = runpod.create_pod(name=args.exp, gpu_type_id=args.gpu_type,
-                                    gpu_count=1, cloud_type="COMMUNITY", **common)
+                                    gpu_count=1, cloud_type=args.cloud_type, **common)
         else:
             pod = runpod.create_pod(name=args.exp, instance_id=args.cpu_instance, **common)
     except Exception as e:  # SDK signatures drift between versions -> show the error

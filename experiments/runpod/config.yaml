@@ -18,8 +18,11 @@ image: google/cloud-sdk:slim
 # Default pod flavors (override with --pod-type / --gpu on the CLI).
 #   CPU instance_id format: <tier>-<vCPU>-<GB RAM>, e.g. cpu3c-16-32 (16 vCPU / 32 GB).
 #   Layer 0 is pure-numpy and embarrassingly parallel -> more vCPUs = faster, no GPU.
-cpu_instance_id: cpu5c-16-32   # 5 GHz, 16 vCPU / 32 GB (verified available)
-gpu_type_id: "NVIDIA GeForce RTX 4090"   # used only with --gpu (future Layer 1)
+cpu_instance_id: cpu5c-16-32   # 5 GHz, 16 vCPU / 32 GB (often sold out -- see availability.py)
+gpu_type_id: "NVIDIA RTX PRO 4500 Blackwell"   # 28 vCPU, secure, usually in stock
+# GPU cloud tier: SECURE = vetted T3/T4 datacenters (reliable, default); COMMUNITY =
+# cheaper third-party hosts. (CPU instances are always RunPod-managed; no tier.)
+cloud_type: SECURE
 container_disk_gb: 20
 
 # How often the worker pushes results/ up to GCS (seconds). A crash loses at most
