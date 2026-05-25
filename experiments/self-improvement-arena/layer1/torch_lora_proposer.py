@@ -128,12 +128,20 @@ class TorchLoRAProposer:
         return seqs, comp_mask[:, 1:], old_logp, texts, plen
 
     def _token_logprobs(self, seqs, grad=False):
-        """Per-token log pi(token_t | <t) aligned to seqs[:,1:]. (B, T-1)."""
+        """Per-token log pi(token_t | <t) aligned to seqs[:,1:]. (B, T-1).
+
+        Memory-efficient: log p(tgt) = logit_tgt - logsumexp(logits). Avoids
+        materializing a full (B, T, vocab) log_softmax tensor (vocab ~152k -> ~5GB
+        per copy; the naive version OOMs a 16GB GPU at batch 32). Keeps logits in the
+        model dtype (bf16); only the (B, T) results are upcast to fp32.
+        """
         ctx = torch.enable_grad() if grad else torch.no_grad()
         with ctx:
-            logits = self.model(seqs).logits[:, :-1, :]      # predict tokens 1..T-1
-            logp = F.log_softmax(logits.float(), dim=-1)
-            return logp.gather(-1, seqs[:, 1:].unsqueeze(-1)).squeeze(-1)
+            logits = self.model(seqs).logits[:, :-1, :]              # (B, T-1, V)
+            tgt = seqs[:, 1:].unsqueeze(-1)                          # (B, T-1, 1)
+            tgt_logit = logits.gather(-1, tgt).squeeze(-1)          # (B, T-1)
+            lse = torch.logsumexp(logits, dim=-1)                   # (B, T-1), reduction
+            return (tgt_logit - lse).float()
 
     # --- ask / tell ----------------------------------------------------------
     def ask(self) -> list[Node]:
