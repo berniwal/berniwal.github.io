@@ -79,7 +79,7 @@ def cmd_gpu(key: str, args) -> None:
         rows = [r for r in rows if r["price"] <= args.max_price]
     rows.sort(key=lambda r: -(r["vcpu"] or 0) if args.by_vcpu else r["price"])
 
-    print(f"{'on-demand':>9} {'spot':>6} {'vCPU≥':>5} {'RAM≥':>6} {'vram':>6} {'stock':>7} "
+    print(f"{'$/hr≥':>9} {'spot':>6} {'vCPU≥':>5} {'RAM≥':>6} {'vram':>6} {'stock':>7} "
           f"{'cloud':>9}  GPU  [id]")
     for r in rows:
         cloud = "community" if r["comm"] else "secure"
@@ -88,9 +88,11 @@ def cmd_gpu(key: str, args) -> None:
               f"{str(r['vram'])+'GB':>6} {str(r['stock'] or '-'):>7} {cloud:>9}  "
               f"{r['name']}  [{r['id']}]")
     print(f"\n{len(rows)} GPU type(s)"
-          f"{' in stock' if not args.all else ''}; gpuCount={args.gpu_count}. "
-          "Set launch --workers to the vCPU shown. "
-          "Launch:  python launch.py --gpu --gpu-type \"<id>\" --exp <name> --cmd \"...\"")
+          f"{' in stock' if not args.all else ''}; gpuCount={args.gpu_count}.")
+    print("NOTE: $/hr and vCPU/RAM are FLOORS (cheapest datacenter); the pod you are "
+          "actually placed on can cost more and have more cores -- check the real rate "
+          "with `runpod.get_pods()[*]['costPerHr']` after launch.")
+    print("Launch:  python launch.py --gpu --gpu-type \"<id>\" --exp <name> --cmd \"...\"")
 
 
 def cmd_cpu(key: str, args) -> None:
