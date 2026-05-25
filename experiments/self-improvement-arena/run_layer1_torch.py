@@ -82,11 +82,13 @@ def main():
                 sym_solved_at = ver.calls
         prop.tell(cands, results)
         d = prop.diagnostics()
+        rs = [r.reward for r in results]
+        batch_mean = sum(rs) / len(rs)        # the real "is the policy improving?" signal
         history.append(dict(round=rd, calls=ver.calls, best=best,
                             valid=d["valid_fraction"], loss=d["loss"],
-                            batch_best=max(r.reward for r in results)))
+                            batch_best=max(rs), batch_mean=batch_mean))
         print(f"[r{rd:03d}] calls={ver.calls} best={best:.4f} "
-              f"batch_best={max(r.reward for r in results):.4f} "
+              f"batch_mean={batch_mean:.4f} batch_best={max(rs):.4f} "
               f"valid={d['valid_fraction']:.2f} loss={d['loss']:.4f} "
               f"num_solved={num_solved_at} sym_solved={sym_solved_at}", flush=True)
 
