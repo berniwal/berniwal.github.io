@@ -22,12 +22,14 @@ python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'
   print('[l1] torch', torch.__version__, 'cuda', torch.cuda.get_device_name(0))" \
   || { echo '[l1] FATAL: torch/CUDA not available'; exit 1; }
 
-START=$(date +%s)
-python3 run_layer1_torch.py \
-    --model "${MODEL:-Qwen/Qwen2.5-0.5B-Instruct}" \
-    --target "${TARGET:-medium}" --arm "${ARM:-risk}" --mode "${MODE:-quantile}" \
-    --rounds "${ROUNDS:-40}" --batch "${BATCH:-16}" --max-new-tokens "${MAXNEW:-48}" \
-    --temperature "${TEMP:-1.0}" --lr "${LR:-1e-6}" --epsilon "${EPSILON:-0.25}" \
-    --out results/layer1-torch ${EXTRA:-} 2>&1 | tail -80
-echo "[l1] ELAPSED=$(( $(date +%s) - START ))s  TARGET=${TARGET:-medium} ARM=${ARM:-risk}"
+for SEED in $(echo "${SEEDS:-0}" | tr ',' ' '); do
+  START=$(date +%s)
+  python3 run_layer1_torch.py \
+      --model "${MODEL:-Qwen/Qwen2.5-0.5B-Instruct}" \
+      --target "${TARGET:-medium}" --arm "${ARM:-risk}" --mode "${MODE:-quantile}" \
+      --rounds "${ROUNDS:-60}" --batch "${BATCH:-32}" --max-new-tokens "${MAXNEW:-48}" \
+      --temperature "${TEMP:-1.0}" --lr "${LR:-1e-5}" --epsilon "${EPSILON:-0.25}" \
+      --seed "$SEED" --out results/layer1-torch ${EXTRA:-} 2>&1 | tail -45
+  echo "[l1] ELAPSED=$(( $(date +%s) - START ))s  TARGET=${TARGET:-medium} ARM=${ARM:-risk} MODE=${MODE:-quantile} seed=$SEED"
+done
 echo "[l1] done"

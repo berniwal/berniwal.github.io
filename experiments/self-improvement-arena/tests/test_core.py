@@ -223,6 +223,18 @@ def test_symbolic_recovery_is_stricter_than_numeric():
     assert sp.simplify(to_sympy(half) - sp.Rational(1, 2)) == 0
 
 
+def test_symbolic_recovery_const_rounding():
+    """Layer-1 BFGS fits constants to near-exact floats (e.g. cos(-1e-7), -1.0000001);
+    const_tol snaps them so the recovered STRUCTURE passes the strict check, while a
+    genuinely wrong fit is still rejected (no over-crediting)."""
+    from sia.expression import parse_expression, sympy_equivalent
+    near = parse_expression("(((x * x) * cos(-1.03e-07)) - sin((-1.0000000001 * x)))")
+    assert not sympy_equivalent(near, "x**2 + sin(x)")                  # exact: floats != 1/0
+    assert sympy_equivalent(near, "x**2 + sin(x)", const_tol=1e-3)      # snapped -> recovers
+    wrong = parse_expression("(x*x) + cos(x)")
+    assert not sympy_equivalent(wrong, "x**2 + sin(x)", const_tol=1e-3)  # not over-credited
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

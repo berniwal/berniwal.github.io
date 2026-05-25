@@ -27,7 +27,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
     ap.add_argument("--target", default="medium")
-    ap.add_argument("--arm", default="risk", choices=["greedy", "risk"])
+    ap.add_argument("--arm", default="risk", choices=["greedy", "risk", "best_of_n"])
+    ap.add_argument("--const-tol", type=float, default=1e-3,
+                    help="snap fitted constants within this tol before the symbolic check")
     ap.add_argument("--mode", default="quantile", choices=["quantile", "entropic", "cvar"])
     ap.add_argument("--epsilon", type=float, default=0.25)
     ap.add_argument("--beta", type=float, default=2.0)
@@ -78,7 +80,7 @@ def main():
             if num_solved_at is None and ver.success(c):
                 num_solved_at = ver.calls
             if sym_solved_at is None and task.target_sympy and ver.success(c) \
-                    and sympy_equivalent(c, task.target_sympy):
+                    and sympy_equivalent(c, task.target_sympy, const_tol=args.const_tol):
                 sym_solved_at = ver.calls
         prop.tell(cands, results)
         d = prop.diagnostics()

@@ -165,15 +165,44 @@ def to_sympy(node: Node):
     return conv(node)
 
 
-def sympy_equivalent(node: Node, target_str: str) -> bool:
+def _snap_consts(node: Node, tol: float) -> Node:
+    """Round numeric leaves to a nearby integer or half-integer within ``tol``.
+
+    The Layer-1 const-placeholder path BFGS-fits constants to floats that are ~ but
+    not = the exact values (e.g. cos(-1.03e-7), -1.0000000009 for x**2 + sin(x)).
+    Exact SymPy equivalence then fails even though the *structure* is recovered.
+    Snapping the fitted constants first lets the strict check credit the recovery.
+    """
+    if not node.children:
+        if node.op == "x":
+            return node
+        try:
+            v = float(node.op)
+        except ValueError:
+            return node
+        for nice in (round(v), round(v * 2) / 2):  # nearest int, then nearest half
+            if abs(v - nice) <= tol:
+                return leaf(repr(float(nice)))
+        return node
+    return Node(node.op, [_snap_consts(c, tol) for c in node.children])
+
+
+def sympy_equivalent(node: Node, target_str: str, const_tol: float = 0.0) -> bool:
     """True iff ``node`` is exactly symbolically equivalent to ``target_str``
     (DSR's recovery criterion). Robust to CAS hiccups (a bad expression -> False),
     but a MISSING sympy raises loudly: sympy is a required dependency, and silently
     returning False would mis-report every run as 0% recovery (it once did, on a pod
-    where sympy wasn't installed)."""
+    where sympy wasn't installed).
+
+    ``const_tol > 0`` snaps fitted float constants to nearby integers/halves first
+    (see :func:`_snap_consts`) -- the right setting for the BFGS const-placeholder
+    Layer-1 path. Default 0 (no snapping) keeps Layer-0 / Nguyen behavior exact.
+    """
     import sympy as sp  # required dep -- let ImportError propagate, do NOT swallow it
 
     try:
+        if const_tol > 0:
+            node = _snap_consts(node, const_tol)
         expr = to_sympy(node)
         target = sp.sympify(target_str)
         return bool(sp.simplify(expr - target) == 0)

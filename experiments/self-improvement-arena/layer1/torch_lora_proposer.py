@@ -45,8 +45,8 @@ class TorchLoRAProposer:
                  const_placeholder=True, n_data_shown=12,
                  ppo_epochs=2, clip_low=0.2, clip_high=0.28, trunc_is=2.0,
                  std_normalize=False, seed=0, dtype="bfloat16"):
-        if arm not in ("greedy", "risk"):
-            raise ValueError("arm must be greedy or risk")
+        if arm not in ("greedy", "risk", "best_of_n"):
+            raise ValueError("arm must be greedy, risk, or best_of_n")
         if mode not in ("quantile", "entropic", "cvar"):
             raise ValueError("mode must be quantile/entropic/cvar")
         self.task = task
@@ -184,6 +184,9 @@ class TorchLoRAProposer:
 
     def tell(self, candidates, results: list[Result]) -> None:
         if getattr(self, "_pending", None) is None:
+            return
+        if self.arm == "best_of_n":      # no-training baseline: just keep sampling
+            self._pending = None
             return
         seqs, comp_mask, old_logp = self._pending
         adv = torch.tensor(self._weights(results), dtype=torch.float32, device=self.device)
