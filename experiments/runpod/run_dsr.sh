@@ -37,10 +37,11 @@ fi
 set +u; source /opt/conda/etc/profile.d/conda.sh
 # conda-forge + --override-channels avoids the recent `defaults`-channel ToS prompt
 # that silently fails non-interactive `conda create`. Do NOT suppress output.
-conda create -y -n dsr -c conda-forge --override-channels python=3.7
+conda create -y -n dsr -c conda-forge --override-channels python=3.7 pip
 conda activate dsr; set -u
 command -v python >/dev/null || { echo "[dsr] FATAL: py37 env not created/active"; conda info --envs; exit 1; }
 python --version
+python -m pip --version || { echo "[dsr] FATAL: pip missing in env"; exit 1; }
 
 # 2) Clone + install DSR into the py37 env.
 rm -rf /workspace/dsr
