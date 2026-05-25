@@ -55,8 +55,10 @@ def gql(key: str, query: str) -> dict:
 
 
 def cmd_gpu(key: str, args) -> None:
-    # minVcpu/minMemory = the host CPU/RAM you get with this GPU at gpuCount (host-
-    # dependent, NOT tied to VRAM) -- decisive for CPU-bound sweeps run on a GPU pod.
+    # minVcpu/minMemory = a LOWER BOUND on the host CPU/RAM you get with this GPU at
+    # gpuCount (host-dependent, NOT tied to VRAM; the actual pod can give more -- e.g.
+    # a "28 vCPU" pod landed on a 32-core EPYC). Decisive for CPU-bound sweeps on a
+    # GPU pod: pick by this floor, then size --workers to the pod's real nproc.
     q = """query { gpuTypes {
       id displayName memoryInGb communityCloud secureCloud
       lowestPrice(input:{gpuCount:%d}) {
@@ -77,7 +79,7 @@ def cmd_gpu(key: str, args) -> None:
         rows = [r for r in rows if r["price"] <= args.max_price]
     rows.sort(key=lambda r: -(r["vcpu"] or 0) if args.by_vcpu else r["price"])
 
-    print(f"{'on-demand':>9} {'spot':>6} {'vCPU':>5} {'RAM':>6} {'vram':>6} {'stock':>7} "
+    print(f"{'on-demand':>9} {'spot':>6} {'vCPU≥':>5} {'RAM≥':>6} {'vram':>6} {'stock':>7} "
           f"{'cloud':>9}  GPU  [id]")
     for r in rows:
         cloud = "community" if r["comm"] else "secure"
