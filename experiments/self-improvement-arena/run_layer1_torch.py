@@ -36,6 +36,9 @@ def main():
     ap.add_argument("--beta", type=float, default=2.0)
     ap.add_argument("--rounds", type=int, default=40)
     ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--micro-batch", type=int, default=8,
+                    help="fwd/bwd chunk inside tell(); lower this if you OOM at long "
+                         "max-new-tokens (e.g. --micro-batch 1 with --reasoning)")
     ap.add_argument("--max-new-tokens", type=int, default=48)
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--lr", type=float, default=1e-6)
@@ -66,7 +69,8 @@ def main():
     from layer1.torch_lora_proposer import TorchLoRAProposer
     prop = TorchLoRAProposer(
         task, model_id=args.model, arm=args.arm, mode=args.mode, epsilon=args.epsilon,
-        beta=args.beta, batch_size=args.batch, lr=args.lr, weight_decay=args.weight_decay,
+        beta=args.beta, batch_size=args.batch, micro_batch=args.micro_batch,
+        lr=args.lr, weight_decay=args.weight_decay,
         lora_rank=args.lora_rank, max_new_tokens=args.max_new_tokens,
         temperature=args.temperature, const_placeholder=not args.no_const,
         ppo_epochs=args.ppo_epochs, clip_low=args.clip_low, clip_high=args.clip_high,

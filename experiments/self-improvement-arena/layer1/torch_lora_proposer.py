@@ -83,6 +83,15 @@ class TorchLoRAProposer:
         if self.tok.pad_token_id is None:
             self.tok.pad_token = self.tok.eos_token
         base = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=td)
+        # Gradient checkpointing: re-run forward inside backward instead of keeping
+        # activations resident. Essential at long max_new_tokens (e.g. reasoning mode at
+        # 2048 tokens) where the per-layer attention activations + 152k-wide logits
+        # OOM an 80GB A100 otherwise. PEFT idiom: `enable_input_require_grads` is
+        # needed because the base is frozen; without it checkpointing has no inputs
+        # with requires_grad and silently no-ops.
+        base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        base.enable_input_require_grads()
+        base.config.use_cache = False  # incompatible with grad checkpointing during training
         lcfg = LoraConfig(r=lora_rank, lora_alpha=lora_alpha, lora_dropout=lora_dropout,
                           target_modules="all-linear", task_type="CAUSAL_LM")
         self.model = get_peft_model(base, lcfg).to(self.device)
@@ -170,10 +179,17 @@ class TorchLoRAProposer:
     def _generate(self, prompt_ids):
         plen = prompt_ids.shape[1]
         inp = prompt_ids.repeat(self.batch_size, 1)
-        seqs = self.model.generate(
-            inp, attention_mask=torch.ones_like(inp),
-            do_sample=True, temperature=self.temperature, top_p=self.top_p,
-            max_new_tokens=self.max_new_tokens, pad_token_id=self.tok.pad_token_id)  # (B, plen+gen)
+        # Generation needs the KV cache; training-time forwards disable it (see __init__
+        # for the grad-checkpointing wiring). Toggle around generate() so the rest of
+        # the proposer can leave use_cache=False as the steady state.
+        self.model.config.use_cache = True
+        try:
+            seqs = self.model.generate(
+                inp, attention_mask=torch.ones_like(inp),
+                do_sample=True, temperature=self.temperature, top_p=self.top_p,
+                max_new_tokens=self.max_new_tokens, pad_token_id=self.tok.pad_token_id)  # (B, plen+gen)
+        finally:
+            self.model.config.use_cache = False
         comp_mask = torch.zeros_like(seqs, dtype=torch.float32)
         comp_mask[:, plen:] = (seqs[:, plen:] != self.tok.pad_token_id).float()
         texts = self.tok.batch_decode(seqs[:, plen:], skip_special_tokens=True)

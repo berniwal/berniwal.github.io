@@ -35,7 +35,8 @@ for SEED in $(echo "${SEEDS:-0}" | tr ',' ' '); do
   python3 run_layer1_torch.py \
       --model "${MODEL:-Qwen/Qwen2.5-0.5B-Instruct}" \
       --target "${TARGET:-medium}" --arm "${ARM:-risk}" --mode "${MODE:-quantile}" \
-      --rounds "${ROUNDS:-60}" --batch "${BATCH:-32}" --max-new-tokens "${MAXNEW:-48}" \
+      --rounds "${ROUNDS:-60}" --batch "${BATCH:-32}" --micro-batch "${MICROBATCH:-8}" \
+      --max-new-tokens "${MAXNEW:-48}" \
       --temperature "${TEMP:-1.0}" --lr "${LR:-1e-5}" --epsilon "${EPSILON:-0.25}" \
       --x-range="${XRANGE:--1,1}" --n-points "${NPOINTS:-20}" \
       --seed "$SEED" --out results/layer1-torch ${REASONING_FLAG} ${EXTRA:-} 2>&1 | tail -45
