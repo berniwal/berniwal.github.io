@@ -185,8 +185,10 @@ class TorchLoRAProposer:
         if not lines:
             return ""
         # Last line tends to be the answer for reasoning models; first-line is
-        # equivalent when the model obeys the single-line instruction.
-        return lines[-1]
+        # equivalent when the model obeys the single-line instruction. Strip
+        # markdown code fences/backticks the model sometimes wraps the formula in
+        # (e.g. `C*x + C`) -- they break our parser otherwise.
+        return lines[-1].strip("`").strip()
 
     # --- generation ----------------------------------------------------------
     # Forced wrap-up sentence (TTT-Discover style): in the model's own voice so the
