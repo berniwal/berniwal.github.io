@@ -1,0 +1,637 @@
+{
+ "args": {
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "target": "medium",
+  "arm": "evolution",
+  "const_tol": 0.001,
+  "mode": "quantile",
+  "epsilon": 0.25,
+  "beta": 2.0,
+  "rounds": 60,
+  "batch": 32,
+  "max_new_tokens": 48,
+  "temperature": 1.0,
+  "lr": 1e-05,
+  "weight_decay": 0.1,
+  "lora_rank": 16,
+  "ppo_epochs": 2,
+  "clip_low": 0.2,
+  "clip_high": 0.28,
+  "trunc_is": 2.0,
+  "std_normalize": false,
+  "no_const": false,
+  "reward_mode": "nrmse",
+  "n_points": 20,
+  "x_range": "-1,1",
+  "eps_success": 1e-06,
+  "seed": 1,
+  "out": "results/layer1-torch"
+ },
+ "best": 0.994,
+ "best_expr": "((x * x) + sin(x))",
+ "numeric_solved_at": 32,
+ "symbolic_solved_at": 256,
+ "elapsed_s": 433.5,
+ "history": [
+  {
+   "round": 1,
+   "calls": 32,
+   "best": 0.9789894204463675,
+   "best_expr": "(((-1.989341394746722 - (-1.001355489000403 * sin((0.9981862802617936 * x)))) - (10.344936498285819 * cos(((-0.33402474319035647 - 0.10853151424757415) * x)))) - -12.33322008769737)",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.9789894204463675,
+   "batch_mean": 0.612963583561903
+  },
+  {
+   "round": 2,
+   "calls": 64,
+   "best": 0.9789894204463675,
+   "best_expr": "(((-1.989341394746722 - (-1.001355489000403 * sin((0.9981862802617936 * x)))) - (10.344936498285819 * cos(((-0.33402474319035647 - 0.10853151424757415) * x)))) - -12.33322008769737)",
+   "valid": 0.1875,
+   "loss": NaN,
+   "batch_best": 0.9504856670473611,
+   "batch_mean": 0.4263850837485001
+  },
+  {
+   "round": 3,
+   "calls": 96,
+   "best": 0.9789894204463675,
+   "best_expr": "(((-1.989341394746722 - (-1.001355489000403 * sin((0.9981862802617936 * x)))) - (10.344936498285819 * cos(((-0.33402474319035647 - 0.10853151424757415) * x)))) - -12.33322008769737)",
+   "valid": 0.28125,
+   "loss": NaN,
+   "batch_best": 0.670123381954405,
+   "batch_mean": 0.4453453805706114
+  },
+  {
+   "round": 4,
+   "calls": 128,
+   "best": 0.9789894204463675,
+   "best_expr": "(((-1.989341394746722 - (-1.001355489000403 * sin((0.9981862802617936 * x)))) - (10.344936498285819 * cos(((-0.33402474319035647 - 0.10853151424757415) * x)))) - -12.33322008769737)",
+   "valid": 0.1875,
+   "loss": NaN,
+   "batch_best": 0.9749229586252574,
+   "batch_mean": 0.4302319113142074
+  },
+  {
+   "round": 5,
+   "calls": 160,
+   "best": 0.9806136191325739,
+   "best_expr": "((((-0.15775172198592896 * ((x * x) * x)) + (1.0001316381427166 * (x * x))) - (-0.9981195565789448 * x)) - 0.00011082415526195415)",
+   "valid": 0.25,
+   "loss": NaN,
+   "batch_best": 0.9806136191325739,
+   "batch_mean": 0.46313123592926425
+  },
+  {
+   "round": 6,
+   "calls": 192,
+   "best": 0.9859999953243137,
+   "best_expr": "(((1.0264441180600958 * (x * x)) + (1.0264441457953477 * sin((0.9999999719073223 * x)))) * 0.9742371516542627)",
+   "valid": 0.25,
+   "loss": NaN,
+   "batch_best": 0.9859999953243137,
+   "batch_mean": 0.46888096117658473
+  },
+  {
+   "round": 7,
+   "calls": 224,
+   "best": 0.9859999973521736,
+   "best_expr": "(((1.0000000123532624 * (x * x)) + sin((1.0000000139674947 * x))) * (1.0218042673631338 * 0.9786610000219156))",
+   "valid": 0.21875,
+   "loss": NaN,
+   "batch_best": 0.9859999973521736,
+   "batch_mean": 0.4316437499619673
+  },
+  {
+   "round": 8,
+   "calls": 256,
+   "best": 0.9859999973521736,
+   "best_expr": "(((1.0000000123532624 * (x * x)) + sin((1.0000000139674947 * x))) * (1.0218042673631338 * 0.9786610000219156))",
+   "valid": 0.1875,
+   "loss": NaN,
+   "batch_best": 0.9859999946099685,
+   "batch_mean": 0.4356296121079929
+  },
+  {
+   "round": 9,
+   "calls": 288,
+   "best": 0.9859999973521736,
+   "best_expr": "(((1.0000000123532624 * (x * x)) + sin((1.0000000139674947 * x))) * (1.0218042673631338 * 0.9786610000219156))",
+   "valid": 0.25,
+   "loss": NaN,
+   "batch_best": 0.7149116674866595,
+   "batch_mean": 0.4354324902111612
+  },
+  {
+   "round": 10,
+   "calls": 320,
+   "best": 0.9899999835800064,
+   "best_expr": "(((1.000000007460101 * x) * x) + sin((0.9999999768753711 * x)))",
+   "valid": 0.25,
+   "loss": NaN,
+   "batch_best": 0.9899999835800064,
+   "batch_mean": 0.44168119397200617
+  },
+  {
+   "round": 11,
+   "calls": 352,
+   "best": 0.9899999942365081,
+   "best_expr": "(((1.0000000020574007 * x) * x) + sin((0.9999999917028595 * x)))",
+   "valid": 0.1875,
+   "loss": NaN,
+   "batch_best": 0.9899999942365081,
+   "batch_mean": 0.42212153310088407
+  },
+  {
+   "round": 12,
+   "calls": 384,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.15625,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.4264569140035329
+  },
+  {
+   "round": 13,
+   "calls": 416,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.3125,
+   "loss": NaN,
+   "batch_best": 0.9686306146806398,
+   "batch_mean": 0.4468625881974382
+  },
+  {
+   "round": 14,
+   "calls": 448,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.53125,
+   "loss": NaN,
+   "batch_best": 0.9899999747060777,
+   "batch_mean": 0.553782302623804
+  },
+  {
+   "round": 15,
+   "calls": 480,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.4375,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.46572230019706573
+  },
+  {
+   "round": 16,
+   "calls": 512,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.5,
+   "loss": NaN,
+   "batch_best": 0.9899999904992748,
+   "batch_mean": 0.581479424713002
+  },
+  {
+   "round": 17,
+   "calls": 544,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.53125,
+   "loss": NaN,
+   "batch_best": 0.9899999997541953,
+   "batch_mean": 0.6217939333381546
+  },
+  {
+   "round": 18,
+   "calls": 576,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.5,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5775587536275331
+  },
+  {
+   "round": 19,
+   "calls": 608,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.6235318899255158
+  },
+  {
+   "round": 20,
+   "calls": 640,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.5,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5272711077945488
+  },
+  {
+   "round": 21,
+   "calls": 672,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5750531078729025
+  },
+  {
+   "round": 22,
+   "calls": 704,
+   "best": 0.99,
+   "best_expr": "((1.0 * (x * x)) + sin((1.0 * x)))",
+   "valid": 0.71875,
+   "loss": NaN,
+   "batch_best": 0.9899999999999998,
+   "batch_mean": 0.646947706685609
+  },
+  {
+   "round": 23,
+   "calls": 736,
+   "best": 0.992,
+   "best_expr": "(((1.0 * x) * x) + sin(x))",
+   "valid": 0.53125,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.5560766549251001
+  },
+  {
+   "round": 24,
+   "calls": 768,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.53125,
+   "loss": NaN,
+   "batch_best": 0.994,
+   "batch_mean": 0.5866715317208373
+  },
+  {
+   "round": 25,
+   "calls": 800,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.5625,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5783527460754251
+  },
+  {
+   "round": 26,
+   "calls": 832,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5482027731154845
+  },
+  {
+   "round": 27,
+   "calls": 864,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.65625,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.5997835488222787
+  },
+  {
+   "round": 28,
+   "calls": 896,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.75,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5521248209697085
+  },
+  {
+   "round": 29,
+   "calls": 928,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.84375,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6897748186448238
+  },
+  {
+   "round": 30,
+   "calls": 960,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.75,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6818232722333638
+  },
+  {
+   "round": 31,
+   "calls": 992,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.84375,
+   "loss": NaN,
+   "batch_best": 0.9919999999999971,
+   "batch_mean": 0.6619175183934533
+  },
+  {
+   "round": 32,
+   "calls": 1024,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.71875,
+   "loss": NaN,
+   "batch_best": 0.9899999999999971,
+   "batch_mean": 0.6332583774694782
+  },
+  {
+   "round": 33,
+   "calls": 1056,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.75,
+   "loss": NaN,
+   "batch_best": 0.9919999999999991,
+   "batch_mean": 0.6487443160511708
+  },
+  {
+   "round": 34,
+   "calls": 1088,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.75,
+   "loss": NaN,
+   "batch_best": 0.9919999999999991,
+   "batch_mean": 0.6392333119816926
+  },
+  {
+   "round": 35,
+   "calls": 1120,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.65625,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5660464187124915
+  },
+  {
+   "round": 36,
+   "calls": 1152,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.6875,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5552968352507246
+  },
+  {
+   "round": 37,
+   "calls": 1184,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.5625,
+   "loss": NaN,
+   "batch_best": 0.9919999999999991,
+   "batch_mean": 0.599005337897778
+  },
+  {
+   "round": 38,
+   "calls": 1216,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.71875,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.6789908311155427
+  },
+  {
+   "round": 39,
+   "calls": 1248,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.625,
+   "loss": NaN,
+   "batch_best": 0.9899999774746627,
+   "batch_mean": 0.5873294437868308
+  },
+  {
+   "round": 40,
+   "calls": 1280,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.9919999999999991,
+   "batch_mean": 0.596547546026368
+  },
+  {
+   "round": 41,
+   "calls": 1312,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.9919999999999993,
+   "batch_mean": 0.5325058907798352
+  },
+  {
+   "round": 42,
+   "calls": 1344,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.625,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.5625937657106685
+  },
+  {
+   "round": 43,
+   "calls": 1376,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.6875,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6170428915890401
+  },
+  {
+   "round": 44,
+   "calls": 1408,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.6875,
+   "loss": NaN,
+   "batch_best": 0.9919999999999995,
+   "batch_mean": 0.6089084902634507
+  },
+  {
+   "round": 45,
+   "calls": 1440,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.625,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.5743498154590088
+  },
+  {
+   "round": 46,
+   "calls": 1472,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.5625,
+   "loss": NaN,
+   "batch_best": 0.9919999999999995,
+   "batch_mean": 0.5963357708422947
+  },
+  {
+   "round": 47,
+   "calls": 1504,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.6875,
+   "loss": NaN,
+   "batch_best": 0.9899999831812257,
+   "batch_mean": 0.6077765727951047
+  },
+  {
+   "round": 48,
+   "calls": 1536,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.6875,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6304371701359629
+  },
+  {
+   "round": 49,
+   "calls": 1568,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.589280015359208
+  },
+  {
+   "round": 50,
+   "calls": 1600,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.65625,
+   "loss": NaN,
+   "batch_best": 0.9919999999999995,
+   "batch_mean": 0.6807388865205436
+  },
+  {
+   "round": 51,
+   "calls": 1632,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6446339427238156
+  },
+  {
+   "round": 52,
+   "calls": 1664,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.4375,
+   "loss": NaN,
+   "batch_best": 0.9919999999999995,
+   "batch_mean": 0.5482809912286375
+  },
+  {
+   "round": 53,
+   "calls": 1696,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.625,
+   "loss": NaN,
+   "batch_best": 0.9899999717925344,
+   "batch_mean": 0.5580414079505472
+  },
+  {
+   "round": 54,
+   "calls": 1728,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.5625,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6075173228679814
+  },
+  {
+   "round": 55,
+   "calls": 1760,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.625,
+   "loss": NaN,
+   "batch_best": 0.9919999999999995,
+   "batch_mean": 0.6219657830589808
+  },
+  {
+   "round": 56,
+   "calls": 1792,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.5625,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6354681903046678
+  },
+  {
+   "round": 57,
+   "calls": 1824,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.6875,
+   "loss": NaN,
+   "batch_best": 0.9919999999999995,
+   "batch_mean": 0.669700372579231
+  },
+  {
+   "round": 58,
+   "calls": 1856,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.59375,
+   "loss": NaN,
+   "batch_best": 0.99,
+   "batch_mean": 0.5854610977881542
+  },
+  {
+   "round": 59,
+   "calls": 1888,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.625,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.5873906637000691
+  },
+  {
+   "round": 60,
+   "calls": 1920,
+   "best": 0.994,
+   "best_expr": "((x * x) + sin(x))",
+   "valid": 0.71875,
+   "loss": NaN,
+   "batch_best": 0.992,
+   "batch_mean": 0.6110007536292243
+  }
+ ]
+}

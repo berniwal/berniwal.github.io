@@ -1,573 +1,162 @@
-# Self-Improvement Arena — Layer 0
+# Self-Improvement Arena
 
-A small, fast, **non-LLM** sandbox for studying optimization dynamics from the
-self-improvement / open-ended-search literature
-([AlphaEvolve](https://arxiv.org/abs/2506.13131),
-[ThetaEvolve](https://arxiv.org/abs/2511.23473),
-[TTT-Discover](https://arxiv.org/abs/2601.16175),
-[Deep Symbolic Regression](https://arxiv.org/abs/1912.04871)).
-Those methods are expensive and LLM-bound,
-which makes the *underlying* search dynamics hard to study. Here we reproduce them on
-**symbolic regression** — recovering a hidden formula from data — which runs in
-seconds-to-minutes on a laptop CPU.
+A small, controlled testbed for the optimisation dynamic at the heart of methods like
+[Deep Symbolic Regression](https://arxiv.org/abs/1912.04871), [AlphaEvolve](https://arxiv.org/abs/2506.13131),
+and [TTT-Discover](https://arxiv.org/abs/2601.16175): four search methods compete on the
+same task, scored by the same verifier, under the same budget; only the proposer changes.
+The task is symbolic regression (recover `f(x)` from `(x, y)` points) because it is fast,
+honest about success (exact symbolic recovery is verifiable), and works in seconds on a
+laptop.
 
-**The hypothesis we set out to test** (folklore from that literature):
+📝 **Full narrative + interactive widgets in the blog post:**
+[Watching Search Algorithms Discover a Formula](https://berniwal.github.io/#/blog/visualizing-symbolic-regression).
+This README is the operating reference — install, run, where the numbers live.
 
-> Evolution beats greedy RL; greedy RL mode-collapses to a simple-but-suboptimal
-> solution; risk-seeking RL recovers the peak.
-
-**What we actually found** (three results, detailed below):
-
-1. **The greedy collapse is real — and *permanent*.** Greedy RL (and the entropic
-   variant) collapse onto one wrong expression and **stay collapsed across 20× more
-   budget**. It's a broken *objective*, not a compute shortage.
-2. **Evolution stayed the best method here — risk-seeking did *not* overtake it.**
-   DSR-style risk-seeking matches evolution's *ceiling* (both solve the solvable
-   targets) but is ~2.5× less sample-efficient. This is the *opposite* of DSR's
-   paper ranking, and we explain why it's benchmark-specific (and not a contradiction).
-3. **For risk-seeking, the objective's *shape* matters more than its temperature.**
-   The hard top-ε quantile (DSR) is robustly collapse-resistant; the soft entropic
-   tilt (`J_β`) collapses across its *entire* β range and under both ESS- and
-   KL-adaptive schedules.
-
-Layer 1 (see [`layer1/`](layer1/)) swaps in an LLM proposer behind the *same*
-interfaces to test whether any of this transfers. All three arms are implemented —
-program-database evolution (in-context) plus greedy and risk-seeking **LoRA**
-fine-tuning, which reuse Layer 0's exact reward-weighting via the shared
-[`objectives.py`](src/sia/objectives.py). The LoRA arms need Apple Silicon (MLX)
-and have not yet been run end-to-end on-device; see
-[`layer1/README.md`](layer1/README.md) for the M4 verification steps.
-
----
-
-## The research question
-
-Three method families compete on the **same task**, with the **same verifier**,
-under the **same budget** (counted in *verifier calls*, so the comparison is fair).
-Only the *proposer* changes:
-
-1. **Evolution** — genetic programming (population-based search).
-2. **Greedy RL** — a policy trained to maximize **expected** reward (standard REINFORCE).
-3. **Risk-seeking / entropic RL** — the **same** policy trained to maximize the
-   **best** outcomes, not the average.
-
-## The setup (the seams)
-
-Everything is built around three interfaces so that Layer 0 (search/RL) and Layer 1
-(LLM) can share the task, the reward, and the metrics — only the proposer differs.
-
-- **Task** ([`task.py`](src/sia/task.py)) — a hidden target function sampled into
-  `(x, y)` data plus a held-out set, and the expression grammar (variables `{x}`,
-  constants `{1, 2, 0.5}`, unary `{sin, cos}`, binary `{+, −, ×, ÷}`). Three targets
-  of increasing difficulty, all reachable from the grammar:
-  - `easy`: `x² + 1`
-  - `medium`: `x² + sin(x)`  ← the main running example
-  - `harder`: `x³ − x + cos(2x)`
-- **Verifier** ([`verifier.py`](src/sia/verifier.py)) — the single fixed reward:
-  `reward = 1/(1 + MSE_train) − length_penalty · complexity`; invalid expressions
-  (div-by-zero, NaN, overflow) score 0. Microsecond-fast and it **counts its own
-  calls**. Success = held-out MSE `< 1e-6` (recovering the function, not fitting the
-  training x's).
-- **Proposer** ([`proposers/base.py`](src/sia/proposers/base.py)) — the only thing
-  that changes between methods. A simple `ask()` (propose a batch) / `tell()` (learn
-  from rewards) contract. The [`runner`](src/sia/runner.py) drives the loop and
-  stops at the shared budget.
-
-### Metrics glossary
-
-- **success rate** — fraction of seeds that recovered the formula (held-out MSE `< 1e-6`).
-- **evals-to-solve** — how many verifier calls until that first success (sample-efficiency).
-- **best reward** — best `1/(1+MSE)` found (a soft "how close did it get" for unsolved runs).
-- **batch diversity** — fraction of *distinct* expressions in a batch; drops to ~0 on collapse.
-- **policy entropy** — Shannon entropy of the policy's token choices; ~0 means deterministic.
-
-## The methods, in one line each
-
-- **Random search** — sample fresh random expression trees forever; never learn. Baseline.
-- **Evolution (GP)** — keep a population; make children by **subtree crossover/mutation**
-  + tournament selection + elitism + a few random immigrants. Searches directly in
-  expression-space ([`genetic.py`](src/sia/proposers/genetic.py)).
-- **CVaR / Greedy / Risk-seeking / Entropic RL** — a tiny RNN emits expression tokens;
-  trained by policy gradient. They differ *only* in how rewards become gradient weights
-  (next section).
-
-## The RL objectives — one gradient, a whole risk spectrum
-
-The RL arms are written by hand in numpy ([`policy.py`](src/sia/policy.py)) to make
-this concrete. A policy-gradient update is **always**
+## What's in here
 
 ```
-maximize   Σ_i  w_i · Σ_t log π(a_t^i)        +        λ · H(π)
-           └──── advantage-weighted log-prob ────┘     └ entropy bonus ┘
+src/sia/                 the framework, all numpy
+  expression.py            grammar, tree eval, sympy check, GP operators
+  task.py                  benchmark targets + Nguyen suite + data generation
+  verifier.py              fixed reward + success check + call counter
+  policy.py                numpy RNN/LSTM policy + manual BPTT (shared by RL arms)
+  objectives.py            shared advantage formulas (greedy/quantile/entropic/cvar)
+  proposers/               random, gp, greedy, risk -- the swappable part
+  runner.py                fair-budget ask/tell loop, multi-seed, resumable
+  metrics.py, plotting.py  curves + diversity + results.md
+layer1/                  LLM proposers behind the SAME ask/tell seam
+  torch_lora_proposer.py   GPU LoRA + GRPO (Qwen2.5-0.5B); used in the blog
+  lora_proposer.py         Apple-Silicon MLX equivalent (kept; off by default)
+  llm_evolution.py         frozen-LLM, AlphaEvolve-style in-context evolution
+configs/                 one YAML per sweep (single source of HPs)
+  layer0.yaml              100k smoke for the four Layer-0 methods
+  scaling.yaml             canonical 2M Layer-0 sweep, MSE reward
+  scaling_nrmse.yaml       canonical 2M Layer-0 sweep, NRMSE reward
+  nguyen.yaml              Nguyen 1-8 sweep (MSE; saturates -- see results.md)
+  nguyen_nrmse.yaml        Nguyen 1-8 sweep (NRMSE; the headline)
+  layer1.yaml              MLX in-context evolution arm
+  layer1_lora.yaml         MLX LoRA arms
+run_layer0.py            single-process numpy driver for the four Layer-0 arms
+run_layer1.py            MLX LoRA + in-context evolution driver
+run_layer1_torch.py      torch LoRA + GRPO driver (used for the blog's LLM runs)
+export_replay.py         single-seed step-through bake -> results/layer0_*/replay.json
+export_blog_data.py      bundles replays + LLM summaries into public/data/ for the blog
+app_engine.py            steppable engine behind the Streamlit visualiser
+streamlit_app.py         the interactive visualiser
+tests/                   grammar round-trips, advantage formulas, ask/tell shape, etc.
+results/                 committed artifacts: results.md + replay.json per sweep
+                         (per-run logs/ are gitignored)
 ```
 
-and **the arms differ only in the per-trajectory weight `w_i`** — pure scalar
-arithmetic on the rewards ([`objectives.py`](src/sia/objectives.py), shared with the
-Layer 1 LoRA arms). Backprop is identical. Reading the spectrum from risk-averse to
-risk-seeking:
+The cloud harness for the larger sweeps (RunPod + GCS-backed result sync, used to produce
+the LLM arms in the blog) lives one level up at [`experiments/runpod/`](../runpod/).
 
-| arm | objective (what it maximizes) | weight `w_i` | intuition |
-|---|---|---|---|
-| **Risk-averse CVaR** | the *lower* `ε` reward tail `E[R \| R≤R̃_ε]` | `(R_i − R̃_ε)` for the bottom ε (so `≤ 0`), else `0` | "lift the *worst* case" → pushes away from bad samples → wrong target for discovery |
-| **Greedy** | `E[R]` — the *average* sample | `R_i − mean(R)` | "make the typical sample better" → piles mass on one safe mode → **collapses** |
-| **Entropic (`J_β`)** | `(1/β) log E[e^{βR}]` | `∝ e^{βR_i}` (centered) | soft risk-seeking; `β→0` = greedy, `β→∞` = pure max |
-| **Risk-seeking (DSR)** | the *upper* `(1−ε)` reward tail `E[R \| R≥R̃_ε]` | `(R_i − R̃_ε)` for the top ε, else `0` | "make the top 10% better, ignore the rest" → reinforces a *set* of good expressions → stays diverse |
+## Findings (cross-linked to the blog)
 
-The **CVaR and DSR arms are exact mirrors**: the same conditional-tail-expectation
-policy gradient (Tamar et al. 2014), one on the *worst* ε-tail (risk-averse), one on
-the *best* ε-tail (risk-seeking). DSR is literally that CVaR gradient inverted — see
-the lineage note below. Optimizing the *average* sample (greedy) is already the wrong
-target for discovery: you do not want a typically-decent expression, you want the
-*one* exact hit. Risk-aversion (CVaR) is wronger still — it spends the gradient
-making the *worst* samples less bad.
+1. **Risk-seeking RL recovers `harder` where greedy never does.** On our 2M-call NRMSE
+   sweep (20 seeds), risk-seeking solves `harder = x³ − x + cos(2x)` 75% of the time;
+   evolution 15%; greedy 0%. *Same policy class, same gradient machinery — only the
+   per-sample advantage formula `wᵢ` changes.*
 
-Optimizing the *average* sample (greedy) is the wrong target for discovery: you do
-not want a typically-decent expression, you want the *one* exact hit. That pressure
-is what collapses the greedy policy onto a simple, safe, wrong attractor.
+2. **The mechanism is an entropy *rebound*.** Per-step policy entropy on the 2M replay
+   shows greedy and entropic both *committing* to wrong attractors around ~300k calls
+   (H drops to ≈0.5 / ≈0.1 and stays there). Risk-seeking commits too — and then
+   *climbs back up* to H ≈ 1.8, re-explores, and finds the cosine term. The hard top-ε
+   quantile is the only arm whose entropy rebounds, which is, on this target, the
+   difference between recovery and a permanent ceiling.
 
-### Two different things both called "entropy" (don't conflate them)
+3. **The ranking transfers to an LLM proposer.** Swap the numpy RNN for Qwen2.5-0.5B
+   trained with LoRA + GRPO under the *same* advantage formulas (`sia.objectives` is
+   imported by both proposers). On `harder` the order matches Layer 0: risk-seeking 5/5
+   numeric > best-of-N 3/5 > entropic 2/5 > greedy / evolution 1/5. *Symbolic* recovery
+   drops though (the 150 k-token vocabulary makes the exact closed form much harder to
+   hit than the 10-token grammar).
 
-- **Entropy *bonus*** `λ·H(π)` — a regularizer added to **all** arms equally
-  (`λ = 0.01`) that rewards the policy for keeping its token choices *spread out*
-  (classic exploration). Note: even *with* it, greedy still collapses — `λ=0.01`
-  isn't enough to overcome the `E[R]` collapse pressure.
-- **Entropic *objective*** `J_β` — a *risk-seeking reward transformation* (the `w_i`
-  above). Only the entropic arm uses it. Same word, unrelated mechanism.
+4. **On Nguyen 1-8 (DSR's official benchmark) risk-seeking wins on average and uniquely
+   cracks Nguyen-5.** Recovery (25 seeds, 2M, NRMSE, recomputed locally with SymPy):
+   random 24% / GP 28% / greedy 57% / risk **74%**. Nguyen-5 (`sin(x²)·cos(x) − 1`) is
+   solved by risk-seeking 11/25 and greedy 0/25 — the rare-outlier regime the
+   risk-seeking objective is designed for.
 
-### The quantile advantage and DSR
+5. **Caveats.** Nguyen-7 (`log(x+1) + log(x²+1)`) is unsolved by any of our arms at 2M
+   (DSR reports ~35%); a 27-combo `(lr, ent_coef, ε)` grid search on it returned 0/5
+   across every cell, so the gap is *not* in static hyperparameters — it lives in
+   DSR's training-loop schedule (entropy / lr decay over the 2M steps) or other
+   code-level specifics we have not rigorously matched. See the blog post.
 
-For the quantile arm the baseline is the **cutoff itself** — `R̃_ε`, the reward at
-the `(1−ε)` quantile (the *worst of the kept top-ε*) — not the batch mean, and
-sub-cutoff samples are dropped entirely. That is exactly DSR's risk-seeking gradient
-([Petersen et al. 2021](https://arxiv.org/abs/1912.04871)); we differ only by a
-normalization constant (`1/N` vs DSR's `1/εN`) that folds into the learning rate.
-
-### How `β` is chosen for the entropic arm (`beta_rule`)
-
-- `fixed` — constant tilt, scale-normalized: `β/std(R)`
-  ([Jiang et al. 2025](https://arxiv.org/abs/2509.24261) use a constant β).
-- `ess` — pick β each batch so the exponential weights keep a target **effective
-  sample size** (a standard importance-sampling self-tuning rule).
-- `kl` — pick β so the induced (reward-tilted) distribution sits a target **KL** away
-  from the batch sampling distribution. This is our reading of
-  [**TTT-Discover's**](https://arxiv.org/abs/2601.16175) adaptive β — they "set β(s)
-  adaptively per state by constraining the KL divergence of the induced policy." (Our
-  exact KL functional may differ from their Appendix A.1.)
-
----
-
-## Results
-
-### Finding 1 — The greedy collapse is real, and it's *permanent*
-
-Headline run (20 seeds, **100k** verifier calls, `configs/layer0.yaml`):
-
-| target | method | success rate | median evals-to-solve | mean best reward |
-|---|---|---|---|---|
-| easy | Random search | 1.00 | 9,300 | 0.9944 |
-| easy | Evolution (GP) | 1.00 | 1,700 | 0.9945 |
-| easy | Greedy RL | 0.75 | 7,400 | 0.9134 |
-| easy | Risk-seeking RL (DSR) | 1.00 | 5,500 | 0.9950 |
-| easy | Entropic RL (J_β) | 0.85 | 3,000 | 0.9669 |
-| medium | Random search | 0.50 | 37,000 | 0.9290 |
-| medium | Evolution (GP) | **0.85** | 7,200 | **0.9890** |
-| medium | Greedy RL | **0.25** | 24,000 | **0.8242** |
-| medium | Risk-seeking RL (DSR) | 0.55 | 19,400 | 0.9675 |
-| medium | Entropic RL (J_β) | 0.45 | 3,200 | 0.8386 |
-| harder | Random search | 0.00 | – | 0.5728 |
-| harder | Evolution (GP) | 0.00 | – | 0.6520 |
-| harder | Greedy RL | 0.00 | – | 0.3659 |
-| harder | Risk-seeking RL (DSR) | 0.00 | – | 0.4718 |
-| harder | Entropic RL (J_β) | 0.00 | – | 0.6735 |
-
-On `medium`, **greedy RL collapses *below* random search** (0.25 vs 0.50; best 0.824
-vs 0.929). Its batch diversity crashes toward zero within a few thousand calls and
-never recovers — it commits to one simple, wrong attractor. Greedy is the **worst
-method on every target**.
-
-The **budget-scaling sweep** (20 seeds, up to **2,000,000** calls = 10,000 gradient
-steps, `configs/scaling.yaml`) shows the collapse is not a compute problem:
-
-Success rate vs. budget, `medium`:
-
-| method | 100k | 200k | 500k | 1M | 2M |
-|---|---|---|---|---|---|
-| Evolution (GP) | 0.85 | 0.90 | 0.95 | 1.00 | 1.00 |
-| Risk-seeking (DSR) | 0.55 | 0.70 | 0.90 | 1.00 | 1.00 |
-| Random search | 0.50 | 0.75 | 1.00 | 1.00 | 1.00 |
-| **Greedy RL** | 0.25 | 0.25 | 0.25 | 0.25 | 0.25 |
-| **Entropic RL (J_β)** | 0.45 | 0.45 | 0.45 | 0.45 | 0.45 |
-
-![success rate vs. budget](results/layer0_mse/scaling.png)
-
-Greedy and entropic are **ruler-flat across 20× more compute**, while GP, DSR, and
-even random keep climbing to 1.00. **You cannot buy your way out of a collapsed
-objective with more samples.** This is a cleaner statement of the original thesis
-than any single-budget snapshot: the collapse is a property of the objective.
-
-### Finding 2 — Evolution stayed best; risk-seeking matched the ceiling but not the efficiency
-
-At 2M calls on `medium`, GP, DSR risk-seeking, and random *all* reach 100% success —
-but their **sample-efficiency** differs sharply (median evals-to-solve):
-
-| method | success @2M | median evals-to-solve |
-|---|---|---|
-| Evolution (GP) | 1.00 | **27,400** |
-| Risk-seeking (DSR) | 1.00 | 69,900 |
-| Random search | 1.00 | 103,000 |
-
-So **DSR risk-seeking did *not* overtake evolution** — it converged to the same
-ceiling ~2.5× slower. (It does beat random, 70k vs 103k, so the learned policy adds
-real value; GP's recombination just adds more.) This is the *opposite* of
-[DSR's paper](https://arxiv.org/abs/1912.04871), where the learned policy beats GP.
-**Why — and why it's not a contradiction:**
-
-- **Tiny, compositional, single-variable space.** Subtree crossover is a near-ideal
-  operator here: once `x*x` and `sin(x)` exist in the population, one crossover yields
-  `x*x + sin(x)`. The RNN must *learn* to emit that token sequence via gradients —
-  same destination, slower route. Direct recombination in solution-space beats
-  amortized search in parameter-space when the space is small and compositional.
-- **We neutralized what makes DSR shine.** DSR's edge over GP was on larger suites
-  (Nguyen) *with constant optimization and bigger token libraries*. We use fixed
-  constant tokens, one variable, six operators.
-- **The tell: random also hits 100% on `medium`.** When a problem is solvable by
-  guided random sampling, a learned prior's main value (generalizing structure across
-  a huge space) is moot. DSR's home turf is exactly where nobody solves it yet —
-  `harder` (random 0.00, GP only 1/20). We never entered that regime.
-
-### Finding 3 — For risk-seeking, the objective's *shape* beats its temperature
-
-Why does the **quantile** avoid collapse while the **entropic** tilt doesn't? We
-swept β over two orders of magnitude *and* both adaptive rules (`medium`, 8 seeds, 200k):
-
-| variant | success | best reward | policy entropy |
-|---|---|---|---|
-| entropic, fixed β=0.5 | 3/8 | 0.858 | 0.00 |
-| entropic, fixed β=1 | 3/8 | 0.833 | 0.00 |
-| entropic, fixed β=2 | 4/8 | 0.848 | 0.00 |
-| entropic, fixed β=4 | 3/8 | 0.820 | 0.00 |
-| entropic, fixed β=8 | 2/8 | 0.782 | 0.00 |
-| entropic, ESS-adaptive (0.3) | 3/8 | 0.855 | 0.03 |
-| entropic, KL-adaptive (0.5) | 0/8 | 0.772 | 0.03 |
-| entropic, KL-adaptive (1.0) | 2/8 | 0.786 | 0.03 |
-| entropic, KL-adaptive (2.0) | 2/8 | 0.817 | 0.00 |
-| **quantile (DSR)** | **7/8** | **0.989** | **2.10** |
-
-**Every entropic configuration collapses** (policy entropy ~0, success ≤ 4/8); the
-quantile sits in a totally different regime (entropy 2.10, 7/8). Fixed β has only a
-faint sweet spot at β≈2, degrading both ways (large β → collapses onto the single
-best; small β → approaches greedy). **Neither adaptive rule rescues it** — the KL
-rule is even worse, and at KL=2.0 you can watch β run away (~2M) chasing the target
-once the batch has already collapsed.
-
-**The mechanism:** the exponential weight `e^{βR_i}` always pulls hardest toward the
-*single* highest-reward sample, at *every* temperature — so it always carries a
-collapse-inducing gradient. The quantile's flat-top weighting (equal gradient across
-the whole top-ε, zero below) is the only thing that reinforces a *diverse set* of good
-expressions. The shape, not the temperature, is what matters.
-
-One escape hatch: a **strong entropy bonus** (`λ=0.2`, 20× the default) partially
-rescues the entropic arm (5/8) — so the collapse is overcome-able by injecting heavy
-external exploration, just not by tuning β.
-
-![best-so-far reward vs. budget](results/layer0_mse/curves.png)
-![batch diversity — the collapse, visualized](results/layer0_mse/diversity.png)
-
-### Finding 4 — Reward shaping (MSE vs NRMSE) changes how badly greedy fails, not who wins
-
-We reran the entire 2M sweep with the only change being the reward transform —
-`reward = 1/(1+MSE)` vs the scale-invariant DSR-style `reward = 1/(1+RMSE/std(y))`
-(`configs/scaling.yaml` vs `configs/scaling_nrmse.yaml`). Success is judged on
-held-out data either way, so the rates are directly comparable.
-
-**Success rate at 2M, MSE vs NRMSE:**
-
-| target | method | MSE | NRMSE |
-|---|---|---|---|
-| easy | Evolution (GP) | 1.00 | 1.00 |
-| easy | Risk-seeking (DSR) | 1.00 | 1.00 |
-| easy | Random search | 1.00 | 1.00 |
-| easy | Risk-averse CVaR | 1.00 | 1.00 |
-| easy | **Greedy RL** | **0.90** | **0.15** |
-| easy | Entropic (J_β) | 0.85 | 0.75 |
-| medium | Evolution (GP) | 1.00 | 1.00 |
-| medium | Risk-seeking (DSR) | 1.00 | 1.00 |
-| medium | Random search | 1.00 | 1.00 |
-| medium | Risk-averse CVaR | 0.95 | 0.90 |
-| medium | **Greedy RL** | **0.25** | **0.05** |
-| medium | Entropic (J_β) | 0.45 | 0.30 |
-
-The tail-optimizing and search methods (GP, DSR, random, CVaR) are **invariant** to the
-reward shaping — all still solve easy+medium. But the *average*-optimizing arms collapse
-**harder** under NRMSE: greedy on easy falls 0.90 → 0.15, on medium 0.25 → 0.05.
-
-**Why:** NRMSE compresses the reward scale so that "predict the mean" already scores ~0.5
-and the gradient toward the true peak is gentler. That deepens the mean-predictor
-attractor — exactly the basin a mean-maximizing objective falls into — while leaving the
-risk-seeking objective, which only ever looks at the top tail, untouched. So the headline
-is a robustness statement: **the risk-seeking objective is invariant to the reward
-shaping that wrecks greedy.**
-
-(Caveat: only *success rate* is comparable across modes. The "mean best reward" column is
-not — NRMSE compresses the scale, so e.g. unsolved `harder` runs show ~0.92 mean reward at
-0.10 success. Read the held-out success rate, not the reward magnitude, across modes.)
-
----
-
-## The CVaR ↔ DSR ↔ Jiang ↔ TTT-Discover lineage note
-
-> The same insight — *optimize the best outcomes, not the average* — keeps getting
-> rediscovered across RL sub-communities, each time bolted onto whatever
-> policy-gradient method is current: vanilla REINFORCE (DSR, 2021, hard quantile) →
-> GRPO (RS-GRPO, 2025, soft entropic). The risk measure and the RL backbone both
-> change, but the move away from `E[R]` is the through-line — and it traces back to
-> risk-sensitive control in the 1970s.
-
-This sandbox's risk-seeking quantile arm **is** essentially
-[Deep Symbolic Regression](https://arxiv.org/abs/1912.04871) (Petersen et al., 2021):
-an RNN emits expression tokens, trained with a risk-seeking policy gradient on the
-top-ε reward quantile. DSR made the "optimize the best, not the average" point for
-symbolic regression in **2021**.
-
-DSR's gradient did not come from nowhere — it is the **risk-averse CVaR policy
-gradient, inverted**. The conditional-value-at-risk policy gradient was derived for
-the *worst*-case ε-tail (risk-averse, for safety/robustness) by
-[**Tamar, Glassner & Mannor (2014)**](https://arxiv.org/abs/1404.3862) ("Policy
-Gradients Beyond Expectations: Conditional Value-at-Risk"), and applied across a
-model ensemble for robust control by [**EPOpt** (Rajeswaran et al., 2016)](https://arxiv.org/abs/1610.01283).
-DSR takes that exact `(R_i − R̃_ε)·1[tail]` estimator and flips it from the lower
-tail to the upper `(1−ε)` tail — risk-*seeking* instead of risk-*averse*. Our
-[`cvar`](src/sia/objectives.py) arm is the original lower-tail objective, included as
-the deliberately wrong-direction baseline; `risk` (DSR) is its mirror.
-
-The entropic line rediscovered the same idea in *soft* form:
-
-- [**Jiang et al. (2025)**](https://arxiv.org/abs/2509.24261) put the entropic
-  objective `J_β = (1/β) log E[e^{βR}]` (constant β) inside **GRPO** — so vs DSR both
-  the *risk measure* (soft exponential tilt, not a hard quantile) **and** the *RL
-  backbone* (GRPO, not vanilla REINFORCE) differ. Jiang **does** trace the entropic
-  objective to the classic **exponential-utility / risk-sensitive control** criterion
-  (Howard & Matheson, 1972), so the *entropic* lineage is properly credited.
-- [**TTT-Discover (2026)**](https://arxiv.org/abs/2601.16175) uses `J_β` with an
-  **adaptive β** (KL-constrained), and cites Jiang et al. for the objective — calling
-  it concurrent work.
-- **The gap is *across threads*, not within them.** The *entropic* thread
-  (Howard-Matheson → Jiang → TTT) and the *quantile/CVaR* thread (Tamar → DSR) are each
-  well-traced internally, but **neither cites the other** — even though they're the
-  same "optimize the tail, not the mean" idea reached from two directions (soft
-  exponential tilt vs hard quantile). Neither entropic paper cites DSR.
-- **The quantile thread also reaches GRPO.**
-  [**RiskPO (2025)**](https://arxiv.org/abs/2510.00911) is the *quantile/VaR* mirror of
-  Jiang's *entropic* move: it swaps GRPO's mean advantage for a **Mixed Value-at-Risk**
-  objective — a fixed-coefficient blend of two quantile regions (defaults α=0.2, β=0.8,
-  ω=0.5), with the quantile thresholds estimated online and only the policy trained (no
-  learned weighting). It targets the same entropy-collapse failure we see in greedy RL.
-  It is, in effect, RiskPO ≈ a weighted combination of this sandbox's
-  [`risk`/`cvar`](src/sia/objectives.py) arms at several ε levels — plus a *bundling*
-  trick (risk taken over sums of several questions' rewards, to give the quantile
-  estimator a richer distribution). We don't implement the blend here — the single-cut
-  `risk` arm already makes the point — but RiskPO is the natural GRPO-era endpoint of
-  the quantile line, just as Jiang is for the entropic line.
-
-Yet the hard top-ε quantile is essentially a limiting case of the soft exponential
-tilt — both abandon expected reward for the same reason. The 2021 → 2025 gap with no
-cross-citation is a small but telling example of the same optimization insight being
-rediscovered across sub-communities (RL for program search vs. test-time LLM
-training). Our Finding 3 adds a wrinkle: in this setting the two are *not*
-interchangeable — the hard quantile is markedly more collapse-resistant than the soft
-tilt.
-
-### Aside: two "normalizations" that sound alike but aren't (and which we use)
-
-Reading the GRPO-lineage papers, two different things both get called *normalization*,
-and it's easy to conflate them:
-
-1. **GRPO advantage std-normalization** — GRPO divides the advantage by the spread of
-   rewards *within a prompt's group*: `A_i = (R_i − mean) / std`. [**Dr.GRPO** (Liu et
-   al., 2025)](https://arxiv.org/abs/2503.20783) showed that `/std` introduces a
-   *question-difficulty bias* (low-variance prompts get their gradient amplified), and
-   that GRPO's per-response length-averaging adds a *length bias*. Both are removed in
-   "GRPO done right"; Jiang's RS-GRPO follows suit.
-2. **NRMSE reward normalization** (ours, optional) — divides the *error* by the spread
-   of the *target values* `std(y)` to make the **reward** scale-invariant across tasks.
-   This is reward *shaping*, on a different axis entirely from the advantage estimator.
-
-These are orthogonal: one normalizes the **advantage** by reward-spread-within-a-prompt;
-the other normalizes the **reward** by target-spread-within-a-task. Worth flagging
-because our LoRA arms already sit on the Dr.GRPO side of (1): the advantage is plain
-`R_i − mean(R)` with **no `/std`**, and the loss **sums** over completion tokens rather
-than length-averaging (`(ce·mask).sum()`), so it dodges *both* GRPO biases by
-construction — while NRMSE (2) remains a separate, opt-in reward-shaping knob.
-
----
-
-## How to run
-
-### >> The headline experiment: constraints x reward 2x2 (run overnight, ~5h)
-
-This is the run that decides Findings 1-4. It sweeps `constraints {on, off}` x
-`reward {MSE, NRMSE}` at DSR's tuned hyperparameters (lr 5e-4, batch 1000, entropy
-0.005, risk 0.05), 2M verifier calls x 20 seeds, all six methods, three targets.
-It writes `results/abl_{mse,nrmse}_{con,nocon}/` (curves/diversity/scaling.png +
-results.md each). Resumable: re-run the same command after any interruption.
+## Quick start
 
 ```bash
-./run_overnight.sh ablation            # caffeinated, background, ~5h; tail results/ablation_run.log
-# or directly:
-python run_ablation.py --budget 2000000 --seeds 20
-# quick smoke (a few minutes) to sanity-check first:
-python run_ablation.py --budget 150000 --seeds 5
-```
+# Layer 0 only (numpy, runs anywhere)
+pip install -e .
+python -m pytest -q                                         # 49 tests
+python run_layer0.py --quick                                # fast smoke -> results_quick/
 
-What it shows: greedy RL needs the constraints (it collapses without them, totally
-under NRMSE), while risk-seeking solves regardless — the guardrails are load-bearing
-for the average objective and merely a speed-up for the risk-seeking one.
-
-### Everything else
-
-```bash
-pip install -e .                                      # Layer 0 (numpy only)
-python run_layer0.py --quick                          # fast smoke run -> results_quick/
-python run_layer0.py --config configs/layer0.yaml     # headline run, 20 seeds, 100k
-# the canonical 2M sweeps (parallel; ~1-1.5h each on an M4):
-python run_layer0.py --config configs/scaling.yaml       --out results/layer0_mse   --parallel
+# the canonical 2M Layer-0 sweeps (parallel; ~1-1.5h each on an M4)
 python run_layer0.py --config configs/scaling_nrmse.yaml --out results/layer0_nrmse --parallel
-PYTHONPATH=src python -m tests.test_core              # sanity checks
-PYTHONPATH=src python -m tests.test_objectives        # shared RL objectives (numeric)
-PYTHONPATH=src:. python -m tests.test_layer1          # Layer 1 LoRA ask/tell (no MLX)
-PYTHONPATH=src:. python -m tests.test_app_engine      # Streamlit engine (no Streamlit/MLX)
+python run_layer0.py --config configs/scaling.yaml       --out results/layer0_mse   --parallel
+
+# the Nguyen 1-8 sweep that produced finding (4)
+python run_layer0.py --config configs/nguyen_nrmse.yaml --out results/nguyen_nrmse --parallel
+
+# the LLM Layer-1 run (Qwen2.5-0.5B + LoRA + GRPO; GPU)
+pip install -e ".[layer1-gpu]"                              # adds torch + transformers + peft
+python run_layer1_torch.py --target harder --arm risk --mode quantile --rounds 80 --batch 32
 ```
 
-Dependencies are declared in [`pyproject.toml`](pyproject.toml) as a tiny numpy
-core plus two optional extras (composable for what your machine supports):
-
 ```bash
-pip install -e .                  # Layer 0: search + RL, runs anywhere
-pip install -e ".[app]"           # + the interactive Streamlit visualizer
-pip install -e ".[app,layer1]"    # + the LLM/LoRA arms (Apple Silicon only)
-```
-
-### Interactive visualizer
-
-```bash
+# interactive visualiser (no sweep, step the search batch-by-batch)
 pip install -e ".[app]"
 streamlit run streamlit_app.py
 ```
 
-Step the methods batch-by-batch on the same task and watch the dynamics the
-offline figures only summarize: best-so-far reward, the greedy **collapse** (batch
-diversity / policy entropy crashing toward 0), and whether the current best
-expression actually fits the data. The Layer 1 (LLM/LoRA) panel activates only on
-Apple Silicon (where `mlx-lm` imports) and otherwise shows a clear "not available
-here" note — everything else works on any platform. The stepping logic lives in
-[`app_engine.py`](app_engine.py) (no Streamlit import, so it is unit-tested
-separately); [`streamlit_app.py`](streamlit_app.py) is just the view.
+For the cloud (RunPod) versions of the LLM sweep and the Nguyen NRMSE sweep, see
+[`runpod/run_layer1_torch.sh`](runpod/run_layer1_torch.sh) and
+[`runpod/run_dsr.sh`](runpod/run_dsr.sh) (the cross-check against DSR's own code) —
+those are the arena-specific pod scripts. The shared harness (launch / fetch /
+GCS sync) lives one level up in [`../runpod/`](../runpod/).
 
-- Everything is seeded and configured from YAML (budget, seeds, all hyperparameters).
-- The scaling sweep is **crash-safe and resumable**: each run is checkpointed to disk
-  the instant it finishes; re-running the same command skips completed runs. See
-  [`run_overnight.sh`](run_overnight.sh).
-- To compare risk-seeking variants, set `mode` / `beta_rule` on the `risk` proposer:
-  `mode: quantile` (DSR), or `mode: entropic` with `beta_rule: fixed | ess | kl`
-  (see [`configs/layer0.yaml`](configs/layer0.yaml)).
+## Where the numbers live
 
-## Repo layout
+- [`results/layer0_nrmse/results.md`](results/layer0_nrmse/results.md) — the headline
+  Layer-0 table (20 seeds × 2M × NRMSE).
+- [`results/layer0_mse/results.md`](results/layer0_mse/results.md) — same under MSE
+  (the saturating reward; risk-seeking only cracks `harder` 10% here, vs 75% on NRMSE).
+- [`results/nguyen_nrmse/results.md`](results/nguyen_nrmse/results.md) — the Nguyen
+  1-8 table + the measurement-bug note explaining why an earlier draft reported
+  Nguyen-8 as 0/25.
+- [`results/layer1-torch/`](results/layer1-torch/) — per-(arm, target, seed)
+  `summary.json` files for the LLM transfer (pulled from RunPod via the cloud harness).
 
-```
-pyproject.toml       deps: numpy core + optional [app] (streamlit) / [layer1] (mlx-lm)
-src/sia/
-  expression.py      grammar, tree eval, complexity, prefix tokens, GP operators
-  task.py            benchmark targets + data generation
-  verifier.py        the fixed reward + success check + call counting
-  policy.py          numpy vanilla-RNN token policy + manual BPTT (shared by RL arms)
-  objectives.py      shared reward->weight formulas (greedy/quantile/entropic), used
-                     by BOTH Layer 0 RL proposers and Layer 1 LoRA arms
-  proposers/         random, gp, greedy, risk  (the pluggable part)
-  runner.py          fair-budget ask/tell loop, multi-seed, resumable checkpointing
-  metrics.py         best-so-far, success rate, diversity, scaling, cross-seed aggregation
-  plotting.py        figures (curves, diversity, budget-scaling) + one results.md
-configs/
-  layer0.yaml        headline run, 100k (quick reference)
-  scaling.yaml       canonical 2M sweep, MSE reward
-  scaling_nrmse.yaml canonical 2M sweep, NRMSE reward (only reward_mode differs)
-  layer1.yaml        Layer 1 LLM-evolution sweep
-  layer1_lora.yaml   Layer 1 three-arm sweep (evolution + greedy/risk LoRA)
-run_layer0.py        one command -> all figures + tables
-run_layer1.py        Layer 1 entrypoint: evolution / greedy_lora / risk_lora arms
-export_replay.py     bakes a single-seed step-through to results/layer0_*/replay.json
-                     (reuses app_engine, so the blog replay matches the live app)
-run_overnight.sh     crash-safe resumable launcher for the sweeps
-app_engine.py        steppable engine behind the visualizer (no Streamlit/MLX import)
-streamlit_app.py     interactive visualizer (Layer 0 always; Layer 1 on Apple Silicon)
-tests/test_core.py        grammar round-trips, exact-target reward, call counting
-tests/test_objectives.py  numeric checks for the shared RL objectives (incl. CVaR)
-tests/test_layer1.py      LoRA proposer ask/tell/budget (fake model, no MLX)
-tests/test_app_engine.py  visualizer engine: build/step/record + plot data (no Streamlit)
-layer1/              LLM proposers: evolution (built) + greedy/risk LoRA (built;
-                     needs M4 verification). See layer1/README.md
-results/
-  layer0_mse/        canonical 2M sweep, MSE: curves/diversity/scaling.png + results.md
-  layer0_nrmse/      canonical 2M sweep, NRMSE: same artifacts (committed; logs gitignored)
-```
-
-Each run writes exactly four artifacts: `curves.png`, `diversity.png`, `scaling.png`, and
-a single self-contained `results.md` (both tables + the embedded figures).
+The `replay.json` files under `results/layer0_*` power the blog's "Watch them evolve"
+widget (one representative seed, 2M log-spaced frames).
 
 ## Honesty / caveats
 
-- Results are over 20 seeds with error bands (the β-sweep is 8). A single lucky run
-  proves nothing; nothing here was tuned until the story fit.
-- **Random search is a strong baseline** on this tiny grammar; the load-bearing
-  signal is the *ordering* (greedy collapsing below random; risk-seeking and evolution
-  above it), not the absolute numbers.
-- **GP > DSR here is benchmark-specific and does *not* refute DSR's paper** — DSR
-  matches the ceiling, just less efficiently, and our setup lacks the conditions
-  (large structured space, constant optimization, random-infeasibility) under which a
-  learned prior beats direct recombination.
-- The entropic-collapse and adaptive-β findings are in the **small-RNN / tiny-grammar
-  / weak-entropy-bonus** regime. An LLM's strong pretrained prior may not collapse at
-  all — which would flip the comparison. That is precisely the **Layer-1 transfer
-  question**. Our `kl` β-rule is an interpretation of TTT-Discover's adaptive β, not
-  their exact functional.
-- `harder` (`x³ − x + cos(2x)`) is genuinely hard for exact recovery at this budget;
-  treat it as a best-reward comparison, not a solved task.
-- The budget is enforced as "stop once `verifier.calls ≥ budget`," so methods may
-  overshoot by at most one batch — negligible and equal across methods.
+- The numbers reported here use exact SymPy equivalence (with a small `const_tol` snap
+  for fitted constants) — DSR's strictest definition of recovery.
+- Numbers come from the post-fix run. An earlier draft of this work had a normalisation
+  bug in the risk-seeking gradient (missing the 1/(εN) scale) that suppressed
+  risk-seeking's signal; that's fixed in [`src/sia/policy.py`](src/sia/policy.py).
+- On Nguyen-3 / Nguyen-4 our vanilla PG (= DSR's VPG) recovers 88% / 76% — the DSR
+  paper reports 4% / 1%. We cross-checked DSR's currently-released code (see
+  [`runpod/run_dsr.sh`](runpod/run_dsr.sh)): their VPG also recovers Nguyen-3 ≈100%,
+  so the paper's 4% / 1% is a 2021-config artifact, not a property of vanilla PG. The
+  qualitative ranking (risk-seeking wins on hard targets, uniquely cracks Nguyen-5)
+  is unaffected.
 
 ## References
 
-- **Risk-Sensitive Markov Decision Processes** — Howard & Matheson, *Management
-  Science*, 1972. The exponential-utility / entropic objective `(1/β) log E[e^{βR}]` —
-  the original "optimize the tail, not the mean" criterion underlying the modern
-  risk-seeking objectives (and cited as such by Jiang et al.).
-- **Deep Symbolic Regression** — Petersen et al., ICLR 2021. Risk-seeking policy
-  gradient for symbolic regression. [arXiv:1912.04871](https://arxiv.org/abs/1912.04871)
-- **Policy Gradients Beyond Expectations: Conditional Value-at-Risk** — Tamar,
-  Glassner & Mannor, 2014. The CVaR policy gradient as a conditional tail expectation
-  — the risk-averse objective DSR inverts. [arXiv:1404.3862](https://arxiv.org/abs/1404.3862)
-- **EPOpt: Learning Robust Neural Network Policies Using Model Ensembles** —
-  Rajeswaran et al., 2016 (ICLR 2017). CVaR over a model ensemble for robust (risk-
-  averse) policies. [arXiv:1610.01283](https://arxiv.org/abs/1610.01283)
-- **Regularized Evolution for Image Classifier Architecture Search** — Real et al.,
-  AAAI 2019. Evolution competitive with / faster than RL on a verifiable reward.
-  [arXiv:1802.01548](https://arxiv.org/abs/1802.01548)
-- **DeepSeekMath (GRPO)** — Shao et al., 2024. Group Relative Policy Optimization;
-  the k3 KL-to-reference estimator our LoRA trust region copies.
-  [arXiv:2402.03300](https://arxiv.org/abs/2402.03300)
-- **Understanding R1-Zero-Like Training (Dr.GRPO)** — Liu et al., 2025. Identifies
-  GRPO's advantage std-normalization (difficulty bias) and length-normalization bias;
-  removes both. [arXiv:2503.20783](https://arxiv.org/abs/2503.20783)
-- **Risk-Sensitive RL for Alleviating Exploration Dilemmas in LLMs** — Jiang et al.,
-  2025. Entropic objective `J_β` (constant β); RS-GRPO. (Cited by TTT-Discover as
-  concurrent work.) [arXiv:2509.24261](https://arxiv.org/abs/2509.24261)
-- **TTT-Discover** — 2026. Test-time training with the entropic objective `J_β` and
-  KL-adaptive β. [arXiv:2601.16175](https://arxiv.org/abs/2601.16175)
-- **RiskPO: Risk-based Policy Optimization via Verifiable Reward** — 2025. Swaps GRPO's
-  mean advantage for a Mixed Value-at-Risk (multi-quantile) objective to alleviate
-  entropy collapse — the quantile/VaR mirror of Jiang's entropic move.
-  [arXiv:2510.00911](https://arxiv.org/abs/2510.00911)
-- **AlphaEvolve** — Novikov et al., 2025. LLM evolutionary coding agent for algorithm
-  discovery. [arXiv:2506.13131](https://arxiv.org/abs/2506.13131)
-- **ThetaEvolve** — 2025. LLM program-database evolution; relevant for Layer 1.
-  [arXiv:2511.23473](https://arxiv.org/abs/2511.23473)
-```
+- DSR — Petersen et al. 2021, [arXiv:1912.04871](https://arxiv.org/abs/1912.04871);
+  reference code at [dso-org/deep-symbolic-optimization](https://github.com/dso-org/deep-symbolic-optimization).
+- AlphaEvolve — Novikov et al. 2025, [arXiv:2506.13131](https://arxiv.org/abs/2506.13131).
+- TTT-Discover / entropic *J*_β — Jiang et al. 2025, [arXiv:2601.16175](https://arxiv.org/abs/2601.16175).
+- RS-GRPO — Jiang et al. 2025, [arXiv:2509.24261](https://arxiv.org/abs/2509.24261).
+- RiskPO — Ren et al. 2025, [arXiv:2510.00911](https://arxiv.org/abs/2510.00911).
+- Howard & Matheson 1972 — *Risk-Sensitive Markov Decision Processes*,
+  [DOI: 10.1287/mnsc.18.7.356](https://doi.org/10.1287/mnsc.18.7.356).
+- Regularized Evolution — Real et al. 2019, [arXiv:1802.01548](https://arxiv.org/abs/1802.01548).
+
+Co-authored with [Claude](https://www.anthropic.com/claude) (Anthropic) — code,
+experiments, and interactive scaffolding by Claude, refined and co-designed by
+Bernhard.

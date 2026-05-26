@@ -31,11 +31,11 @@ Same task, same verifier, same budget (2M verifier calls); only the proposer dif
 | medium | Entropic RL (J_beta) | 0.45 | 3200 | 0.8426 |
 | medium | Risk-seeking RL (DSR) | 1.00 | 69900 | 0.9939 |
 | harder | Random search | 0.00 | - | 0.6776 |
-| harder | Evolution (GP) | 0.05 | 375000 | 0.7947 |
-| harder | Risk-averse CVaR | 0.00 | - | 0.6902 |
-| harder | Greedy RL | 0.00 | - | 0.6625 |
+| harder | Evolution (GP) | 0.05 | 375000 | 0.7844 |
+| harder | Risk-averse CVaR | 0.00 | - | 0.6893 |
+| harder | Greedy RL | 0.00 | - | 0.6552 |
 | harder | Entropic RL (J_beta) | 0.00 | - | 0.6735 |
-| harder | Risk-seeking RL (DSR) | 0.00 | - | 0.6767 |
+| harder | Risk-seeking RL (DSR) | 0.10 | 550800 | 0.7229 |
 
 ## Success rate at increasing verifier-call budgets
 
@@ -58,4 +58,10 @@ Same task, same verifier, same budget (2M verifier calls); only the proposer dif
 | harder | Risk-averse CVaR | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | harder | Greedy RL | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | harder | Entropic RL (J_beta) | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
-| harder | Risk-seeking RL (DSR) | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| harder | Risk-seeking RL (DSR) | 0.00 | 0.00 | 0.05 | 0.10 | 0.10 |
+
+> **Note (post-fix).** The `harder` rows are from the re-run after the risk-gradient
+> normalization fix (the `1/(εN)` scale); before the fix, risk-seeking spuriously read 0.00 on
+> `harder`. The fix only affects the risk-seeking / CVaR arms; the `easy` and `medium` rows are
+> from the pre-fix run (those targets are already at/near ceiling for every arm and are unchanged
+> in practice). A fully consistent single-run sweep of all three targets is queued.
