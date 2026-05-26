@@ -47,9 +47,28 @@ def _scalar(v, n: int = 4):
     return round(v, n) if math.isfinite(v) else None
 
 
+def _checkpoint_batches(n_batches: int, n_checkpoints: int, spacing: str) -> set[int]:
+    """Pick which batch indices (1-based) to snapshot.
+
+    `log` spacing puts most frames early, where the greedy collapse and the initial
+    climb happen, while still reaching the end of a long (e.g. 2M-call) run -- so a
+    single replay shows BOTH the early collapse and the late recovery without bloating
+    the frame count. `linear` is the old uniform spacing.
+    """
+    if n_checkpoints >= n_batches:
+        return set(range(1, n_batches + 1))
+    if spacing == "log":
+        idx = np.geomspace(1, n_batches, n_checkpoints)
+    else:
+        idx = np.linspace(1, n_batches, n_checkpoints)
+    pts = set(int(round(v)) for v in idx)
+    pts.add(n_batches)  # always include the final frame
+    return pts
+
+
 def export_target(target: str, reward_mode: str, seed: int, budget: int,
                   batch_size: int, n_checkpoints: int, k_rows: int,
-                  n_grid: int) -> dict:
+                  n_grid: int, spacing: str = "log") -> dict:
     """Run every Layer-0 method once on `target` and snapshot ~n_checkpoints frames."""
     task = eng.make_task(target, seed=seed)
     xs = np.linspace(float(task.x_train.min()), float(task.x_train.max()), n_grid)
@@ -57,7 +76,7 @@ def export_target(target: str, reward_mode: str, seed: int, budget: int,
         y_target = evaluate(task.target_expr, xs)
 
     n_batches = budget // batch_size
-    every = max(1, n_batches // n_checkpoints)
+    record_at = _checkpoint_batches(n_batches, n_checkpoints, spacing)
 
     methods: dict = {}
     for key in eng.LAYER0_PRESETS:
@@ -65,7 +84,7 @@ def export_target(target: str, reward_mode: str, seed: int, budget: int,
         checkpoints = []
         for b in range(n_batches):
             eng.step(state, 1)
-            if (b + 1) % every == 0 or b == n_batches - 1:
+            if (b + 1) in record_at:
                 y_pred = None
                 if state.best_expr is not None:
                     with np.errstate(all="ignore"):
@@ -101,10 +120,15 @@ def main() -> None:
     ap.add_argument("--reward", default="all", choices=["all", "mse", "nrmse"])
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--budget", type=int, default=100000,
-                    help="replay budget in verifier calls (collapse is visible early; "
-                         "smaller than the 2M statistical sweep keeps the JSON light)")
+                    help="replay budget in verifier calls. The JSON size depends on "
+                         "--checkpoints, NOT on the budget, so a 2M replay is the same "
+                         "file size as a 100k one -- only the generation time scales. "
+                         "Use --budget 2000000 --spacing log to show the full recovery.")
     ap.add_argument("--batch-size", type=int, default=200)
     ap.add_argument("--checkpoints", type=int, default=64)
+    ap.add_argument("--spacing", default="log", choices=["log", "linear"],
+                    help="log = dense frames early (keeps the collapse resolution while "
+                         "still reaching the end of a long run); linear = uniform")
     ap.add_argument("--rows", type=int, default=6, help="top-k batch proposals per frame")
     ap.add_argument("--grid", type=int, default=60, help="x-points for the fit overlay")
     args = ap.parse_args()
@@ -123,7 +147,7 @@ def main() -> None:
             payload["targets"][t] = export_target(
                 t, rm, seed=args.seed, budget=args.budget,
                 batch_size=args.batch_size, n_checkpoints=args.checkpoints,
-                k_rows=args.rows, n_grid=args.grid)
+                k_rows=args.rows, n_grid=args.grid, spacing=args.spacing)
         path = out_dir / "replay.json"
         # allow_nan=False: fail loudly if any non-finite slipped through sanitizing,
         # since NaN/Infinity are invalid JSON and would break the web reader.

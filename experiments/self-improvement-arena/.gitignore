@@ -3,3 +3,8 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Raw per-run JSON logs (the committed artifacts are the PNGs, results.md, replay.json)
+results/**/logs/
+# Worker / dev-run logs
+*.log
