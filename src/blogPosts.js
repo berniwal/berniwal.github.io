@@ -1,6 +1,13 @@
 // src/blogPosts.js
 export const blogPosts = [
   {
+    slug: 'visualizing-symbolic-regression',
+    title: 'Watching Search Algorithms Discover a Formula',
+    category: 'Visualizing ML',
+    excerpt: 'Symbolic regression as a self-improvement testbed: evolution, greedy RL, and risk-seeking RL race to recover a hidden equation under one shared budget — then we swap the search policy for an LLM and ask whether the ranking survives. Interactive replays included.',
+    component: 'VisualizingSymbolicRegression'
+  },
+  {
     slug: 'visualizing-self-improvement',
     title: 'Visualizing Self-Improving AI: From AlphaZero to TTT-Discover',
     category: 'Visualizing ML',
