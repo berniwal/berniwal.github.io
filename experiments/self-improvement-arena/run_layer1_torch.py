@@ -46,6 +46,10 @@ def main():
     ap.add_argument("--clip-high", type=float, default=0.28)
     ap.add_argument("--trunc-is", type=float, default=2.0)
     ap.add_argument("--std-normalize", action="store_true")
+    ap.add_argument("--reasoning", action="store_true",
+                    help="enable chain-of-thought rollouts (Qwen3-style enable_thinking=True); "
+                         "pair with --max-new-tokens >= 1024 and a thinking-capable model "
+                         "such as Qwen/Qwen3-1.7B")
     ap.add_argument("--no-const", action="store_true", help="disable const placeholder + BFGS")
     ap.add_argument("--reward-mode", default="nrmse", choices=["mse", "nrmse"])
     ap.add_argument("--n-points", type=int, default=20)
@@ -66,7 +70,8 @@ def main():
         lora_rank=args.lora_rank, max_new_tokens=args.max_new_tokens,
         temperature=args.temperature, const_placeholder=not args.no_const,
         ppo_epochs=args.ppo_epochs, clip_low=args.clip_low, clip_high=args.clip_high,
-        trunc_is=args.trunc_is, std_normalize=args.std_normalize, seed=args.seed)
+        trunc_is=args.trunc_is, std_normalize=args.std_normalize,
+        reasoning=args.reasoning, seed=args.seed)
 
     best, best_expr = 0.0, ""
     num_solved_at = sym_solved_at = None

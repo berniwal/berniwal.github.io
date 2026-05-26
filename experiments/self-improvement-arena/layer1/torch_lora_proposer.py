@@ -44,7 +44,7 @@ class TorchLoRAProposer:
                  max_new_tokens=48, temperature=1.0, top_p=0.95,
                  const_placeholder=True, n_data_shown=12,
                  ppo_epochs=2, clip_low=0.2, clip_high=0.28, trunc_is=2.0,
-                 std_normalize=False, seed=0, dtype="bfloat16"):
+                 std_normalize=False, reasoning=False, seed=0, dtype="bfloat16"):
         if arm not in ("greedy", "risk", "best_of_n", "evolution"):
             raise ValueError("arm must be greedy, risk, best_of_n, or evolution")
         self.archive: list[tuple[float, str]] = []  # (reward, expr) for the evolution arm
@@ -62,6 +62,11 @@ class TorchLoRAProposer:
         self.ppo_epochs = ppo_epochs
         self.clip_low, self.clip_high, self.trunc_is = clip_low, clip_high, trunc_is
         self.std_normalize = std_normalize
+        self.reasoning = reasoning
+        if reasoning and max_new_tokens < 256:
+            print(f"[torch] WARN: reasoning=True but max_new_tokens={max_new_tokens} -- "
+                  f"thinking traces typically need 1024+ tokens; the model will be cut off mid-CoT",
+                  flush=True)
         self._last_beta = float("nan")
         self._last_loss = float("nan")
         self._last_valid_frac = float("nan")
@@ -108,17 +113,57 @@ class TorchLoRAProposer:
             ex = "\n".join(f"  f(x) = {expr}   (score {r:.3f})" for r, expr in self.archive)
             archive_block = ("\n\nBest formulas found so far -- propose a DIFFERENT formula "
                              f"that fits better than these:\n{ex}")
+        if self.reasoning:
+            # Thinking-mode prompt: encourage structural reasoning (shape hypothesis +
+            # candidate skeleton), then a single final-line formula the parser picks up.
+            # We still extract the LAST non-empty line after the thinking block, so the
+            # model is free to think as long as it wants inside `<think>...</think>`.
+            instructions = ("Think step by step inside the thinking block: look at the sign, "
+                            "symmetry, growth and any periodicity of the (x, y) values, name a "
+                            "small set of plausible skeletons (e.g. polynomial, polynomial + trig, "
+                            "rational), and pick the one that best matches.\nAfter you finish "
+                            "thinking, output ONLY the formula for f(x) as the LAST line of your "
+                            "reply -- no words, no 'y =', no code fences.")
+        else:
+            instructions = ("Reply with ONLY the formula for f(x) on a single line -- no words, "
+                            "no 'y =', no code fences.")
         return ("You are doing symbolic regression. Find a formula y = f(x) that fits "
                 f"the data.\n{vocab}\nThe data may be nonlinear or periodic -- consider "
-                "terms like x*x, x*x*x, or sin/cos, not just straight lines.\nReply with "
-                "ONLY the formula for f(x) on a single line -- no words, no 'y =', no code "
-                f"fences.\n\nData points:\n{self._data_block()}{archive_block}\n\nNew formula for f(x):")
+                f"terms like x*x, x*x*x, or sin/cos, not just straight lines.\n{instructions}\n\n"
+                f"Data points:\n{self._data_block()}{archive_block}\n\nNew formula for f(x):")
 
     def _prompt_ids(self) -> torch.Tensor:
-        ids = self.tok.apply_chat_template(
-            [{"role": "user", "content": self._prompt_text()}],
-            add_generation_prompt=True, return_tensors="pt")
+        # Qwen3 (and other dual-mode reasoning models) honour `enable_thinking=...` in
+        # apply_chat_template; older tokenizers (Qwen2.5, Llama) ignore the kwarg or
+        # raise. Pass it only when reasoning is on, and fall back if rejected.
+        msgs = [{"role": "user", "content": self._prompt_text()}]
+        try:
+            ids = self.tok.apply_chat_template(
+                msgs, add_generation_prompt=True, return_tensors="pt",
+                enable_thinking=self.reasoning)
+        except TypeError:
+            ids = self.tok.apply_chat_template(
+                msgs, add_generation_prompt=True, return_tensors="pt")
         return ids.to(self.device)
+
+    @staticmethod
+    def _extract_formula(text: str) -> str:
+        """Pull the final-formula line out of an LLM reply.
+
+        Non-reasoning mode: the model is told to reply with one line, so the first
+        non-empty line is the formula.  Reasoning mode: the model may emit
+        `<think>...</think>\nformula` (Qwen3-style) or otherwise dump a long
+        explanation; the formula is the LAST non-empty line after the thinking
+        block. This handles both cases robustly.
+        """
+        if "</think>" in text:
+            text = text.rsplit("</think>", 1)[1]
+        lines = [ln.strip() for ln in text.strip().splitlines() if ln.strip()]
+        if not lines:
+            return ""
+        # Last line tends to be the answer for reasoning models; first-line is
+        # equivalent when the model obeys the single-line instruction.
+        return lines[-1]
 
     # --- generation ----------------------------------------------------------
     @torch.no_grad()
@@ -160,7 +205,7 @@ class TorchLoRAProposer:
         self._pending = (seqs, comp_mask, old_logp)
         cands, n_valid = [], 0
         for text in texts:
-            text = text.strip().splitlines()[0] if text.strip() else ""
+            text = self._extract_formula(text)
             if self.const_placeholder:
                 from layer1.constfit import parse_and_fit
                 node = parse_and_fit(text, self.task.x_train, self.task.y_train)
