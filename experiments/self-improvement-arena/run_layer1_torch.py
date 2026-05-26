@@ -53,6 +53,14 @@ def main():
                     help="enable chain-of-thought rollouts (Qwen3-style enable_thinking=True); "
                          "pair with --max-new-tokens >= 1024 and a thinking-capable model "
                          "such as Qwen/Qwen3-1.7B")
+    ap.add_argument("--thinking-budget", type=int, default=0,
+                    help="soft budget for the thinking block (Qwen3 reasoning). When >0 the "
+                         "proposer generates in two stages: stage 1 free thinking up to this "
+                         "budget, then a TTT-Discover-style forced wrap-up sentence is spliced "
+                         "in (in the model's own voice) and stage 2 generates the final "
+                         "formula. Recommended pair: --thinking-budget 768 --answer-budget 64.")
+    ap.add_argument("--answer-budget", type=int, default=64,
+                    help="tokens for stage 2 (final formula) when --thinking-budget > 0")
     ap.add_argument("--no-const", action="store_true", help="disable const placeholder + BFGS")
     ap.add_argument("--reward-mode", default="nrmse", choices=["mse", "nrmse"])
     ap.add_argument("--n-points", type=int, default=20)
@@ -75,7 +83,8 @@ def main():
         temperature=args.temperature, const_placeholder=not args.no_const,
         ppo_epochs=args.ppo_epochs, clip_low=args.clip_low, clip_high=args.clip_high,
         trunc_is=args.trunc_is, std_normalize=args.std_normalize,
-        reasoning=args.reasoning, seed=args.seed)
+        reasoning=args.reasoning, thinking_budget=args.thinking_budget,
+        answer_budget=args.answer_budget, seed=args.seed)
 
     best, best_expr = 0.0, ""
     num_solved_at = sym_solved_at = None

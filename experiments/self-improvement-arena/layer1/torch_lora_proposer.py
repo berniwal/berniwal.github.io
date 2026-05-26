@@ -44,7 +44,8 @@ class TorchLoRAProposer:
                  max_new_tokens=48, temperature=1.0, top_p=0.95,
                  const_placeholder=True, n_data_shown=12,
                  ppo_epochs=2, clip_low=0.2, clip_high=0.28, trunc_is=2.0,
-                 std_normalize=False, reasoning=False, seed=0, dtype="bfloat16"):
+                 std_normalize=False, reasoning=False, thinking_budget=0,
+                 answer_budget=64, seed=0, dtype="bfloat16"):
         if arm not in ("greedy", "risk", "best_of_n", "evolution"):
             raise ValueError("arm must be greedy, risk, best_of_n, or evolution")
         self.archive: list[tuple[float, str]] = []  # (reward, expr) for the evolution arm
@@ -63,7 +64,15 @@ class TorchLoRAProposer:
         self.clip_low, self.clip_high, self.trunc_is = clip_low, clip_high, trunc_is
         self.std_normalize = std_normalize
         self.reasoning = reasoning
-        if reasoning and max_new_tokens < 256:
+        # Two-stage reasoning (Qwen3 "soft budget"): if thinking_budget > 0, the
+        # generator first produces up to `thinking_budget` tokens of CoT; any row
+        # that hasn't emitted `</think>` by then has it forcibly spliced in, and
+        # the model then continues for up to `answer_budget` tokens to write the
+        # final formula. The injected </think> tokens are MASKED from comp_mask
+        # so the gradient ignores them (they aren't a sample from pi_theta).
+        self.thinking_budget = thinking_budget
+        self.answer_budget = answer_budget
+        if reasoning and thinking_budget == 0 and max_new_tokens < 256:
             print(f"[torch] WARN: reasoning=True but max_new_tokens={max_new_tokens} -- "
                   f"thinking traces typically need 1024+ tokens; the model will be cut off mid-CoT",
                   flush=True)
@@ -123,16 +132,21 @@ class TorchLoRAProposer:
             archive_block = ("\n\nBest formulas found so far -- propose a DIFFERENT formula "
                              f"that fits better than these:\n{ex}")
         if self.reasoning:
-            # Thinking-mode prompt: encourage structural reasoning (shape hypothesis +
-            # candidate skeleton), then a single final-line formula the parser picks up.
-            # We still extract the LAST non-empty line after the thinking block, so the
-            # model is free to think as long as it wants inside `<think>...</think>`.
-            instructions = ("Think step by step inside the thinking block: look at the sign, "
-                            "symmetry, growth and any periodicity of the (x, y) values, name a "
-                            "small set of plausible skeletons (e.g. polynomial, polynomial + trig, "
-                            "rational), and pick the one that best matches.\nAfter you finish "
-                            "thinking, output ONLY the formula for f(x) as the LAST line of your "
-                            "reply -- no words, no 'y =', no code fences.")
+            # Thinking-mode prompt with an EXPLICIT budget + commitment contract.
+            # Small reasoning models (Qwen3-1.7B) ruminate the whole budget without
+            # committing if left unconstrained -- 0/5 of our initial smoke samples
+            # ever emitted `</think>`. We add a budget hint here and, in _generate,
+            # splice a TTT-Discover-style "out of thinking tokens, sending my final
+            # message" sentinel right before forcibly closing the think block.
+            budget_hint = (f"You have ~{self.thinking_budget} tokens to think; "
+                           "use them efficiently. " if self.thinking_budget > 0 else "")
+            instructions = (
+                f"{budget_hint}Think step by step inside the thinking block: scan the "
+                "(x, y) values for sign, symmetry, growth and periodicity; list 2-3 "
+                "plausible skeletons (polynomial, polynomial + trig, rational); pick one "
+                "and COMMIT. Do not enumerate forever.\nWhen you are done, write "
+                "`</think>` on its own and then output ONLY the formula for f(x) on the "
+                "very next line -- no words, no 'y =', no code fences, just the expression.")
         else:
             instructions = ("Reply with ONLY the formula for f(x) on a single line -- no words, "
                             "no 'y =', no code fences.")
@@ -175,6 +189,82 @@ class TorchLoRAProposer:
         return lines[-1]
 
     # --- generation ----------------------------------------------------------
+    # Forced wrap-up sentence (TTT-Discover style): in the model's own voice so the
+    # transition stays in-distribution. Spliced inside the thinking block when the
+    # budget is hit and the model hasn't closed </think> on its own.
+    FORCED_END = ("\n\nOkay, I am out of thinking tokens. I need to send my final "
+                  "message now.\n</think>\n")
+
+    @torch.no_grad()
+    def _generate_two_stage(self, inp, plen):
+        """Two-stage budgeted reasoning.
+
+        Stage 1: generate up to `thinking_budget` tokens. For any row that hasn't
+        emitted `</think>` by then, splice the FORCED_END sentence in (in the
+        model's own voice -- in-distribution wrap-up). Stage 2: generate up to
+        `answer_budget` more tokens, which is where the final formula appears.
+
+        Returns (seqs, forced_mask) where forced_mask marks the spliced-in tokens
+        so the GRPO loss can ignore them (they aren't samples from pi_theta).
+        """
+        # Stage 1: free thinking.
+        stage1 = self.model.generate(
+            inp, attention_mask=torch.ones_like(inp),
+            do_sample=True, temperature=self.temperature, top_p=self.top_p,
+            max_new_tokens=self.thinking_budget,
+            pad_token_id=self.tok.pad_token_id)
+
+        # Per-row: did the model close </think> on its own?
+        think_close_ids = self.tok.encode("</think>", add_special_tokens=False)
+        forced_ids = self.tok.encode(self.FORCED_END, add_special_tokens=False)
+        forced_ids_t = torch.tensor(forced_ids, device=self.device, dtype=stage1.dtype)
+
+        # Build per-row stage-1 sequences with optional FORCED_END splice.
+        rows = []
+        forced_lens = []
+        for r in range(stage1.shape[0]):
+            tail = stage1[r, plen:]
+            # strip padding for the check
+            text_tail = self.tok.decode(tail, skip_special_tokens=False)
+            if "</think>" in text_tail:
+                # Model already closed thinking -- leave its tokens alone.
+                rows.append(stage1[r])
+                forced_lens.append(0)
+            else:
+                # Trim trailing pad/eos before splicing.
+                end = tail.shape[0]
+                while end > 0 and tail[end - 1].item() in (self.tok.pad_token_id,
+                                                            self.tok.eos_token_id):
+                    end -= 1
+                row = torch.cat([stage1[r, :plen + end], forced_ids_t], dim=0)
+                rows.append(row)
+                forced_lens.append(len(forced_ids))
+
+        # Right-pad to the longest stage-1+force row, then generate stage 2.
+        max_len = max(r.shape[0] for r in rows)
+        pid = self.tok.pad_token_id
+        padded = torch.full((len(rows), max_len), pid, device=self.device,
+                            dtype=stage1.dtype)
+        attn1 = torch.zeros_like(padded)
+        for i, r in enumerate(rows):
+            padded[i, :r.shape[0]] = r
+            attn1[i, :r.shape[0]] = 1
+
+        seqs = self.model.generate(
+            padded, attention_mask=attn1,
+            do_sample=True, temperature=self.temperature, top_p=self.top_p,
+            max_new_tokens=self.answer_budget,
+            pad_token_id=pid)
+
+        # Mark the spliced FORCED_END tokens for the loss mask. Their position in
+        # each row is [rows[i].shape[0] - forced_lens[i] : rows[i].shape[0]].
+        forced_mask = torch.zeros_like(seqs, dtype=torch.float32)
+        for i, r in enumerate(rows):
+            fl = forced_lens[i]
+            if fl > 0:
+                forced_mask[i, r.shape[0] - fl : r.shape[0]] = 1.0
+        return seqs, forced_mask
+
     @torch.no_grad()
     def _generate(self, prompt_ids):
         plen = prompt_ids.shape[1]
@@ -184,14 +274,22 @@ class TorchLoRAProposer:
         # the proposer can leave use_cache=False as the steady state.
         self.model.config.use_cache = True
         try:
-            seqs = self.model.generate(
-                inp, attention_mask=torch.ones_like(inp),
-                do_sample=True, temperature=self.temperature, top_p=self.top_p,
-                max_new_tokens=self.max_new_tokens, pad_token_id=self.tok.pad_token_id)  # (B, plen+gen)
+            if self.reasoning and self.thinking_budget > 0:
+                seqs, forced_mask = self._generate_two_stage(inp, plen)
+            else:
+                seqs = self.model.generate(
+                    inp, attention_mask=torch.ones_like(inp),
+                    do_sample=True, temperature=self.temperature, top_p=self.top_p,
+                    max_new_tokens=self.max_new_tokens,
+                    pad_token_id=self.tok.pad_token_id)  # (B, plen+gen)
+                forced_mask = torch.zeros_like(seqs, dtype=torch.float32)
         finally:
             self.model.config.use_cache = False
         comp_mask = torch.zeros_like(seqs, dtype=torch.float32)
         comp_mask[:, plen:] = (seqs[:, plen:] != self.tok.pad_token_id).float()
+        # Tokens we forcibly injected aren't samples from pi_theta -- mask them out so
+        # they don't contribute to the policy gradient.
+        comp_mask = comp_mask * (1.0 - forced_mask)
         texts = self.tok.batch_decode(seqs[:, plen:], skip_special_tokens=True)
         # pi_old per-token, computed in no-grad micro-chunks so peak memory stays bounded
         old_logp = torch.cat([self._token_logprobs(seqs[s:s + self.micro])
