@@ -4,7 +4,7 @@
 Runs N rounds of: sample a batch from the LLM -> score with the shared Verifier ->
 GRPO update (per arm, via shared objectives). Logs best-so-far reward, valid fraction,
 and recovery (numeric MSE + exact SymPy) per round; writes JSON + prints a summary.
-Built to run on a GPU pod (see experiments/runpod/run_layer1_torch.sh).
+Built to run on a GPU pod (see runpod/run_layer1_torch.sh next to this file).
 
     python3 run_layer1_torch.py --target medium --arm risk --rounds 40 --batch 16
 """
