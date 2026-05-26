@@ -32,10 +32,12 @@ ARITY = {
 
 # --- Extended (Koza / Nguyen) operators -------------------------------------
 # Used ONLY when the Koza grammar is selected (a toggle). exp/log let the standard
-# Nguyen suite be searched with DSR's library {+,-,*,/,sin,cos,exp,log,x}; there
-# are NO constant terminals (constants are constructed, e.g. 1 = x/x), matching
-# DSR's no-const standard Nguyen setup. The base grammar/TOKENS above are left
-# untouched, so existing Layer-0 runs reproduce byte-for-byte.
+# Nguyen suite be searched with DSR's library L0 = {+,-,*,/,sin,cos,exp,log,x}; there
+# are NO constant terminals (constants are constructed, e.g. 1 = x/x), matching DSR's
+# no-const standard Nguyen setup. DSR uses this same L0 for ALL of Nguyen 1-8 -- even
+# Nguyen-8 = sqrt(x), expressed as exp(log(x)/2) -- so there is no sqrt operator. The
+# base grammar/TOKENS above are left untouched, so existing Layer-0 runs reproduce
+# byte-for-byte.
 TRIG = ("sin", "cos")                     # for the no-nested-trig constraint
 EXTRA_UNARY = ("exp", "log")
 INVERSE = {"exp": "log", "log": "exp"}    # for the no-inverse-of-unary constraint
@@ -285,7 +287,7 @@ def crossover_subtree(a: Node, b: Node, rng: np.random.Generator) -> Node:
 # outside the grammar (unknown functions, non-integer powers, ...) returns None
 # -> the verifier treats it as an invalid candidate (reward 0).
 _AST_BINOP = {ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/"}
-_AST_FUNCS = {"sin", "cos"}
+_AST_FUNCS = {"sin", "cos", "exp", "log"}  # match the Koza grammar (no sqrt)
 _NAMED_CONSTS = {"pi": math.pi, "e": math.e}
 _MAX_POW = 6  # x**n is expanded to repeated multiplication for 1 <= n <= _MAX_POW
 

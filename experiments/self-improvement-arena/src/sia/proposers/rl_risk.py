@@ -52,6 +52,7 @@ class RLRisk(Proposer):
                  beta_rule: str = "fixed", target_ess: float = 0.3,
                  target_kl: float = 1.0, constraints: bool = False,
                  min_length: int = 4, entropy_gamma: float = 1.0,
+                 obs_struct: bool = False, cell: str = "rnn",
                  seed: int | None = None, **hp):
         super().__init__(task, rng, **hp)
         if mode not in ("quantile", "entropic", "cvar"):
@@ -70,7 +71,8 @@ class RLRisk(Proposer):
         seed = int(rng.integers(1 << 30)) if seed is None else seed
         self.policy = RNNPolicy(hidden=hidden, max_length=max_length, lr=lr, seed=seed,
                                 constraints=constraints, min_length=min_length,
-                                entropy_gamma=entropy_gamma, tokens=task.grammar.tokens)
+                                entropy_gamma=entropy_gamma, tokens=task.grammar.tokens,
+                                obs_struct=obs_struct, cell=cell)
 
     def ask(self):
         return self.policy.sample(self.batch_size, self.rng)

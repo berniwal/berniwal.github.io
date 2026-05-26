@@ -67,8 +67,15 @@ def test_parse_expression_matches_eval():
 
 
 def test_parse_expression_rejects_out_of_grammar():
-    for bad in ["sqrt(x)", "x**2.5", "exp(x)", "x +", "tan(x)", "import os"]:
+    # sqrt is genuinely not in any grammar; exp/log are in the Koza/Nguyen grammar
+    # so parse_expression accepts them (covered in the Koza accept test below).
+    for bad in ["sqrt(x)", "x**2.5", "x +", "tan(x)", "atan(x)", "import os"]:
         assert parse_expression(bad) is None, bad
+
+
+def test_parse_expression_accepts_koza_unary():
+    for ok in ["exp(x)", "log(x)", "exp(log(x))", "exp((x/(x+x))*log(x))"]:
+        assert parse_expression(ok) is not None, ok
 
 
 def test_parse_expression_strips_prose():
@@ -147,16 +154,23 @@ def test_dsr_constraints_enforced():
 
 def test_hierarchical_entropy_knob():
     """entropy_gamma=1 reproduces the flat bonus (deterministic, backward-compatible);
-    gamma<1 changes the gradient update (the discount actually does something)."""
+    gamma<1 changes the gradient update (the discount actually does something).
+
+    Uses a high ent_coef + several Adam steps because Adam's first-step update has
+    constant magnitude (~lr) per parameter and only differs across runs where the
+    gradient sign flips -- after several steps the m/v moments drift apart enough
+    that small per-step differences accumulate into a clearly-non-allclose result."""
     from sia.policy import RNNPolicy
 
-    def one_update(gamma):
+    def updates(gamma, n_steps=5):
         pol = RNNPolicy(hidden=8, max_length=12, seed=0, entropy_gamma=gamma)
-        pol.sample(64, np.random.default_rng(3))      # same seed+rng -> same trajectories
-        pol.reinforce(np.linspace(-1.0, 1.0, 64), ent_coef=0.05)
+        rng = np.random.default_rng(3)
+        for _ in range(n_steps):
+            pol.sample(64, rng)
+            pol.reinforce(np.linspace(-1.0, 1.0, 64), ent_coef=1.0)
         return pol.p["Who"].copy()
 
-    flat, flat_again, hier = one_update(1.0), one_update(1.0), one_update(0.5)
+    flat, flat_again, hier = updates(1.0), updates(1.0), updates(0.5)
     assert np.allclose(flat, flat_again)              # gamma=1 is deterministic / unchanged
     assert not np.allclose(flat, hier)                # the discount changes the update
 
