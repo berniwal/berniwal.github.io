@@ -1,0 +1,389 @@
+/* src/posts/SelfAttention.css
+   Widget-specific styles for the Self-Attention post.
+   Chrome (panel, hero, refs, footer, code expander) lives in PostChrome.css.
+*/
+
+.sa-post {
+  --sa-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ===== Controls bar (sentence picker, sliders) ===== */
+.sa-post .sa-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+}
+
+.sa-post .sa-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--post-text-mid);
+}
+
+.sa-post .sa-controls select,
+.sa-post .sa-controls button {
+  font-family: var(--post-sans);
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text);
+  cursor: pointer;
+}
+
+.sa-post .sa-controls input[type="range"] {
+  accent-color: var(--post-accent);
+}
+
+.sa-post .sa-dim-note {
+  font-family: var(--sa-mono);
+  color: var(--post-text-mut);
+  font-size: 0.82rem;
+}
+
+/* ===== Matrix grid primitive ===== */
+.sa-post .sa-mat {
+  display: inline-block;
+  vertical-align: top;
+  margin: 8px 14px 8px 0;
+}
+
+.sa-post .sa-mat-label {
+  font-family: var(--sa-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.sa-post .sa-mat-grid {
+  display: grid;
+  gap: 2px;
+  background: var(--post-border);
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.sa-post .sa-cell {
+  font-family: var(--sa-mono);
+  font-size: 0.72rem;
+  background: #fff;
+  color: var(--post-text);
+  padding: 4px 6px;
+  text-align: right;
+  cursor: default;
+  transition: background 0.15s ease, color 0.15s ease;
+  user-select: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sa-post .sa-cell.sa-cell-tappable { cursor: pointer; }
+
+.sa-post .sa-cell.sa-row-label,
+.sa-post .sa-cell.sa-col-label {
+  background: transparent;
+  color: var(--post-text-mut);
+  font-size: 0.7rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.sa-post .sa-cell.sa-row-hi,
+.sa-post .sa-cell.sa-col-hi {
+  outline: 2px solid var(--post-accent);
+  outline-offset: -1px;
+  z-index: 1;
+}
+
+.sa-post .sa-cell.sa-focus {
+  background: var(--post-accent);
+  color: #fff;
+}
+
+.sa-post .sa-cell.sa-heat {
+  color: var(--post-text);
+}
+
+/* ===== Matrix row layout (X · W = Q) ===== */
+.sa-post .sa-matrix-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+}
+
+.sa-post .sa-matrix-row .sa-mat { flex: 0 0 auto; }
+
+.sa-post .sa-matrix-op {
+  font-family: var(--post-sans);
+  font-size: 1.3rem;
+  color: var(--post-text-mid);
+  align-self: center;
+  margin: 0 6px;
+  padding-top: 16px;
+}
+
+/* ===== Subsections inside a panel ===== */
+.sa-post .sa-subsection {
+  margin: 0 -8px 20px;
+  padding: 14px 16px 18px;
+  border-radius: 10px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+}
+
+.sa-post .sa-subsection + .sa-subsection { margin-top: 10px; }
+
+.sa-post .sa-subhead {
+  font-family: var(--post-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--post-text);
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  line-height: 1.35;
+}
+
+.sa-post .sa-subhead em {
+  font-style: italic;
+  color: var(--post-text-mid);
+  font-weight: 400;
+}
+
+.sa-post .sa-subhead-prose {
+  font-size: 0.94rem;
+  color: var(--post-text-mid);
+  margin: 0 0 10px;
+  line-height: 1.55;
+}
+
+.sa-post .sa-sub-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-family: var(--sa-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.sa-post .sa-sub-tag-q    { background: hsl(218, 55%, 50%); }
+.sa-post .sa-sub-tag-k    { background: hsl(158, 45%, 42%); }
+.sa-post .sa-sub-tag-v    { background: hsl(28,  60%, 52%); }
+.sa-post .sa-sub-tag-step { background: var(--post-text); }
+.sa-post .sa-sub-tag-star { background: hsl(40, 88%, 52%); color: #1A1A1A; }
+
+/* ===== Explanation strip (Q[i,j] = X[row] · W[col] = ...) ===== */
+.sa-post .sa-explain {
+  font-family: var(--sa-mono);
+  font-size: 0.85rem;
+  background: var(--post-accent-s);
+  color: var(--post-text);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-top: 14px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.sa-post .sa-explain-empty {
+  color: var(--post-text-mut);
+  font-style: italic;
+}
+
+/* ===== Math blocks ===== */
+.sa-post .sa-math-block {
+  margin: 14px 0 18px;
+  font-size: 1.05rem;
+  overflow-x: auto;
+}
+
+.sa-post .sa-math-inline { font-size: 1em; }
+
+/* ===== Row meta (entropy / top token under heatmap) ===== */
+.sa-post .sa-row-meta {
+  font-family: var(--sa-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-top: 12px;
+  min-height: 1.6em;
+}
+
+.sa-post .sa-row-meta strong {
+  color: var(--post-text);
+  font-weight: 600;
+}
+
+/* ===== Softmax demo ===== */
+.sa-post .sa-softmax-demo {
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px 16px 18px;
+  margin: 16px 0 8px;
+}
+
+.sa-post .sa-softmax-tabs {
+  display: inline-flex;
+  background: var(--post-accent-s);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.sa-post .sa-tab {
+  font-family: var(--post-sans);
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  color: var(--post-text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+
+.sa-post .sa-tab.active {
+  background: var(--post-accent);
+  color: #fff;
+}
+
+.sa-post .sa-softmax-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sa-post .sa-softmax-side { flex: 1 1 220px; min-width: 220px; }
+
+.sa-post .sa-softmax-side-label {
+  font-family: var(--sa-mono);
+  font-size: 0.74rem;
+  color: var(--post-text-mut);
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+}
+
+.sa-post .sa-softmax-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+}
+
+.sa-post .sa-softmax-num {
+  font-family: var(--sa-mono);
+  font-size: 0.84rem;
+  color: var(--post-text);
+  min-width: 56px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-post .sa-softmax-bar {
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+  transition: width 0.4s ease;
+}
+
+.sa-post .sa-softmax-bar-in  { background: hsl(218, 30%, 78%); }
+.sa-post .sa-softmax-bar-out { background: var(--post-accent); }
+
+.sa-post .sa-softmax-arrow {
+  font-family: var(--sa-mono);
+  font-size: 0.95rem;
+  color: var(--post-text-mid);
+  padding: 0 6px;
+}
+
+/* ===== Mix stage (Y = A·V animated breakdown) ===== */
+.sa-post .sa-mix-stage {
+  margin-top: 16px;
+  border: 1px dashed var(--post-border-s);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--post-bg-sub);
+}
+
+.sa-post .sa-mix-header {
+  font-family: var(--sa-mono);
+  font-size: 0.82rem;
+  color: var(--post-text-mut);
+  margin-bottom: 8px;
+}
+
+.sa-post .sa-mix-header strong { color: var(--post-text); }
+
+.sa-post .sa-mix-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-family: var(--sa-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mid);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.sa-post .sa-mix-row.sa-mix-active { opacity: 1; transform: translateY(0); }
+.sa-post .sa-mix-row.sa-mix-output {
+  color: var(--post-text);
+  font-weight: 600;
+  border-top: 1px solid var(--post-border);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.sa-post .sa-mix-weight {
+  display: inline-block;
+  min-width: 60px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-post .sa-mix-bar {
+  height: 6px;
+  background: var(--post-accent);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 720px) {
+  .sa-post .sa-cell { min-width: 32px; font-size: 0.66rem; padding: 3px 4px; }
+  .sa-post .sa-matrix-op { font-size: 1.05rem; padding-top: 12px; }
+  .sa-post .sa-subsection { margin: 0 0 16px; padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-post .sa-mix-row,
+  .sa-post .sa-softmax-bar,
+  .sa-post .sa-mix-bar {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

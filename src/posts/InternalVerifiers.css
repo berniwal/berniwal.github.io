@@ -1,0 +1,149 @@
+/* src/posts/InternalVerifiers.css
+   Widget styles for the Internal Verifiers post. Post chrome — typography,
+   panels, header, animations — lives in PostChrome.css. */
+
+.iv-post .iv-bullets {
+  margin: 8px 0 18px;
+  padding-left: 22px;
+  color: var(--post-text-mid);
+}
+.iv-post .iv-bullets li { margin-bottom: 8px; }
+.iv-post .iv-bullets strong { color: var(--post-text); font-weight: 600; }
+
+/* =========================================================
+   Comparison diagram widget
+   ========================================================= */
+.iv-compare svg { display: block; }
+
+.iv-compare .iv-col { cursor: pointer; outline: none; }
+.iv-compare .iv-col:focus-visible .iv-node { stroke: var(--post-accent); }
+
+.iv-compare .iv-col-title {
+  fill: var(--post-text-mut);
+  font-family: var(--post-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: fill 200ms ease;
+}
+.iv-compare .iv-col.is-active .iv-col-title { fill: var(--post-text); }
+
+.iv-compare .iv-node {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+  transition: fill 200ms ease, stroke 200ms ease;
+}
+.iv-compare .iv-col.is-active .iv-node-prop {
+  fill: #eff6ff;
+  stroke: var(--post-accent);
+}
+.iv-compare .iv-col.is-active .iv-node-solv {
+  fill: #f1f5f9;
+  stroke: var(--post-border-s);
+}
+.iv-compare .iv-col.is-active .iv-node-score {
+  fill: #fef3c7;
+  stroke: #f59e0b;
+}
+
+.iv-compare .iv-node-role {
+  fill: var(--post-text-mut);
+  font-family: var(--post-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.iv-compare .iv-node-name {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.iv-compare .iv-arrow {
+  stroke: var(--post-border-s);
+  stroke-width: 1.3;
+  transition: stroke 220ms ease, stroke-width 220ms ease;
+  fill: none;
+}
+.iv-compare .iv-arrow-reward {
+  stroke: var(--post-border-s);
+  opacity: 0.5;
+}
+.iv-compare .iv-col.is-active .iv-arrow-task {
+  stroke: var(--post-text-mut);
+  stroke-width: 1.6;
+}
+.iv-compare .iv-col.is-active .iv-arrow-reward {
+  stroke: var(--post-accent);
+  stroke-width: 1.8;
+  opacity: 1;
+}
+
+.iv-compare .iv-arrow-label {
+  fill: var(--post-text-fnt);
+  font-family: var(--post-mono);
+  font-size: 10.5px;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.iv-compare .iv-col.is-active .iv-arrow-label { opacity: 1; }
+
+/* Below-SVG caption block */
+.iv-compare-caption { margin-top: 16px; }
+.iv-compare-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.iv-compare-tab {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.iv-compare-tab:hover { border-color: var(--post-border-s); color: var(--post-text); }
+.iv-compare-tab.active {
+  background: var(--post-text);
+  color: #fff;
+  border-color: var(--post-text);
+}
+.iv-compare-blurb {
+  font-size: 14.5px;
+  color: var(--post-text-mid);
+  line-height: 1.55;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0 0 10px;
+}
+
+/* References tweak — keep parity with MinimaxSearch */
+.iv-refs { /* inherits .post-refs grid */ }
+
+/* =========================================================
+   Mobile
+   ========================================================= */
+@media (max-width: 720px) {
+  .iv-compare svg { min-height: 360px; }
+  .iv-compare-tabs { justify-content: stretch; }
+  .iv-compare-tab { flex: 1; text-align: center; }
+}
+
+/* Reduced motion: arrows + labels don't animate */
+@media (prefers-reduced-motion: reduce) {
+  .iv-compare .iv-arrow,
+  .iv-compare .iv-arrow-label,
+  .iv-compare .iv-node,
+  .iv-compare .iv-col-title {
+    transition: none !important;
+  }
+}

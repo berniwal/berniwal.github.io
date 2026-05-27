@@ -1,0 +1,229 @@
+/* src/posts/AlphaGoToAlphaZero.css
+   Widget-specific styles for the AlphaGo→AlphaZero post.
+   Post chrome (typography, panels, hero, animations) lives in PostChrome.css.
+   Tokens migrated from the legacy paper/ink palette to the post-2026 slate
+   tokens (--post-bg / --post-text / --post-border / --post-accent).
+*/
+
+.aga-post {
+  --aga-accent-soft:  #eff6ff;          /* blue-50 */
+  --aga-pos:          #15803d;          /* green-700 */
+  --aga-pos-soft:     #dcfce7;          /* green-100 */
+}
+
+.aga-post ul {
+  margin: 0 0 18px;
+  padding-left: 22px;
+  color: var(--post-text-mid);
+}
+.aga-post ul li { margin-bottom: 8px; line-height: 1.65; }
+.aga-post ul li strong { color: var(--post-text); }
+
+/* =====================================================
+   Math (KaTeX wrapper)
+   ===================================================== */
+.aga-math-inline { font-size: 1em; }
+.aga-math-block { display: block; margin: 0; }
+.aga-math-wrap {
+  margin: 8px 0 18px;
+  padding: 14px 16px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  overflow-x: auto;
+  text-align: center;
+}
+
+/* =====================================================
+   Counters
+   ===================================================== */
+.aga-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+}
+.aga-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.aga-counter-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--post-text-mut);
+}
+.aga-counter-value {
+  font-family: var(--post-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--post-text);
+  font-variant-numeric: tabular-nums;
+}
+.aga-counter-sub {
+  font-size: 12px;
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+}
+
+/* =====================================================
+   Widget 1 — 2-axis map
+   ===================================================== */
+.aga-map { padding: 18px; }
+.aga-map-svg-wrap { overflow-x: auto; }
+.aga-map svg { display: block; margin: 0 auto; }
+
+.aga-map-method {
+  cursor: default;
+  transition: filter 0.2s ease;
+}
+.aga-map-method.dimmed { opacity: 0.35; }
+.aga-map-method.highlighted circle {
+  filter: drop-shadow(0 0 6px var(--post-accent));
+}
+
+.aga-map-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  fill: var(--post-text);
+  font-weight: 600;
+}
+.aga-map-axis-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  fill: var(--post-text-mut);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* =====================================================
+   Widget 2 — PUCT tree
+   ===================================================== */
+.aga-tree-wrap {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 10px;
+  overflow-x: auto;
+}
+.aga-tree-wrap svg { display: block; margin: 0 auto; }
+
+.aga-tree-node-bg {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.aga-tree-node-bg.path     { fill: var(--aga-accent-soft); stroke: var(--post-accent); }
+.aga-tree-node-bg.best     { fill: var(--aga-pos-soft); stroke: var(--aga-pos); }
+.aga-tree-node-bg.visited  { fill: hsl(218, 30%, 96%); }
+
+.aga-tree-node-text {
+  font-family: var(--post-mono);
+  font-size: 10px;
+  fill: var(--post-text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.aga-tree-edge {
+  stroke: hsl(218, 20%, 80%);
+  stroke-width: 1.5;
+  fill: none;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+.aga-tree-edge.path {
+  stroke: var(--post-accent);
+  stroke-width: 2.5;
+}
+
+.aga-tree-puct-label {
+  font-family: var(--post-mono);
+  font-size: 9px;
+  fill: var(--post-accent);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.aga-tree-leaf-reward {
+  font-family: var(--post-mono);
+  font-size: 10px;
+  fill: var(--aga-pos);
+  text-anchor: middle;
+  font-weight: 700;
+}
+
+.aga-tree-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.aga-tree-status {
+  color: var(--post-text-mut);
+  font-size: 13px;
+  font-family: var(--post-mono);
+}
+.aga-tree-status strong {
+  color: var(--post-text);
+  font-weight: 700;
+}
+
+/* Buttons */
+.aga-btn {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.aga-btn:hover {
+  background: var(--post-bg-sub);
+  color: var(--post-text);
+  border-color: var(--post-border-s);
+}
+.aga-btn-primary {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.aga-btn-primary:hover {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+/* =====================================================
+   Reduced motion
+   ===================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .aga-map-method,
+  .aga-tree-node-bg,
+  .aga-tree-edge,
+  .aga-btn {
+    transition: none !important;
+  }
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .aga-tree-controls { gap: 6px; }
+  .aga-tree-status { width: 100%; }
+  .aga-counter { min-width: 100px; }
+}

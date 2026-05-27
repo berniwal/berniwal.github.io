@@ -1,0 +1,365 @@
+/* src/posts/FromAttentionToTransformer.css
+   Widget-specific styles for the "From Attention to Transformer" post.
+   Post chrome (typography, panels, header, animations) lives in
+   PostChrome.css. */
+
+/* =====================================================
+   Controls (sentence selector, sliders, toggles)
+   ===================================================== */
+.fat-post .fat-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  color: var(--post-text-mid);
+}
+.fat-post .fat-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--post-text-mid);
+}
+.fat-post .fat-controls select {
+  font-family: var(--post-sans);
+  font-size: 13.5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border-s);
+  background: #fff;
+  color: var(--post-text);
+  cursor: pointer;
+}
+.fat-post .fat-controls input[type="range"] { accent-color: var(--post-accent); }
+.fat-post .fat-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.fat-post .fat-toggle input { accent-color: var(--post-accent); }
+
+/* =====================================================
+   Matrix primitive (light, compact)
+   ===================================================== */
+.fat-post .fat-mat {
+  display: inline-block;
+  vertical-align: top;
+  margin: 8px 12px 8px 0;
+}
+.fat-post .fat-mat-label {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  color: var(--post-text-mut);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+.fat-post .fat-mat-grid {
+  display: grid;
+  gap: 2px;
+  background: var(--post-border);
+  padding: 2px;
+  border-radius: 6px;
+}
+.fat-post .fat-cell {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  background: #fff;
+  color: var(--post-text);
+  padding: 4px 6px;
+  text-align: right;
+  cursor: default;
+  user-select: none;
+  min-width: 0;
+  overflow: hidden;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.fat-post .fat-cell.fat-cell-tappable { cursor: pointer; }
+.fat-post .fat-cell.fat-row-label,
+.fat-post .fat-cell.fat-col-label {
+  background: transparent;
+  color: var(--post-text-mut);
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+}
+.fat-post .fat-cell.fat-row-hi,
+.fat-post .fat-cell.fat-col-hi {
+  outline: 2px solid var(--post-accent);
+  outline-offset: -1px;
+  z-index: 1;
+}
+.fat-post .fat-cell.fat-focus {
+  background: var(--post-accent);
+  color: #fff;
+}
+.fat-post .fat-cell.fat-heat {
+  /* background/color set inline */
+}
+
+/* =====================================================
+   Matrix row layout (X · W = Y type rows)
+   ===================================================== */
+.fat-post .fat-matrix-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+}
+.fat-post .fat-matrix-row .fat-mat { flex: 0 0 auto; }
+.fat-post .fat-matrix-op {
+  font-family: var(--post-sans);
+  font-size: 18px;
+  color: var(--post-text-mut);
+  align-self: center;
+  margin: 0 8px;
+  padding-top: 16px;
+}
+
+/* =====================================================
+   Math wrappers
+   ===================================================== */
+.fat-post .fat-math-block {
+  display: block;
+  margin: 14px 0 18px;
+  font-size: 1.05rem;
+  overflow-x: auto;
+}
+.fat-post .fat-math-inline { font-size: 1em; }
+
+/* =====================================================
+   Multi-head grid
+   ===================================================== */
+.fat-post .fat-head-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 8px;
+}
+.fat-post .fat-head-card {
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--post-bg-sub);
+}
+.fat-post .fat-head-title {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  color: var(--post-text-mut);
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+}
+.fat-post .fat-head-desc {
+  font-size: 13px;
+  color: var(--post-text-mid);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* =====================================================
+   MLP widget
+   ===================================================== */
+.fat-post .fat-mlp-diagram {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.fat-post .fat-mlp-box rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+}
+.fat-post .fat-mlp-op rect {
+  fill: var(--post-accent-s);
+  stroke: var(--post-accent);
+  stroke-width: 1.4;
+}
+.fat-post .fat-mlp-gelu rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+}
+.fat-post .fat-mlp-axis {
+  stroke: var(--post-border-s);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+.fat-post .fat-mlp-curve {
+  fill: none;
+  stroke: var(--post-accent);
+  stroke-width: 2;
+}
+.fat-post .fat-mlp-box-label,
+.fat-post .fat-mlp-op-label {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--post-text);
+  text-anchor: middle;
+}
+.fat-post .fat-mlp-box-dim,
+.fat-post .fat-mlp-op-dim {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  fill: var(--post-text-mut);
+  text-anchor: middle;
+}
+.fat-post .fat-mlp-arrow {
+  stroke: var(--post-text-mut);
+  stroke-width: 1.6;
+  marker-end: none;
+}
+.fat-post .fat-mlp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  color: var(--post-text-mut);
+}
+.fat-post .fat-mlp-stats strong {
+  color: var(--post-text);
+  font-weight: 600;
+}
+
+/* =====================================================
+   Block diagram
+   ===================================================== */
+.fat-post .fat-block svg { display: block; }
+.fat-post .fat-block-spine {
+  stroke: var(--post-text-mut);
+  stroke-width: 2;
+}
+.fat-post .fat-block-spine-head { fill: var(--post-text-mut); }
+.fat-post .fat-block-io {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--post-text);
+  text-anchor: middle;
+}
+.fat-post .fat-block-ln {
+  fill: var(--post-bg-sub);
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+}
+.fat-post .fat-block-attn {
+  fill: var(--post-accent-s);
+  stroke: var(--post-accent);
+  stroke-width: 1.4;
+}
+.fat-post .fat-block-mlp {
+  fill: #fef3c7;
+  stroke: #f59e0b;
+  stroke-width: 1.4;
+}
+.fat-post .fat-block-add {
+  fill: #fff;
+  stroke: var(--post-text-mid);
+  stroke-width: 1.4;
+}
+.fat-post .fat-block-add-label {
+  font-family: var(--post-mono);
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--post-text);
+  text-anchor: middle;
+}
+.fat-post .fat-block-label {
+  font-family: var(--post-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: var(--post-text);
+  text-anchor: middle;
+}
+.fat-post .fat-block-sublabel {
+  font-family: var(--post-mono);
+  font-size: 10.5px;
+  fill: var(--post-text-mut);
+  text-anchor: middle;
+}
+.fat-post .fat-block-edge {
+  stroke: var(--post-text-mut);
+  stroke-width: 1.4;
+}
+.fat-post .fat-block-residual {
+  fill: none;
+  stroke: var(--post-accent);
+  stroke-width: 1.4;
+  stroke-dasharray: 4 3;
+}
+.fat-post .fat-block-stack {
+  fill: var(--post-bg-sub);
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+  stroke-dasharray: 4 3;
+}
+.fat-post .fat-block-stack-label {
+  font-family: var(--post-sans);
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--post-text);
+  text-anchor: middle;
+}
+.fat-post .fat-block-stack-sublabel {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  fill: var(--post-text-mut);
+  text-anchor: middle;
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .fat-post .fat-cell { font-size: 10.5px; padding: 3px 4px; }
+  .fat-post .fat-matrix-op { font-size: 14px; padding-top: 12px; margin: 0 4px; }
+  .fat-post .fat-head-grid { grid-template-columns: 1fr; }
+}
+
+/* =====================================================
+   Inline info callout (e.g. "What does LayerNorm do?")
+   ===================================================== */
+.fat-post .fat-info {
+  margin: 18px 0 24px;
+  padding: 16px 18px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-left: 3px solid var(--post-accent);
+  border-radius: 10px;
+}
+.fat-post .fat-info-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-accent);
+  margin-bottom: 8px;
+}
+.fat-post .fat-info p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--post-text-mid);
+}
+
+.fat-post .fat-info p + .fat-info-eq,
+.fat-post .fat-info .fat-info-eq {
+  display: block;
+  margin: 12px 0 12px;
+  text-align: center;
+  font-size: 1.05rem;
+  overflow-x: auto;
+}
+.fat-post .fat-info p { margin: 0 0 10px; }
+.fat-post .fat-info p:last-child { margin-bottom: 0; }

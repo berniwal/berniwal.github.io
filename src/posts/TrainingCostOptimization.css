@@ -1,0 +1,352 @@
+/* src/posts/TrainingCostOptimization.css
+   Widget-specific styles. Post chrome lives in PostChrome.css. */
+
+.tco-post {
+  --tco-amber-bg: #fde68a;
+  --tco-amber-bd: #f59e0b;
+  --tco-amber-ink: #92400e;
+  --tco-green-bg: #a7f3d0;
+  --tco-green-bd: #10b981;
+  --tco-green-ink: #065f46;
+  --tco-slate-bg: #e2e8f0;
+  --tco-slate-bd: #94a3b8;
+  --tco-slate-ink: #475569;
+  --tco-rose-bg:  #fecaca;
+  --tco-rose-bd:  #ef4444;
+  --tco-rose-ink: #991b1b;
+  --tco-violet-bg: #ddd6fe;
+  --tco-violet-bd: #8b5cf6;
+  --tco-violet-ink: #5b21b6;
+}
+
+/* =====================================================
+   Shared tab + slider + action button
+   ===================================================== */
+.tco-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.tco-tab {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.tco-tab:hover { background: var(--post-bg-sub); color: var(--post-text); }
+.tco-tab.active {
+  background: var(--post-text);
+  color: #fff;
+  border-color: var(--post-text);
+}
+
+.tco-slider {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--post-text-mid);
+}
+.tco-slider strong { color: var(--post-text); font-family: var(--post-mono); }
+.tco-slider input[type="range"] { width: 100%; accent-color: var(--post-accent); }
+.tco-slider .tco-val {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  min-width: 28px;
+  text-align: right;
+  color: var(--post-text);
+}
+
+.tco-action {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-accent);
+  background: var(--post-accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.tco-action:hover { background: #1d4ed8; }
+
+/* Shared readout grid (used by accumulation + checkpointing) */
+.tco-ga-readout,
+.tco-gc-readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.tco-ga-stat {
+  padding: 10px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+}
+.tco-ga-stat-label {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+}
+.tco-ga-stat-value {
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--post-text-mid);
+}
+.tco-ga-stat-value strong { color: var(--post-text); }
+
+/* =====================================================
+   Widget 1 — Gradient Accumulation
+   ===================================================== */
+.tco-ga-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.tco-ga svg { display: block; color: var(--post-text-mut); }
+
+.tco-ga-lane-label {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  fill: var(--post-text-mut);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tco-ga-mb rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.2;
+  transition: fill 280ms ease, stroke 280ms ease;
+}
+.tco-ga-mb-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-anchor: middle;
+  transition: fill 280ms ease;
+}
+.tco-ga-mb.on rect {
+  fill: var(--tco-amber-bg);
+  stroke: var(--tco-amber-bd);
+}
+.tco-ga-mb.on .tco-ga-mb-label { fill: var(--tco-amber-ink); }
+
+.tco-ga-arrow {
+  stroke: var(--post-border-s);
+  stroke-width: 1.2;
+  fill: none;
+  opacity: 0.25;
+  transition: opacity 280ms ease, stroke 280ms ease;
+}
+.tco-ga-arrow.on {
+  stroke: var(--tco-amber-bd);
+  opacity: 0.8;
+}
+
+.tco-ga-acc rect {
+  fill: var(--post-bg-sub);
+  stroke: var(--post-border-s);
+  stroke-width: 1.5;
+  transition: fill 280ms ease, stroke 280ms ease;
+}
+.tco-ga-acc.filling rect { fill: #fef3c7; stroke: var(--tco-amber-bd); }
+.tco-ga-acc.full rect    { fill: var(--tco-green-bg); stroke: var(--tco-green-bd); }
+.tco-ga-acc-title {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 11px;
+  text-anchor: middle;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tco-ga-acc-count {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.tco-ga-acc-sub {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 10.5px;
+  text-anchor: middle;
+}
+
+.tco-ga-opt rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.2;
+  transition: fill 280ms ease, stroke 280ms ease;
+}
+.tco-ga-opt.on rect {
+  fill: var(--tco-green-bg);
+  stroke: var(--tco-green-bd);
+}
+.tco-ga-opt-label {
+  fill: var(--post-text-mid);
+  font-family: var(--post-mono);
+  font-size: 12px;
+  text-anchor: middle;
+  font-weight: 600;
+}
+.tco-ga-opt.on .tco-ga-opt-label { fill: var(--tco-green-ink); }
+
+/* =====================================================
+   Widget 2 — Gradient Checkpointing
+   ===================================================== */
+.tco-gc-lane-label {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  fill: var(--post-text-mut);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tco-gc-layer rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.1;
+  transition: fill 240ms ease, stroke 240ms ease;
+}
+.tco-gc-layer-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 11px;
+  text-anchor: middle;
+  transition: fill 240ms ease;
+}
+.tco-gc-layer.stored rect {
+  fill: var(--tco-green-bg);
+  stroke: var(--tco-green-bd);
+}
+.tco-gc-layer.stored .tco-gc-layer-label { fill: var(--tco-green-ink); }
+.tco-gc-layer.recomp rect {
+  fill: var(--post-bg-sunk);
+  stroke: var(--post-border-s);
+  stroke-dasharray: 4 3;
+}
+.tco-gc-layer.recomp .tco-gc-layer-label { fill: var(--post-text-fnt); }
+
+.tco-gc-legend.stored {
+  fill: var(--tco-green-bg);
+  stroke: var(--tco-green-bd);
+  stroke-width: 1.1;
+}
+.tco-gc-legend.recomp {
+  fill: var(--post-bg-sunk);
+  stroke: var(--post-border-s);
+  stroke-width: 1.1;
+  stroke-dasharray: 3 2;
+}
+.tco-gc-legend-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+}
+
+/* =====================================================
+   Widget 3 — Mixed Precision
+   ===================================================== */
+.tco-mp svg { display: block; }
+.tco-mp-row-label {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: end;
+}
+.tco-mp-seg rect {
+  stroke-width: 1.2;
+}
+.tco-mp-seg-params rect { fill: #bfdbfe; stroke: #2563eb; }
+.tco-mp-seg-grads  rect { fill: var(--tco-amber-bg); stroke: var(--tco-amber-bd); }
+.tco-mp-seg-label {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+.tco-mp-total {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+}
+
+/* =====================================================
+   Widget 4 — ZeRO / FSDP sharding
+   ===================================================== */
+.tco-zero-col-head {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-anchor: middle;
+  text-transform: uppercase;
+}
+.tco-zero-row-label {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 13px;
+  font-weight: 600;
+  text-anchor: end;
+}
+.tco-zero-cell {
+  stroke-width: 1.2;
+  transition: fill 220ms ease, stroke 220ms ease;
+}
+.tco-zero-cell.full {
+  fill: var(--post-bg-sub);
+  stroke: var(--post-border-s);
+}
+.tco-zero-cell.shard-0 { fill: #bfdbfe; stroke: #2563eb; }
+.tco-zero-cell.shard-1 { fill: var(--tco-amber-bg); stroke: var(--tco-amber-bd); }
+.tco-zero-cell.shard-2 { fill: var(--tco-green-bg); stroke: var(--tco-green-bd); }
+.tco-zero-cell.shard-3 { fill: var(--tco-violet-bg); stroke: var(--tco-violet-bd); }
+
+.tco-zero-desc {
+  margin-top: 4px;
+  padding: 10px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  font-size: 14.5px;
+  color: var(--post-text-mid);
+}
+
+/* =====================================================
+   Reduced motion
+   ===================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .tco-ga-mb rect,
+  .tco-ga-arrow,
+  .tco-ga-acc rect,
+  .tco-ga-opt rect,
+  .tco-gc-layer rect,
+  .tco-zero-cell {
+    transition: none !important;
+  }
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .tco-ga-controls { grid-template-columns: 1fr; }
+  .tco-ga-readout,
+  .tco-gc-readout { grid-template-columns: 1fr; }
+}

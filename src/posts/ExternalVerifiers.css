@@ -1,0 +1,230 @@
+/* src/posts/ExternalVerifiers.css
+   Widget-specific styles for the External Verifiers post. Post chrome
+   (typography, panels, header, animations) lives in PostChrome.css. */
+
+.ev-post {
+  /* Local semantic colors — green = pass, red = fail. */
+  --ev-pos:      #047857;  /* emerald-700 */
+  --ev-pos-bg:   #d1fae5;  /* emerald-100 */
+  --ev-pos-bd:   #10b981;  /* emerald-500 */
+  --ev-neg:      #b91c1c;  /* red-700 */
+  --ev-neg-bg:   #fee2e2;  /* red-100 */
+  --ev-neg-bd:   #ef4444;  /* red-500 */
+}
+
+/* =====================================================
+   Shared — prompt strip, controls, KPI counters
+   ===================================================== */
+
+.ev-prompt {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  color: var(--post-text-mid);
+  background: var(--post-accent-s);
+  border-left: 3px solid var(--post-accent);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  white-space: pre-wrap;
+}
+
+.ev-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+.ev-controls button {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.ev-controls button:hover {
+  background: var(--post-bg-sub);
+  color: var(--post-text);
+}
+.ev-controls button.active {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.ev-controls button.active:hover {
+  background: #1d4ed8;
+  color: #fff;
+}
+.ev-controls-note {
+  color: var(--post-text-mut);
+  font-size: 13px;
+  font-family: var(--post-mono);
+}
+.ev-controls-note strong { color: var(--post-text); }
+
+.ev-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+}
+.ev-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.ev-counter-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--post-text-mut);
+}
+.ev-counter-value {
+  font-family: var(--post-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--post-text);
+  font-variant-numeric: tabular-nums;
+}
+.ev-counter-sub {
+  font-size: 12px;
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+}
+
+/* =====================================================
+   STaR widget
+   ===================================================== */
+
+.ev-star-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.ev-star-card {
+  border: 2px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 130px;
+  transition: border-color 0.25s ease, background 0.25s ease, opacity 0.4s ease;
+}
+.ev-star-card.kept    { border-color: var(--ev-pos); background: var(--ev-pos-bg); }
+.ev-star-card.dropped { border-color: var(--ev-neg); background: var(--ev-neg-bg); opacity: 0.75; }
+
+.ev-star-card-tag {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.ev-star-card-text {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--post-text);
+  white-space: pre-wrap;
+  flex: 1 1 auto;
+}
+.ev-star-card-badge {
+  font-family: var(--post-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ev-star-card.kept    .ev-star-card-badge { color: var(--ev-pos); }
+.ev-star-card.dropped .ev-star-card-badge { color: var(--ev-neg); }
+
+.ev-star-corpus {
+  margin-top: 14px;
+  border: 1px dashed var(--post-border-s);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--post-bg-sub);
+}
+.ev-star-corpus-title {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.ev-star-corpus-row {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  color: var(--post-text-mid);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--post-border);
+}
+.ev-star-corpus-row:last-child { border-bottom: none; }
+
+/* =====================================================
+   ReST / RLVR widget
+   ===================================================== */
+
+.ev-rest-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.ev-rest-card {
+  border: 2px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ev-rest-card.pass { border-color: var(--ev-pos); background: var(--ev-pos-bg); }
+.ev-rest-card.fail { border-color: var(--ev-neg); background: var(--ev-neg-bg); }
+.ev-rest-card-tag {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.ev-rest-card-text {
+  font-family: var(--post-mono);
+  font-size: 14px;
+  color: var(--post-text);
+}
+.ev-rest-card-badge {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.ev-rest-card.pass .ev-rest-card-badge { color: var(--ev-pos); }
+.ev-rest-card.fail .ev-rest-card-badge { color: var(--ev-neg); }
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .ev-rest-grid { grid-template-columns: 1fr; }
+  .ev-controls { flex-direction: column; align-items: flex-start; }
+  .ev-counter { min-width: 100px; }
+}

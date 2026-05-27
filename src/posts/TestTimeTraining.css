@@ -1,0 +1,395 @@
+/* src/posts/TestTimeTraining.css
+   Widget-specific styles for the Test-Time Training post.
+   Post chrome lives in PostChrome.css. */
+
+.ttt-post {
+  --ttt-pos: #16a34a;       /* green-600 */
+  --ttt-pos-soft: #dcfce7;  /* green-100 */
+}
+
+/* =====================================================
+   Math + utility
+   ===================================================== */
+.ttt-post .ttt-math-block { margin: 14px 0 18px; font-size: 1.05rem; overflow-x: auto; }
+.ttt-post .ttt-math-inline { font-size: 1em; }
+
+.ttt-post .ttt-mono-accent {
+  color: var(--post-accent);
+  font-family: var(--post-mono);
+}
+
+/* =====================================================
+   InfoBox aside
+   ===================================================== */
+.ttt-aside {
+  margin: 28px 0;
+  padding: 16px 18px 14px;
+  border-radius: 10px;
+  background: var(--post-accent-s);
+  border: 1px solid hsl(218, 80%, 90%);
+  text-align: left;
+}
+.ttt-subhead {
+  font-family: var(--post-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--post-text);
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  line-height: 1.35;
+}
+.ttt-sub-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  background: hsl(40, 88%, 52%);
+  color: #1A1A1A;
+  font-style: italic;
+  font-weight: 600;
+}
+.ttt-aside-body p {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  line-height: 1.62;
+  color: var(--post-text-mid);
+}
+.ttt-aside-body p:last-child { margin-bottom: 0; }
+
+/* =====================================================
+   Inline h3 sub-heads inside the widget
+   ===================================================== */
+.ttt-subhead-plain {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-family: var(--post-sans);
+  font-weight: 600;
+  color: var(--post-text);
+}
+.ttt-subhead-spaced { margin-top: 36px; }
+
+/* =====================================================
+   Counters (KPI strip)
+   ===================================================== */
+.ttt-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+}
+.ttt-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.ttt-counter-label {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--post-text-mut);
+}
+.ttt-counter-value {
+  font-family: var(--post-mono);
+  font-size: 1.0rem;
+  font-weight: 700;
+  color: var(--post-text);
+  font-variant-numeric: tabular-nums;
+}
+.ttt-counter-sub {
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+}
+
+/* =====================================================
+   Controls row (slider)
+   ===================================================== */
+.ttt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+  color: var(--post-text-mid);
+}
+.ttt-controls input[type="range"] { accent-color: var(--post-accent); }
+
+/* =====================================================
+   β widget — reward / weight bars
+   ===================================================== */
+.ttt-beta-row {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr;
+  gap: 18px;
+  align-items: start;
+  margin-top: 12px;
+}
+@media (max-width: 840px) {
+  .ttt-beta-row { grid-template-columns: 1fr; }
+}
+.ttt-beta-bars {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.ttt-beta-bar-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 1fr 56px;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mid);
+  padding: 4px 0;
+}
+.ttt-beta-bar-head {
+  border-bottom: 1px solid var(--post-border);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+.ttt-beta-bar-row .label {
+  font-size: 0.7rem;
+  color: var(--post-text-mut);
+}
+.ttt-beta-track {
+  position: relative;
+  height: 12px;
+  background: var(--post-bg-sunk);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ttt-beta-track .reward-fill {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  background: hsl(218, 50%, 55%);
+  transition: width 0.3s ease;
+}
+.ttt-beta-track .weight-fill {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  background: var(--ttt-pos);
+  transition: width 0.3s ease;
+}
+
+.ttt-beta-formula-callout {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  color: var(--post-text-mid);
+  line-height: 1.55;
+}
+.ttt-beta-formula-rule {
+  border-top: 1px solid var(--post-border);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+/* =====================================================
+   θ accumulates / resets diagram
+   ===================================================== */
+.ttt-theta-diagram {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .ttt-theta-diagram { grid-template-columns: 1fr; }
+}
+.ttt-theta-cell {
+  background: #fff;
+  border: 1px solid var(--post-border);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  color: var(--post-text);
+  text-align: center;
+}
+.ttt-theta-cell .h {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  margin-bottom: 6px;
+}
+.ttt-theta-cell .b {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--post-accent);
+}
+.ttt-theta-cell-note {
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-top: 4px;
+}
+
+/* =====================================================
+   PUCT tree (kernel-mutation selection)
+   ===================================================== */
+.ttt-tree-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ttt-tree-controls button {
+  font-family: var(--post-sans);
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.ttt-tree-controls button:hover {
+  background: var(--post-bg-sub);
+}
+.ttt-tree-controls button.active {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.ttt-tree-controls button.active:hover {
+  background: #1d4ed8;
+}
+.ttt-tree-controls-status {
+  color: var(--post-text-mut);
+  font-size: 0.86rem;
+}
+
+.ttt-tree-wrap {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 10px;
+  overflow-x: auto;
+}
+.ttt-tree-wrap svg { display: block; margin: 0 auto; }
+
+.ttt-tree-node-bg {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.ttt-tree-node-bg.path    { fill: var(--post-accent-s); stroke: var(--post-accent); }
+.ttt-tree-node-bg.best    { fill: var(--ttt-pos-soft); stroke: var(--ttt-pos); }
+.ttt-tree-node-bg.visited { fill: hsl(218, 30%, 96%); }
+
+.ttt-tree-node-text {
+  font-family: var(--post-mono);
+  font-size: 10px;
+  fill: var(--post-text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.ttt-tree-edge {
+  stroke: hsl(218, 20%, 80%);
+  stroke-width: 1.5;
+  fill: none;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+.ttt-tree-edge.path {
+  stroke: var(--post-accent);
+  stroke-width: 2.5;
+}
+
+.ttt-tree-leaf-reward {
+  font-family: var(--post-mono);
+  font-size: 10px;
+  fill: var(--ttt-pos);
+  text-anchor: middle;
+  font-weight: 700;
+}
+
+/* =====================================================
+   Mini-comparison table (naive RL vs TTT-Discover)
+   ===================================================== */
+.ttt-mini-compare {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr;
+  background: var(--post-border);
+  gap: 1px;
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  margin: 14px 0 18px;
+}
+.ttt-mini-compare > div {
+  background: #fff;
+  padding: 10px 12px;
+  color: var(--post-text-mid);
+  line-height: 1.55;
+}
+.ttt-mini-compare .head {
+  background: var(--post-bg-sub);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.ttt-mini-compare .axis {
+  background: var(--post-bg-sub);
+  color: var(--post-text);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .ttt-mini-compare {
+    grid-template-columns: 1fr;
+    font-size: 0.84rem;
+  }
+  .ttt-mini-compare .head { display: none; }
+  .ttt-mini-compare .axis {
+    border-top: 1px solid var(--post-border);
+    padding-top: 10px;
+    font-size: 0.78rem;
+  }
+}
+
+/* =====================================================
+   List items
+   ===================================================== */
+.ttt-post ul {
+  margin: 0 0 18px;
+  padding-left: 22px;
+  color: var(--post-text-mid);
+  font-size: 17.5px;
+  line-height: 1.7;
+}
+.ttt-post ul li { margin-bottom: 8px; }
+.ttt-post ul li strong { color: var(--post-text); font-weight: 600; }

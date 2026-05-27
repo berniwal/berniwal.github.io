@@ -1,0 +1,344 @@
+/* src/posts/InferenceCostOptimization.css
+   Widget-specific styles for the Optimizing Inference Cost post.
+   Post chrome (typography, panels, header, animations) lives in PostChrome.css.
+   Tokens are mapped to the new-era post-* palette; legacy --paper/--ink
+   tokens are not used. */
+
+.ico-post {
+  --ico-pos: #047857;   /* emerald-700 */
+  --ico-neg: #b91c1c;   /* red-700 */
+}
+
+/* ===== Panel internals ===== */
+.ico-post .viz-panel {
+  background: var(--post-bg);
+  border: 1px solid var(--post-border);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 24px 0 28px;
+  min-width: 0;
+}
+
+.ico-post .viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+}
+.ico-post .viz-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--post-text-mid);
+  font-family: var(--post-sans);
+}
+.ico-post .viz-controls button {
+  font-family: var(--post-sans);
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.ico-post .viz-controls button:hover {
+  border-color: var(--post-border-s);
+}
+.ico-post .viz-controls button.active {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.ico-post .viz-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ico-post .viz-mat-label {
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.ico-post .viz-caption {
+  font-size: 0.9rem;
+  color: var(--post-text-mid);
+  margin-top: 14px;
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.ico-post .viz-math-block { margin: 14px 0 18px; font-size: 1.05rem; overflow-x: auto; }
+.ico-post .viz-math-inline { font-size: 1em; }
+
+.ico-post .viz-code {
+  font-family: var(--post-mono);
+  font-size: 0.85rem;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin: 16px 0 0;
+  overflow-x: auto;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+/* ===== Tabs (shared) ===== */
+.ico-post .viz-tabs {
+  display: inline-flex;
+  background: var(--post-accent-s);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.ico-post .viz-tab {
+  font-family: var(--post-sans);
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  color: var(--post-text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+.ico-post .viz-tab.active {
+  background: var(--post-accent);
+  color: #fff;
+}
+
+/* ===== Widget 1 — GQA / MQA head schematic ===== */
+.ico-post .viz-heads-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.ico-post .viz-heads-stack {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+.ico-post .viz-heads-bar {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0;
+}
+.ico-post .viz-heads-cell {
+  height: 26px;
+  border-radius: 4px;
+  background: var(--post-accent-s);
+  border: 1px solid var(--post-border-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  color: var(--post-text);
+}
+.ico-post .viz-heads-cell.q { background: hsl(218, 55%, 88%); border-color: hsl(218, 55%, 70%); }
+.ico-post .viz-heads-cell.k { background: hsl(148, 40%, 88%); border-color: hsl(148, 40%, 70%); }
+.ico-post .viz-heads-cell.v { background: hsl(28, 60%, 88%); border-color: hsl(28, 60%, 70%); }
+
+.ico-post .viz-heads-legend {
+  font-family: var(--post-mono);
+  font-size: 0.74rem;
+  color: var(--post-text-mut);
+  margin-top: 8px;
+}
+
+.ico-post .viz-cache-table {
+  flex: 0 0 240px;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.ico-post .viz-cache-table h5 {
+  font-family: var(--post-sans);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--post-text-mut);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.ico-post .viz-cache-table-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--post-border);
+  color: var(--post-text-mid);
+}
+.ico-post .viz-cache-table-row:last-child { border-bottom: 0; }
+.ico-post .viz-cache-table-row strong { color: var(--post-text); }
+
+.ico-in-wild {
+  margin-top: 18px;
+  padding: 10px 12px;
+  background: var(--post-accent-s);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--post-text-mid);
+  font-family: var(--post-sans);
+}
+
+/* ===== Widget 2 — PagedAttention ===== */
+.ico-post .ico-paged-step {
+  color: var(--post-text-mid);
+  font-size: 0.9rem;
+  font-family: var(--post-sans);
+}
+
+.ico-post .viz-paged-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 14px;
+}
+.ico-post .viz-paged-side {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.ico-post .viz-paged-side h5 {
+  font-family: var(--post-sans);
+  font-size: 0.85rem;
+  margin: 0 0 8px;
+  color: var(--post-text);
+  font-weight: 600;
+}
+.ico-post .viz-paged-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+}
+.ico-post .viz-slot {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: #fff;
+  border: 1px solid var(--post-border);
+  font-family: var(--post-mono);
+  font-size: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--post-text-mut);
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+.ico-post .viz-slot.req-a { background: hsl(218, 55%, 75%); border-color: hsl(218, 55%, 55%); color: #fff; }
+.ico-post .viz-slot.req-b { background: hsl(28, 65%, 70%);  border-color: hsl(28, 65%, 50%);  color: #fff; }
+.ico-post .viz-slot.reserved-a { background: hsl(218, 55%, 92%); border-color: hsl(218, 55%, 70%); }
+.ico-post .viz-slot.reserved-b { background: hsl(28, 65%, 92%);  border-color: hsl(28, 65%, 70%); }
+
+.ico-post .viz-block-table {
+  margin-top: 10px;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+}
+.ico-post .viz-block-table-row {
+  padding: 3px 0;
+  color: var(--post-text-mid);
+}
+.ico-post .viz-block-table-row strong { color: var(--post-text); }
+.ico-post .viz-block-table-row.ico-neg { color: var(--ico-neg); }
+.ico-post .viz-block-table-row.ico-pos { color: var(--ico-pos); }
+.ico-post .viz-block-table-row.ico-neg strong { color: var(--ico-neg); }
+.ico-post .viz-block-table-row.ico-pos strong { color: var(--ico-pos); }
+
+/* ===== Widget 3 — Continuous batching gantt ===== */
+.ico-post .viz-gantt { margin-top: 14px; }
+.ico-post .viz-gantt-row {
+  display: grid;
+  align-items: center;
+  margin: 6px 0;
+}
+.ico-post .viz-gantt-label {
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  color: var(--post-text-mid);
+  padding-right: 10px;
+}
+.ico-post .viz-gantt-cells {
+  display: grid;
+  gap: 2px;
+}
+.ico-post .viz-gantt-cell {
+  height: 22px;
+  border-radius: 3px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  font-family: var(--post-mono);
+  font-size: 0.6rem;
+  color: var(--post-text-mut);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ico-post .viz-gantt-cell.a-prompt { background: hsl(218, 55%, 75%); color: #fff; border-color: hsl(218, 55%, 55%); }
+.ico-post .viz-gantt-cell.a-decode { background: hsl(218, 55%, 88%); color: hsl(218, 55%, 30%); border-color: hsl(218, 55%, 65%); }
+.ico-post .viz-gantt-cell.b-prompt { background: hsl(28, 65%, 72%); color: #fff; border-color: hsl(28, 65%, 50%); }
+.ico-post .viz-gantt-cell.b-decode { background: hsl(28, 65%, 88%); color: hsl(28, 65%, 30%); border-color: hsl(28, 65%, 60%); }
+.ico-post .viz-gantt-cell.pad      { background: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 3px, #e2e8f0 3px, #e2e8f0 6px); color: transparent; }
+.ico-post .viz-gantt-cell.idle     { background: #fff; color: transparent; }
+
+.ico-post .viz-gantt-axis {
+  display: grid;
+  margin-top: 8px;
+  font-family: var(--post-mono);
+  font-size: 0.66rem;
+  color: var(--post-text-mut);
+}
+.ico-post .viz-gantt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mid);
+}
+.ico-post .viz-gantt-legend strong.ico-neg { color: var(--ico-neg); }
+.ico-post .viz-gantt-legend strong.ico-pos { color: var(--ico-pos); }
+.ico-post .viz-gantt-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  margin-right: 4px;
+  vertical-align: -3px;
+  border: 1px solid var(--post-border);
+}
+.ico-post .viz-gantt-swatch.ico-swatch-pad {
+  background: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 3px, #e2e8f0 3px, #e2e8f0 6px);
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 720px) {
+  .ico-post .viz-heads-row { flex-direction: column; }
+  .ico-post .viz-cache-table { flex: 1 1 auto; width: 100%; }
+  .ico-post .viz-paged-pair { grid-template-columns: 1fr; }
+  .ico-post .viz-paged-grid { grid-template-columns: repeat(8, 1fr); }
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .ico-post .viz-slot,
+  .ico-post .viz-gantt-cell,
+  .ico-post .viz-tab,
+  .ico-post .viz-controls button {
+    transition: none !important;
+  }
+}

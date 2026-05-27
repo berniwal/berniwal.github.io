@@ -1,6 +1,6 @@
 // src/App.js
 import React, { useEffect, useState } from 'react';
-import { HashRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { HashLink } from 'react-router-hash-link';
 import './App.css';
 import MainPage from './MainPage';
@@ -137,6 +137,14 @@ function App() {
         <Nav />
         <Routes>
           <Route path="/" element={<MainPage />} />
+          {/* Legacy slug — the old Visualizing Attention post was split into
+              three; self-attention is the closest match in content. */}
+          <Route path="/blog/visualizing-attention" element={<Navigate to="/blog/self-attention" replace />} />
+          <Route path="/blog/visualizing-kv-cache" element={<Navigate to="/blog/inference-cost" replace />} />
+          <Route path="/blog/visualizing-rope" element={<Navigate to="/blog/rope" replace />} />
+          <Route path="/blog/visualizing-rlhf" element={<Navigate to="/blog/rlhf-and-ppo" replace />} />
+          <Route path="/blog/visualizing-self-improvement" element={<Navigate to="/blog/alphago-to-alphazero" replace />} />
+          <Route path="/blog/visualizing-symbolic-regression" element={<Navigate to="/blog/symbolic-regression-arena" replace />} />
           <Route path="/blog/:slug" element={<Blog />} />
         </Routes>
         <SiteFooter />

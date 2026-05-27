@@ -1,0 +1,162 @@
+/* src/posts/PositionalEncodings.css
+   Widget-specific styles for the Positional Encodings tour (Part 1).
+   Post chrome (typography, panels, header, animations) lives in
+   PostChrome.css. Tokens converted from the legacy paper/ink palette
+   to the post-2026 slate palette. */
+
+/* =====================================================
+   Shared widget chrome (controls, tabs, math, captions)
+   ===================================================== */
+.pe-post .viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+.pe-post .viz-controls button {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.pe-post .viz-controls button:hover {
+  background: var(--post-bg-sub);
+  color: var(--post-text);
+}
+.pe-post .viz-controls button.active {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+
+.pe-post .viz-tabs {
+  display: inline-flex;
+  background: var(--post-bg-sunk);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.pe-post .viz-tab {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--post-text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 120ms ease;
+}
+.pe-post .viz-tab:hover { color: var(--post-text); }
+.pe-post .viz-tab.active {
+  background: var(--post-accent);
+  color: #fff;
+}
+
+.pe-post .viz-math-block { margin: 12px 0 14px; font-size: 1.02rem; overflow-x: auto; }
+.pe-post .viz-math-inline { font-size: 1em; }
+
+/* =====================================================
+   Token pills (permutation widget)
+   ===================================================== */
+.pe-post .viz-token-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+}
+.pe-post .viz-token-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--post-accent-s);
+  border: 1px solid color-mix(in srgb, var(--post-accent) 25%, var(--post-border));
+  min-width: 36px;
+}
+.pe-post .viz-token-text {
+  font-family: var(--post-mono);
+  font-size: 14px;
+  color: var(--post-text);
+}
+.pe-post .viz-token-pos {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  color: var(--post-text-mut);
+  margin-top: 2px;
+}
+
+/* =====================================================
+   Heatmap grid (both widgets)
+   ===================================================== */
+.pe-post .pe-grid {
+  display: grid;
+  gap: 2px;
+  background: var(--post-border);
+  padding: 2px;
+  border-radius: 4px;
+  width: fit-content;
+}
+.pe-post .pe-grid-head {
+  background: transparent;
+  color: var(--post-text-mut);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  padding: 4px;
+}
+.pe-post .pe-grid-rowhead {
+  background: transparent;
+  color: var(--post-text-mut);
+  font-size: 12px;
+  font-style: italic;
+  text-align: right;
+  padding: 4px 6px;
+  align-self: center;
+}
+.pe-post .pe-grid-cell {
+  font-family: var(--post-mono);
+  font-size: 12px;
+  padding: 4px;
+  text-align: right;
+}
+
+/* =====================================================
+   Zoo widget
+   ===================================================== */
+.pe-post .pe-mm-title {
+  font-family: var(--post-mono);
+  font-size: 12px;
+  color: var(--post-text-mut);
+  margin-bottom: 6px;
+}
+.pe-post .pe-zoo-caption {
+  font-size: 15px;
+  color: var(--post-text-mid);
+  margin: 8px 0 14px;
+  line-height: 1.6;
+}
+.pe-post .pe-zoo-panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .pe-post .viz-tabs { width: 100%; justify-content: center; }
+  .pe-post .pe-zoo-panels { gap: 16px; }
+}

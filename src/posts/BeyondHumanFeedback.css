@@ -1,0 +1,389 @@
+/* src/posts/BeyondHumanFeedback.css
+   Widget-specific styles for the Beyond Human Feedback post. Post chrome
+   (typography, panels, header, animations) lives in PostChrome.css. */
+
+.bhf-post {
+  --bhf-pos: #10b981;
+  --bhf-pos-soft: #d1fae5;
+  --bhf-neg: #ef4444;
+  --bhf-neg-soft: #fee2e2;
+}
+
+/* ============================================================
+   Math blocks
+   ============================================================ */
+.bhf-post .bhf-math-block {
+  margin: 14px 0 18px;
+  font-size: 1.02rem;
+  overflow-x: auto;
+}
+.bhf-post .bhf-math-inline { font-size: 1em; }
+
+/* ============================================================
+   Aside / InfoBox
+   ============================================================ */
+.bhf-post .bhf-aside {
+  margin: 22px 0 26px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid var(--post-accent);
+}
+.bhf-post .bhf-aside-head {
+  font-family: var(--post-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--post-text);
+}
+.bhf-post .bhf-aside-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: hsl(40, 88%, 52%);
+  color: #1A1A1A;
+  font-style: italic;
+}
+.bhf-post .bhf-aside-body p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.62;
+  color: var(--post-text-mid);
+}
+
+/* ============================================================
+   Bulleted list
+   ============================================================ */
+.bhf-post .bhf-list {
+  padding-left: 1.4rem;
+  margin: 10px 0 16px;
+}
+.bhf-post .bhf-list li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+  color: var(--post-text-mid);
+}
+
+/* ============================================================
+   Tabs (RLAIF principle / ORM-PRM / verifier-RM)
+   ============================================================ */
+.bhf-post .bhf-tabs {
+  display: inline-flex;
+  background: #eef2ff;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.bhf-post .bhf-tab {
+  font-family: var(--post-sans);
+  font-size: 0.86rem;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--post-text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.bhf-post .bhf-tab:hover { color: var(--post-text); }
+.bhf-post .bhf-tab.active {
+  background: var(--post-accent);
+  color: #fff;
+}
+
+/* ============================================================
+   Prompt box (used by all widgets)
+   ============================================================ */
+.bhf-post .bhf-prompt {
+  font-family: var(--post-mono);
+  font-size: 0.92rem;
+  background: var(--post-bg-sunk);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 6px 0 14px;
+  color: var(--post-text);
+}
+
+/* ============================================================
+   RLAIF widget
+   ============================================================ */
+.bhf-post .bhf-principle {
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: hsl(218, 30%, 98%);
+  margin: 0 0 12px;
+  font-family: var(--post-sans);
+  font-style: italic;
+  color: var(--post-text-mid);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+.bhf-post .bhf-principle strong {
+  font-style: normal;
+  color: var(--post-text);
+  font-weight: 600;
+}
+
+.bhf-post .bhf-pair-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .bhf-post .bhf-pair-pick { grid-template-columns: 1fr; }
+}
+
+.bhf-post .bhf-candidate {
+  border: 2px solid var(--post-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  font-family: var(--post-sans);
+  font-size: 0.96rem;
+  line-height: 1.55;
+  text-align: left;
+  color: var(--post-text);
+  min-height: 130px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.bhf-post .bhf-candidate.locked-chosen {
+  border-color: var(--bhf-pos);
+  background: var(--bhf-pos-soft);
+}
+.bhf-post .bhf-candidate.locked-rejected {
+  border-color: var(--post-border-s);
+  background: #f8fafc;
+  opacity: 0.72;
+}
+.bhf-post .bhf-candidate-tag {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  margin-bottom: 8px;
+}
+
+.bhf-post .bhf-critique {
+  font-family: var(--post-mono);
+  font-size: 0.85rem;
+  background: #f1f5f9;
+  color: var(--post-text);
+  padding: 10px 14px;
+  border-radius: 8px;
+  line-height: 1.55;
+  margin-top: 12px;
+  border: 1px solid var(--post-border);
+}
+.bhf-post .bhf-critique .label {
+  color: var(--post-accent);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Process-reward chain
+   ============================================================ */
+.bhf-post .bhf-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.bhf-post .bhf-step {
+  display: grid;
+  grid-template-columns: 36px 1fr 70px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.bhf-post .bhf-step:hover { background: hsl(218, 30%, 99%); }
+.bhf-post .bhf-step.active {
+  border-color: var(--post-accent);
+  background: var(--post-accent-s);
+}
+.bhf-post .bhf-step-num {
+  font-family: var(--post-mono);
+  font-weight: 700;
+  color: var(--post-text-mut);
+  font-size: 1.1rem;
+  text-align: center;
+}
+.bhf-post .bhf-step-body {
+  font-family: var(--post-mono);
+  font-size: 0.92rem;
+  color: var(--post-text);
+  white-space: pre-wrap;
+}
+.bhf-post .bhf-step-reward {
+  text-align: right;
+  font-family: var(--post-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.bhf-post .bhf-step-reward.pos { color: var(--bhf-pos); }
+.bhf-post .bhf-step-reward.neg { color: var(--bhf-neg); }
+.bhf-post .bhf-step-reward.muted { color: var(--post-text-mut); font-weight: 400; }
+
+.bhf-post .bhf-critique-line {
+  font-family: var(--post-sans);
+  font-size: 0.9rem;
+  color: var(--post-text-mid);
+  font-style: italic;
+  margin-top: 10px;
+  padding-left: 14px;
+  border-left: 3px solid var(--post-accent-s);
+}
+
+/* ============================================================
+   RLVR cards
+   ============================================================ */
+.bhf-post .bhf-rlvr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 6px 0 4px;
+}
+@media (max-width: 720px) {
+  .bhf-post .bhf-rlvr-grid { grid-template-columns: 1fr; }
+}
+.bhf-post .bhf-rlvr-card {
+  border: 2px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+.bhf-post .bhf-rlvr-card.pass {
+  border-color: var(--bhf-pos);
+  background: var(--bhf-pos-soft);
+}
+.bhf-post .bhf-rlvr-card.fail {
+  border-color: var(--bhf-neg);
+  background: var(--bhf-neg-soft);
+}
+.bhf-post .bhf-rlvr-tag {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.bhf-post .bhf-rlvr-text {
+  font-family: var(--post-mono);
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  color: var(--post-text);
+  flex: 1 1 auto;
+}
+.bhf-post .bhf-rlvr-badge {
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--post-text-mid);
+}
+.bhf-post .bhf-rlvr-card.pass .bhf-rlvr-badge { color: var(--bhf-pos); }
+.bhf-post .bhf-rlvr-card.fail .bhf-rlvr-badge { color: var(--bhf-neg); }
+.bhf-post .bhf-rlvr-meta {
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mid);
+}
+.bhf-post .bhf-rlvr-bar-track {
+  position: relative;
+  height: 12px;
+  background: hsl(218, 20%, 94%);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.bhf-post .bhf-rlvr-bar-track .center-line {
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 1px;
+  background: hsl(218, 20%, 70%);
+}
+.bhf-post .bhf-rlvr-bar-fill {
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  transition: width 0.35s ease, transform 0.35s ease;
+  border-radius: 6px;
+}
+.bhf-post .bhf-rlvr-bar-fill.pos { background: var(--bhf-pos); }
+.bhf-post .bhf-rlvr-bar-fill.neg { background: var(--bhf-neg); }
+
+/* ============================================================
+   KPI counters (shared across widgets)
+   ============================================================ */
+.bhf-post .bhf-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: hsl(218, 30%, 98%);
+  border-radius: 8px;
+  border: 1px solid var(--post-border);
+}
+.bhf-post .bhf-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.bhf-post .bhf-counter-label {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--post-text-mut);
+}
+.bhf-post .bhf-counter-value {
+  font-family: var(--post-mono);
+  font-size: 1.0rem;
+  font-weight: 700;
+  color: var(--post-text);
+  font-variant-numeric: tabular-nums;
+}
+.bhf-post .bhf-counter-sub {
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .bhf-post * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

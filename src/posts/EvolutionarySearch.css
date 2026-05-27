@@ -1,0 +1,157 @@
+/* src/posts/EvolutionarySearch.css
+   Self-Improvement · Part 4 — Evolutionary Search.
+   Scoped under .es-post. Chrome tokens come from PostChrome.css. */
+
+/* =====================================================
+   Math
+   ===================================================== */
+.es-post .es-math-block  { display: block; margin: 14px 0 18px; font-size: 1.05rem; overflow-x: auto; }
+.es-post .es-math-inline { font-size: 1em; }
+
+/* =====================================================
+   Controls bar inside the evolution panel
+   ===================================================== */
+.es-post .es-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 18px;
+  font-size: 0.92rem;
+}
+
+.es-post .es-controls button {
+  font-family: var(--post-sans);
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.es-post .es-controls button:hover { background: var(--post-bg-sub); }
+.es-post .es-controls button.active {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.es-post .es-controls button.active:hover { background: var(--post-accent); }
+
+.es-post .es-controls-meta {
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 0.84rem;
+}
+.es-post .es-controls-meta strong { color: var(--post-text); }
+.es-post .es-controls-fit { color: #16a34a !important; }
+
+/* =====================================================
+   Evolution banner (frozen-theta callout)
+   ===================================================== */
+.es-post .es-evo-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: hsl(40, 88%, 95%);
+  border: 1px solid hsl(40, 88%, 82%);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--post-mono);
+  font-size: 0.84rem;
+  color: hsl(40, 50%, 28%);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.es-post .es-evo-banner strong { color: hsl(40, 88%, 32%); }
+.es-post .es-evo-banner em { color: hsl(40, 50%, 28%); }
+
+/* =====================================================
+   Card grid
+   ===================================================== */
+.es-post .es-evo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+@media (max-width: 720px) {
+  .es-post .es-evo-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.es-post .es-evo-card {
+  border: 2px solid var(--post-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 110px;
+  transition: border-color 0.25s ease, background 0.25s ease,
+              opacity 0.3s ease, transform 0.3s ease;
+}
+
+.es-post .es-evo-card.born {
+  border-color: var(--post-accent);
+  background: var(--post-accent-s);
+}
+
+.es-post .es-evo-card.elder {
+  opacity: 0.85;
+}
+
+.es-post .es-evo-card-tag {
+  font-family: var(--post-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+}
+
+.es-post .es-evo-card-code {
+  font-family: var(--post-mono);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--post-text);
+  flex: 1 1 auto;
+  white-space: pre-wrap;
+}
+
+.es-post .es-evo-card-fitness {
+  font-family: var(--post-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+/* =====================================================
+   Sparkline
+   ===================================================== */
+.es-post .es-evo-spark {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+
+.es-post .es-evo-spark-label {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  margin-bottom: 6px;
+}
+
+/* =====================================================
+   Reduced motion
+   ===================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .es-post .es-evo-card {
+    transition: none !important;
+  }
+}

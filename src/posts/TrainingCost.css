@@ -1,0 +1,465 @@
+/* src/posts/TrainingCost.css
+   Widget styles for "Training Cost of a Transformer" (Transformer Costs · Part 1).
+   Post chrome (typography, panels, animations) lives in PostChrome.css.
+   Slug-prefix: tc-* */
+
+.tc-post {
+  --tc-blue:    #2563eb;
+  --tc-blue-s:  #eff6ff;
+  --tc-amber:   #d97706;
+  --tc-amber-s: #fef3c7;
+  --tc-green:   #047857;
+  --tc-green-s: #d1fae5;
+}
+
+/* ===== Math glue ===== */
+.tc-math-block { display: block; margin: 14px 0 18px; font-size: 1.02rem; overflow-x: auto; }
+.tc-math-inline { font-size: 1em; }
+
+/* ===== Lists ===== */
+.tc-post .tc-list {
+  margin: 0 0 22px;
+  padding-left: 1.2rem;
+  color: var(--post-text-mid);
+  font-size: 17px;
+  line-height: 1.7;
+}
+.tc-post .tc-list li { margin-bottom: 8px; }
+.tc-post .tc-list strong { color: var(--post-text); font-weight: 600; }
+
+/* =====================================================
+   Widget 1 — Transformer layer diagram (forward / backward)
+   ===================================================== */
+/* Diagram is now wrapped in .viz-panel — PostChrome.css handles the reveal
+   animation, hover lift, border, and shadow. We only override the inner
+   flex layout. */
+.tc-arch-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tc-arch-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.tc-arch-tab {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.tc-arch-tab:hover { color: var(--post-text); }
+.tc-arch-tab.active {
+  background: var(--post-text);
+  color: #fff;
+}
+
+.tc-arch-section {
+  width: 100%;
+  max-width: 760px;
+  background: #fff;
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 14px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.tc-arch-section-label {
+  font-family: var(--post-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--post-text-mid);
+  margin-bottom: 8px;
+  align-self: flex-start;
+  padding-left: 4px;
+}
+.tc-arch-parallel {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+}
+.tc-arch-arrow {
+  font-size: 0.85rem;
+  color: var(--post-text-fnt);
+  line-height: 1;
+  margin: 2px 0;
+}
+.tc-arch-block {
+  background: #fff;
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 160px;
+  max-width: 240px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+.tc-arch-block-op { background: #fff; }
+.tc-arch-block-io {
+  background: var(--post-bg-sub);
+  border-style: dashed;
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 0.85rem;
+  padding: 8px 14px;
+}
+.tc-arch-block-saved {
+  border-color: hsl(28, 75%, 60%);
+  background: hsl(28, 80%, 97%);
+  box-shadow: 0 0 0 1px hsl(28, 75%, 75%);
+}
+.tc-arch-name {
+  font-family: var(--post-sans);
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--post-text);
+  margin-bottom: 2px;
+}
+.tc-arch-shape {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  color: var(--post-text-mut);
+  margin-bottom: 4px;
+}
+.tc-arch-flops {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.tc-arch-formula {
+  font-family: var(--post-mono);
+  font-size: 0.86rem;
+  color: var(--post-accent);
+  font-weight: 600;
+}
+.tc-arch-numeric {
+  font-family: var(--post-mono);
+  font-size: 0.74rem;
+  color: var(--post-text-mid);
+  font-variant-numeric: tabular-nums;
+}
+.tc-arch-flops-mem {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed var(--post-border);
+}
+.tc-arch-flops-mem .tc-arch-formula { color: hsl(28, 65%, 42%); font-weight: 500; }
+.tc-arch-flops-mem .tc-arch-numeric { color: hsl(28, 65%, 32%); }
+.tc-arch-badge {
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  font-family: var(--post-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #fff;
+  background: hsl(148, 35%, 40%);
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tc-arch-total {
+  margin-top: 14px;
+  font-family: var(--post-mono);
+  font-size: 0.88rem;
+  color: var(--post-text-mid);
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px dashed var(--post-border);
+  border-radius: 8px;
+  text-align: left;
+  max-width: 760px;
+  width: 100%;
+}
+.tc-arch-total-line {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+}
+.tc-arch-total-key {
+  font-family: var(--post-sans);
+  font-size: 0.74rem;
+  color: var(--post-text-mut);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tc-arch-total-formula {
+  color: var(--post-accent);
+  font-weight: 500;
+}
+.tc-arch-total-mem .tc-arch-total-formula { color: hsl(28, 65%, 42%); }
+.tc-arch-total-value {
+  font-family: var(--post-mono);
+  font-variant-numeric: tabular-nums;
+}
+.tc-arch-total-value strong { color: var(--post-text); font-weight: 600; }
+.tc-arch-total-note {
+  display: block;
+  font-family: var(--post-sans);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-top: 6px;
+  font-style: italic;
+  text-align: center;
+}
+
+/* =====================================================
+   Widget 2 — Cost breakdown
+   ===================================================== */
+.tc-cost-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 6px;
+}
+.tc-cost-col {
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--post-border);
+}
+.tc-cost-fwd { background: var(--post-bg-sub); }
+.tc-cost-bwd { background: hsl(218, 40%, 97%); border-color: hsl(218, 40%, 88%); }
+.tc-cost-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--post-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--post-text);
+  margin-bottom: 10px;
+}
+.tc-cost-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  font-family: var(--post-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+}
+.tc-cost-badge-fwd { background: var(--post-text-mid); }
+.tc-cost-badge-bwd { background: var(--post-accent); }
+.tc-cost-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--post-border);
+  font-size: 0.92rem;
+  color: var(--post-text-mid);
+  line-height: 1.45;
+}
+.tc-cost-row:last-of-type { border-bottom: none; }
+.tc-cost-row strong { color: var(--post-text); }
+.tc-cost-row em { color: var(--post-text-mut); font-style: italic; font-size: 0.84em; margin-left: 4px; }
+.tc-cost-mag {
+  font-family: var(--post-mono);
+  font-size: 0.86rem;
+  color: var(--post-text);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.tc-cost-total {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: var(--post-accent-s);
+  border-left: 3px solid var(--post-accent);
+  border-radius: 6px;
+  font-family: var(--post-mono);
+  font-size: 0.88rem;
+  color: var(--post-text);
+}
+.tc-cost-total em {
+  color: var(--post-text-mut);
+  font-style: italic;
+  font-family: var(--post-sans);
+  font-size: 0.82rem;
+}
+.tc-cost-sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+}
+.tc-cost-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--post-mono);
+  font-size: 0.88rem;
+  color: var(--post-text-mid);
+}
+.tc-cost-slider-label em {
+  color: var(--post-text-mut);
+  font-style: italic;
+  font-family: var(--post-sans);
+  font-size: 0.78rem;
+  margin-left: 2px;
+}
+.tc-cost-slider-label strong {
+  color: var(--post-accent);
+  font-family: var(--post-mono);
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+.tc-cost-slider input[type="range"] {
+  accent-color: var(--post-accent);
+  width: 100%;
+}
+.tc-cost-readouts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.tc-cost-readout {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+}
+.tc-cost-readout-label {
+  font-family: var(--post-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  margin-bottom: 2px;
+}
+.tc-cost-readout-value {
+  font-family: var(--post-mono);
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--post-text);
+}
+.tc-cost-readout-sub {
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-top: 4px;
+}
+
+/* =====================================================
+   Widget 3 — Training memory footprint
+   ===================================================== */
+.tc-mem-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.tc-mem-bar {
+  display: flex;
+  width: 100%;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--post-border);
+  background: var(--post-bg-sunk);
+}
+.tc-mem-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: width 280ms cubic-bezier(.2, .7, .2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.tc-mem-seg-label {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.tc-mem-legend {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tc-mem-legend-row {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  font-size: 14px;
+  color: var(--post-text-mid);
+  border-bottom: 1px dashed var(--post-border);
+}
+.tc-mem-legend-row:last-child { border-bottom: none; }
+.tc-mem-legend-total { border-top: 1px solid var(--post-border); padding-top: 8px; }
+.tc-mem-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.tc-mem-legend-label { font-family: var(--post-sans); }
+.tc-mem-legend-value {
+  font-family: var(--post-mono);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--post-text);
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 760px) {
+  .tc-cost-pair { grid-template-columns: 1fr; }
+  .tc-cost-readouts { grid-template-columns: 1fr; }
+  .tc-mem-controls { grid-template-columns: 1fr; gap: 14px; }
+  .tc-arch-total-line { grid-template-columns: 1fr; }
+  .tc-arch-block { min-width: 130px; max-width: 100%; padding: 8px 10px; }
+  .tc-arch-formula { font-size: 0.8rem; }
+  .tc-arch-section { padding: 10px; }
+}
+
+/* =====================================================
+   Reduced motion
+   ===================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .tc-arch-diagram {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .tc-mem-seg { transition: none !important; }
+}

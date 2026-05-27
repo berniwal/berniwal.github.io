@@ -1,0 +1,202 @@
+/* src/posts/BeyondPpo.css
+   Widget-specific styles for the Beyond PPO post. Post chrome (typography,
+   panels, header, animations) lives in PostChrome.css. */
+
+.bp-post {
+  --bp-pos: #10b981;
+  --bp-pos-soft: #d1fae5;
+  --bp-neg: #94a3b8;
+  --bp-neg-soft: #f1f5f9;
+}
+
+/* ============================================================
+   Math blocks
+   ============================================================ */
+.bp-post .bp-math-block {
+  margin: 14px 0 18px;
+  font-size: 1.02rem;
+  overflow-x: auto;
+}
+.bp-post .bp-math-sub {
+  font-size: 0.9rem;
+  color: var(--post-text-mid);
+  margin-top: -6px;
+}
+.bp-post .bp-math-inline { font-size: 1em; }
+
+/* ============================================================
+   Aside / InfoBox
+   ============================================================ */
+.bp-post .bp-aside {
+  margin: 22px 0 26px;
+  padding: 14px 18px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid var(--post-accent);
+}
+.bp-post .bp-aside-head {
+  font-family: var(--post-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--post-text);
+}
+.bp-post .bp-aside-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: hsl(40, 88%, 52%);
+  color: #1A1A1A;
+  font-style: italic;
+}
+.bp-post .bp-aside-body p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.62;
+  color: var(--post-text-mid);
+}
+
+/* ============================================================
+   Ordered list (DAPO refinements)
+   ============================================================ */
+.bp-post .bp-list {
+  padding-left: 1.4rem;
+  margin: 14px 0 22px;
+}
+.bp-post .bp-list li {
+  margin-bottom: 14px;
+  line-height: 1.65;
+  color: var(--post-text-mid);
+}
+.bp-post .bp-list li strong {
+  color: var(--post-text);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Comparison widget — tabs, method-component grid
+   ============================================================ */
+.bp-post .bp-compare {
+  /* inherits .viz-panel chrome from PostChrome.css */
+}
+
+.bp-post .bp-tabs {
+  display: inline-flex;
+  background: #eef2ff;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.bp-post .bp-tab {
+  font-family: var(--post-sans);
+  font-size: 0.86rem;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--post-text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.bp-post .bp-tab:hover { color: var(--post-text); }
+.bp-post .bp-tab.active {
+  background: var(--post-accent);
+  color: #fff;
+}
+
+.bp-post .bp-compare-caption {
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin: 4px 0 8px;
+  letter-spacing: 0.02em;
+}
+
+.bp-post .bp-method-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 6px 0 18px;
+}
+@media (max-width: 720px) {
+  .bp-post .bp-method-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.bp-post .bp-method-box {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text);
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.bp-post .bp-method-box.active {
+  border-color: var(--post-accent);
+  background: #eef4ff;
+}
+.bp-post .bp-method-box.inactive {
+  opacity: 0.42;
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.bp-post .bp-box-tag {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.bp-post .bp-box-name {
+  font-size: 0.92rem;
+  color: var(--post-text);
+  font-weight: 600;
+}
+.bp-post .bp-box-note {
+  font-size: 0.72rem;
+  color: var(--post-text-mut);
+  line-height: 1.4;
+  margin-top: auto;
+}
+
+.bp-post .bp-compare-summary {
+  font-size: 0.96rem;
+  color: var(--post-text-mid);
+  margin: 10px 0 8px;
+  line-height: 1.62;
+}
+.bp-post .bp-compare-source {
+  font-size: 0.85rem;
+  color: var(--post-text-mut);
+  margin: 0;
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .bp-post * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

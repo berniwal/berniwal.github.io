@@ -5,23 +5,51 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { blogPosts } from './blogPosts';
-import VisualizingAttention from './posts/VisualizingAttention';
-import VisualizingKVCache from './posts/VisualizingKVCache';
-import VisualizingRoPE from './posts/VisualizingRoPE';
-import VisualizingRLHF from './posts/VisualizingRLHF';
-import VisualizingSelfImprovement from './posts/VisualizingSelfImprovement';
-import VisualizingSymbolicRegression from './posts/VisualizingSymbolicRegression';
+import NlpHistory from './posts/NlpHistory';
+import SelfAttention from './posts/SelfAttention';
+import FromAttentionToTransformer from './posts/FromAttentionToTransformer';
+import TrainingCost from './posts/TrainingCost';
+import TrainingCostOptimization from './posts/TrainingCostOptimization';
+import InferenceCost from './posts/InferenceCost';
+import InferenceCostOptimization from './posts/InferenceCostOptimization';
+import PositionalEncodings from './posts/PositionalEncodings';
+import RotaryPositionalEmbeddings from './posts/RotaryPositionalEmbeddings';
+import RlhfAndPpo from './posts/RlhfAndPpo';
+import BeyondPpo from './posts/BeyondPpo';
+import BeyondHumanFeedback from './posts/BeyondHumanFeedback';
+import AlphaGoToAlphaZero from './posts/AlphaGoToAlphaZero';
+import ExternalVerifiers from './posts/ExternalVerifiers';
+import InternalVerifiers from './posts/InternalVerifiers';
+import EvolutionarySearch from './posts/EvolutionarySearch';
+import TestTimeTraining from './posts/TestTimeTraining';
+import MeasuringSelfImprovement from './posts/MeasuringSelfImprovement';
+import SymbolicRegressionArena from './posts/SymbolicRegressionArena';
+import SymbolicRegressionLlmTransfer from './posts/SymbolicRegressionLlmTransfer';
 import MinimaxSearch from './posts/MinimaxSearch';
 import AlphaBetaPruning from './posts/AlphaBetaPruning';
 import MonteCarloTreeSearch from './posts/MonteCarloTreeSearch';
 
 const componentRegistry = {
-  VisualizingAttention,
-  VisualizingKVCache,
-  VisualizingRoPE,
-  VisualizingRLHF,
-  VisualizingSelfImprovement,
-  VisualizingSymbolicRegression,
+  NlpHistory,
+  SelfAttention,
+  FromAttentionToTransformer,
+  TrainingCost,
+  TrainingCostOptimization,
+  InferenceCost,
+  InferenceCostOptimization,
+  PositionalEncodings,
+  RotaryPositionalEmbeddings,
+  RlhfAndPpo,
+  BeyondPpo,
+  BeyondHumanFeedback,
+  AlphaGoToAlphaZero,
+  ExternalVerifiers,
+  InternalVerifiers,
+  EvolutionarySearch,
+  TestTimeTraining,
+  MeasuringSelfImprovement,
+  SymbolicRegressionArena,
+  SymbolicRegressionLlmTransfer,
   MinimaxSearch,
   AlphaBetaPruning,
   MonteCarloTreeSearch,

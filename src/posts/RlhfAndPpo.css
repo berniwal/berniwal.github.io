@@ -1,0 +1,453 @@
+/* src/posts/RlhfAndPpo.css
+   Widget-specific styles for the RLHF and PPO post.
+   Post chrome (typography, panels, header, animations) lives in PostChrome.css. */
+
+.rp-post {
+  --rp-pos: #10b981;
+  --rp-pos-soft: #d1fae5;
+  --rp-neg: #94a3b8;
+  --rp-neg-soft: #f1f5f9;
+}
+
+/* ============================================================
+   Math blocks
+   ============================================================ */
+.rp-post .rp-math-block {
+  margin: 14px 0 18px;
+  font-size: 1.02rem;
+  overflow-x: auto;
+}
+.rp-post .rp-math-inline { font-size: 1em; }
+
+/* ============================================================
+   Aside / InfoBox
+   ============================================================ */
+.rp-post .rp-aside {
+  margin: 22px 0 26px;
+  padding: 14px 18px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid var(--post-accent);
+}
+.rp-post .rp-aside-head {
+  font-family: var(--post-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--post-text);
+}
+.rp-post .rp-aside-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: hsl(40, 88%, 52%);
+  color: #1A1A1A;
+  font-style: italic;
+}
+.rp-post .rp-aside-body p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.62;
+  color: var(--post-text-mid);
+}
+
+/* ============================================================
+   Counters (KPI strip)
+   ============================================================ */
+.rp-post .rp-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+.rp-post .rp-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.rp-post .rp-counter-label {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--post-text-mut);
+}
+.rp-post .rp-counter-value {
+  font-family: var(--post-mono);
+  font-size: 1.0rem;
+  font-weight: 700;
+  color: var(--post-text);
+  font-variant-numeric: tabular-nums;
+}
+.rp-post .rp-counter-sub {
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  font-family: var(--post-mono);
+}
+
+/* ============================================================
+   Widget controls
+   ============================================================ */
+.rp-post .rp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+}
+.rp-post .rp-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--post-text-mid);
+}
+.rp-post .rp-controls select,
+.rp-post .rp-btn {
+  font-family: var(--post-sans);
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text);
+  cursor: pointer;
+}
+.rp-post .rp-controls-hint {
+  color: var(--post-text-mid);
+  font-size: 0.92rem;
+}
+.rp-post .rp-slider-label {
+  min-width: 220px;
+}
+.rp-post .rp-slider-val {
+  color: var(--post-accent);
+  font-family: var(--post-mono);
+}
+.rp-post .rp-range {
+  flex: 1;
+  min-width: 200px;
+  accent-color: var(--post-accent);
+}
+
+/* ============================================================
+   Caption
+   ============================================================ */
+.rp-post .rp-caption {
+  font-size: 0.9rem;
+  color: var(--post-text-mut);
+  margin-top: 14px;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   §1 — SFT side-by-side
+   ============================================================ */
+.rp-post .rp-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+@media (max-width: 720px) {
+  .rp-post .rp-pair { grid-template-columns: 1fr; }
+}
+.rp-post .rp-card {
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 130px;
+}
+.rp-post .rp-card-tag {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.rp-post .rp-card-tag.base { color: var(--rp-neg); }
+.rp-post .rp-card-tag.sft  { color: var(--rp-pos); }
+
+.rp-post .rp-prompt {
+  font-family: var(--post-mono);
+  font-size: 0.86rem;
+  color: var(--post-text-mid);
+  background: var(--post-accent-s);
+  border-left: 3px solid var(--post-accent);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.rp-post .rp-completion {
+  font-family: var(--post-sans);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--post-text);
+}
+.rp-post .rp-completion.base {
+  font-family: var(--post-mono);
+  font-size: 0.85rem;
+  color: var(--post-text-mid);
+  white-space: pre-wrap;
+}
+
+/* ============================================================
+   §2 — Preference-pair clicker + reward bars
+   ============================================================ */
+.rp-post .rp-pair-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.rp-post .rp-pair-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .rp-post .rp-pair-pick { grid-template-columns: 1fr; }
+}
+.rp-post .rp-candidate {
+  border: 2px solid var(--post-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  font-family: var(--post-sans);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  text-align: left;
+  color: var(--post-text);
+  min-height: 130px;
+}
+.rp-post .rp-candidate:hover {
+  border-color: var(--post-accent);
+  background: var(--post-accent-s);
+  transform: translateY(-1px);
+}
+.rp-post .rp-candidate.locked-chosen {
+  border-color: var(--rp-pos);
+  background: var(--rp-pos-soft);
+  cursor: default;
+}
+.rp-post .rp-candidate.locked-rejected {
+  border-color: var(--rp-neg);
+  background: var(--rp-neg-soft);
+  cursor: default;
+  opacity: 0.7;
+}
+.rp-post .rp-candidate-tag {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  margin-bottom: 8px;
+}
+
+.rp-post .rp-reward-head {
+  margin-top: 20px;
+}
+.rp-post .rp-reward-head-title {
+  font-family: var(--post-sans);
+  font-size: 1.0rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--post-text);
+}
+.rp-post .rp-reward-bars {
+  display: grid;
+  grid-template-columns: 110px 1fr 60px;
+  gap: 10px;
+  align-items: center;
+  font-family: var(--post-mono);
+  font-size: 0.84rem;
+  margin: 8px 0;
+}
+.rp-post .rp-reward-track {
+  position: relative;
+  height: 14px;
+  background: #eef2f7;
+  border-radius: 7px;
+  overflow: hidden;
+}
+.rp-post .rp-reward-track .center-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #94a3b8;
+}
+.rp-post .rp-reward-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transition: width 0.35s ease, transform 0.35s ease;
+  border-radius: 7px;
+}
+.rp-post .rp-reward-fill.pos { background: var(--rp-pos); }
+.rp-post .rp-reward-fill.neg { background: var(--rp-neg); }
+.rp-post .rp-reward-value {
+  text-align: right;
+  color: var(--post-text);
+}
+
+/* ============================================================
+   §3 — PPO plot + sample
+   ============================================================ */
+.rp-post .rp-ppo-loop {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+@media (max-width: 860px) {
+  .rp-post .rp-ppo-loop { grid-template-columns: 1fr; }
+}
+.rp-post .rp-plot-tag {
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  color: var(--post-text-mut);
+  margin-bottom: 4px;
+}
+.rp-post .rp-ppo-plot {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+}
+.rp-post .rp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-family: var(--post-mono);
+  color: var(--post-text-mid);
+}
+.rp-post .rp-legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.rp-post .rp-ppo-sample {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rp-post .rp-ppo-sample-tag {
+  font-family: var(--post-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--post-text-mut);
+  font-weight: 600;
+}
+.rp-post .rp-ppo-sample-body {
+  font-family: var(--post-sans);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--post-text);
+}
+.rp-post .rp-ppo-zone {
+  font-family: var(--post-mono);
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  font-weight: 600;
+}
+.rp-post .rp-ppo-zone.hacking { background: var(--rp-neg-soft); color: var(--rp-neg); }
+.rp-post .rp-ppo-zone.sweet   { background: var(--rp-pos-soft); color: var(--rp-pos); }
+.rp-post .rp-ppo-zone.frozen  { background: #e0e7ff; color: var(--post-text-mid); }
+
+/* ============================================================
+   §4 — Clipped surrogate plots
+   ============================================================ */
+.rp-post .rp-clip-plots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) {
+  .rp-post .rp-clip-plots { grid-template-columns: 1fr; }
+}
+.rp-post .rp-clip-label {
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+  color: var(--post-text-mid);
+  margin-bottom: 4px;
+}
+.rp-post .rp-clip-svg {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-width: 320px;
+}
+.rp-post .rp-clip-legend {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--post-mono);
+  font-size: 0.82rem;
+}
+.rp-post .rp-grad-chip {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.rp-post .rp-grad-chip.frozen {
+  background: #e2e8f0;
+  color: var(--post-text-mid);
+}
+.rp-post .rp-grad-chip.active {
+  background: var(--rp-pos-soft);
+  color: var(--rp-pos);
+}
+.rp-post .rp-grad-rho {
+  color: var(--post-text-mut);
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .rp-post * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
