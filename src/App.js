@@ -5,6 +5,7 @@ import { HashLink } from 'react-router-hash-link';
 import './App.css';
 import MainPage from './MainPage';
 import Blog from './Blog';
+import ConsentBanner from './ConsentBanner';
 
 function ScrollToTopOnRoute() {
   const { pathname } = useLocation();
@@ -73,9 +74,24 @@ function useRevealObserver(pathname) {
   }, [pathname]);
 }
 
+// Fires a Google Analytics page_view on every HashRouter route change.
+// The script tag in public/index.html sets `send_page_view: false`, so we
+// own pageview emission here — including the hash portion of the URL.
+function usePageView(pathname) {
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.gtag) return;
+    window.gtag('event', 'page_view', {
+      page_path: window.location.pathname + window.location.hash,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  }, [pathname]);
+}
+
 function RouteEffects() {
   const { pathname } = useLocation();
   useRevealObserver(pathname);
+  usePageView(pathname);
   return null;
 }
 
@@ -84,8 +100,7 @@ function Nav() {
     <nav className="nav">
       <div className="nav-inner">
         <Link to="/" className="nav-brand">
-          <span className="nav-mark">BW</span>
-          <span>Bernhard Walser</span>
+          <span className="nav-mark">berniwal</span>
         </Link>
         <div className="nav-links">
           <HashLink smooth to="/#writing">Writing</HashLink>
@@ -125,6 +140,7 @@ function App() {
           <Route path="/blog/:slug" element={<Blog />} />
         </Routes>
         <SiteFooter />
+        <ConsentBanner />
       </div>
     </Router>
   );

@@ -100,15 +100,15 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 .nav-brand:hover { color: var(--text); text-decoration: none; }
 .nav-mark {
-  width: 22px;
   height: 22px;
+  padding: 0 10px;
   border-radius: 6px;
   background: var(--text);
   color: var(--bg);
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -859,4 +859,61 @@ body::before {
   font-size: 14.5px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+}
+
+/* =====================================================
+   Consent banner (GA4)
+   ===================================================== */
+.consent-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 200;
+  max-width: 560px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
+  font-size: 13.5px;
+  color: var(--text-mid);
+  animation: consent-rise 360ms cubic-bezier(.2, .7, .2, 1);
+}
+@keyframes consent-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.consent-banner-inner { display: block; }
+.consent-banner p { margin: 0 0 12px; line-height: 1.55; color: var(--text-mid); }
+.consent-banner-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.consent-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text-mid);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.consent-btn:hover { background: var(--bg-sunken); color: var(--text); border-color: var(--text-faint); }
+.consent-btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.consent-btn-primary:hover { background: #1e293b; color: var(--bg); }
+@media (max-width: 480px) {
+  .consent-banner { left: 8px; right: 8px; bottom: 8px; padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .consent-banner { animation: none; }
 }
