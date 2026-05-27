@@ -28,3 +28,9 @@ __pycache__/
 experiments/**/logs/
 experiments/**/results_quick/
 experiments/**/*.log
+
+# Claude Code local runtime state (machine-specific permission allowlist,
+# scheduled-tasks lock). launch.json is the only file in .claude/ that
+# should be checked in (shared dev-server config).
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

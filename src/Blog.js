@@ -14,7 +14,6 @@ import VisualizingSymbolicRegression from './posts/VisualizingSymbolicRegression
 import MinimaxSearch from './posts/MinimaxSearch';
 import AlphaBetaPruning from './posts/AlphaBetaPruning';
 import MonteCarloTreeSearch from './posts/MonteCarloTreeSearch';
-import './BlogPage.css';
 
 const componentRegistry = {
   VisualizingAttention,
