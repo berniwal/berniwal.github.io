@@ -1,0 +1,289 @@
+/* src/posts/MinimaxSearch.css
+   Widget-specific styles for the Minimax post. Post chrome (typography,
+   panels, header, animations) lives in PostChrome.css. */
+
+.mm-post {
+  /* Step-row colors — kept consistent with the original step PNGs */
+  --c-yellow-bg: #fde68a;
+  --c-yellow-ink: #92400e;
+  --c-yellow-bd: #f59e0b;
+  --c-green-bg:  #a7f3d0;
+  --c-green-ink: #065f46;
+  --c-green-bd:  #10b981;
+  --c-red-bg:    #fecaca;
+  --c-red-ink:   #991b1b;
+  --c-red-bd:    #ef4444;
+}
+
+/* =====================================================
+   Widget 1 — Game Tree Interactive (with chess board)
+   ===================================================== */
+.mm-gti-grid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 28px;
+  align-items: center;
+}
+.mm-gti-svg-wrap { min-width: 0; }
+.mm-gti-node circle {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.5;
+  transition: fill 160ms ease, stroke 160ms ease;
+  cursor: pointer;
+}
+.mm-gti-node:hover circle,
+.mm-gti-node.is-active circle {
+  fill: var(--post-accent-s);
+  stroke: var(--post-accent);
+}
+.mm-gti-node-label {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 13px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.mm-gti-edge {
+  stroke: var(--post-border-s);
+  stroke-width: 1.5;
+  transition: stroke 160ms ease, stroke-width 160ms ease;
+}
+.mm-gti-edge.is-active {
+  stroke: var(--post-accent);
+  stroke-width: 2.4;
+}
+.mm-gti-edge-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 11px;
+}
+.mm-gti-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+}
+.mm-gti-board-head { text-align: center; font-family: var(--post-sans); }
+.mm-gti-board-title { font-weight: 600; color: var(--post-text); font-size: 14px; }
+.mm-gti-board-move {
+  font-family: var(--post-mono);
+  font-size: 11.5px;
+  color: var(--post-text-mut);
+  margin-top: 2px;
+}
+.mm-chess { display: block; border-radius: 4px; }
+
+/* =====================================================
+   Widget 2 — Depth budget
+   ===================================================== */
+.mm-budget-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+.mm-slider {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--post-text-mid);
+}
+.mm-slider strong { color: var(--post-text); font-family: var(--post-mono); }
+.mm-slider input[type="range"] { width: 100%; accent-color: var(--post-accent); }
+.mm-slider .mm-val {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  min-width: 28px;
+  text-align: right;
+  color: var(--post-text);
+}
+.mm-budget-readout {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+}
+.mm-budget-formula {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  color: var(--post-text-mut);
+}
+.mm-budget-count {
+  font-family: var(--post-mono);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--post-text);
+  letter-spacing: -0.01em;
+  text-align: right;
+  line-height: 1;
+}
+.mm-budget-count.overflow { color: var(--c-red-bd); }
+.mm-budget-unit {
+  font-family: var(--post-mono);
+  font-size: 12px;
+  color: var(--post-text-mut);
+  margin-left: 8px;
+  font-weight: 400;
+}
+
+/* =====================================================
+   Widget 3 — Minimax tree
+   ===================================================== */
+.mm-tree svg { display: block; }
+
+.mm-tree .mm-edge {
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+  transition: stroke 250ms ease, stroke-width 250ms ease;
+}
+.mm-tree .mm-edge.is-active {
+  stroke: var(--post-accent);
+  stroke-width: 2.6;
+}
+
+.mm-tree .mm-band rect {
+  fill: var(--post-bg-sunk);
+  stroke: var(--post-border);
+  stroke-width: 1;
+  opacity: 0.45;
+  transition: opacity 250ms ease, fill 250ms ease, stroke 250ms ease;
+}
+.mm-tree .mm-band .mm-band-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 12px;
+  text-anchor: middle;
+  letter-spacing: 0.04em;
+  transition: fill 250ms ease;
+}
+.mm-tree .mm-band.on rect { opacity: 1; }
+.mm-tree .mm-band-yellow.on rect { fill: var(--c-yellow-bg); stroke: var(--c-yellow-bd); }
+.mm-tree .mm-band-yellow.on .mm-band-label { fill: var(--c-yellow-ink); }
+.mm-tree .mm-band-green.on  rect { fill: var(--c-green-bg);  stroke: var(--c-green-bd); }
+.mm-tree .mm-band-green.on  .mm-band-label { fill: var(--c-green-ink); }
+.mm-tree .mm-band-red.on    rect { fill: var(--c-red-bg);    stroke: var(--c-red-bd); }
+.mm-tree .mm-band-red.on    .mm-band-label { fill: var(--c-red-ink); }
+
+.mm-tree .mm-cell rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.2;
+  transition: fill 250ms ease, stroke 250ms ease;
+}
+.mm-tree .mm-cell-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 14px;
+  font-weight: 600;
+  text-anchor: middle;
+  transition: fill 250ms ease;
+}
+.mm-tree .mm-cell.on.mm-cell-yellow rect { fill: var(--c-yellow-bg); stroke: var(--c-yellow-bd); }
+.mm-tree .mm-cell.on.mm-cell-yellow .mm-cell-label { fill: var(--c-yellow-ink); }
+.mm-tree .mm-cell.on.mm-cell-green  rect { fill: var(--c-green-bg);  stroke: var(--c-green-bd); }
+.mm-tree .mm-cell.on.mm-cell-green  .mm-cell-label { fill: var(--c-green-ink); }
+.mm-tree .mm-cell.on.mm-cell-red    rect { fill: var(--c-red-bg);    stroke: var(--c-red-bd); }
+.mm-tree .mm-cell.on.mm-cell-red    .mm-cell-label { fill: var(--c-red-ink); }
+
+.mm-tree .mm-cell.is-chosen rect {
+  stroke: var(--post-accent);
+  stroke-width: 2.2;
+}
+.mm-tree .mm-cell.is-root.on rect { stroke-width: 2; }
+
+.mm-tree .mm-caption {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  font-size: 14.5px;
+  color: var(--post-text-mid);
+  min-height: 44px;
+}
+.mm-tree .mm-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+.mm-tree .mm-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.mm-tree .mm-step-btn {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.mm-tree .mm-step-btn:hover { border-color: var(--post-border-s); color: var(--post-text); }
+.mm-tree .mm-step-btn.active {
+  background: var(--post-text);
+  color: #fff;
+  border-color: var(--post-text);
+}
+.mm-tree .mm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mm-tree .mm-action {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.mm-tree .mm-action:hover { background: var(--post-bg-sub); color: var(--post-text); }
+.mm-tree .mm-play {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.mm-tree .mm-play:hover { background: #1d4ed8; color: #fff; }
+
+/* Tree cell pop when the chosen-path lights up */
+@keyframes mm-cell-pop {
+  0%   { transform: scale(1); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.mm-tree .mm-cell.is-chosen rect {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mm-cell-pop 360ms cubic-bezier(.2, .8, .3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-tree .mm-cell.is-chosen rect {
+    animation: none !important;
+  }
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .mm-gti-grid { grid-template-columns: 1fr; }
+  .mm-budget-controls { grid-template-columns: 1fr; gap: 12px; }
+  .mm-budget-readout { grid-template-columns: 1fr; }
+  .mm-budget-count { text-align: left; font-size: 24px; }
+  .mm-tree .mm-controls { flex-direction: column; align-items: stretch; }
+}

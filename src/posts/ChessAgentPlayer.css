@@ -1,0 +1,143 @@
+/* src/posts/ChessAgentPlayer.css
+   Styles for the shared play-the-algorithm widget. Requires the post root
+   to carry the `.post-2026` class so tokens resolve. */
+
+.cap-root.viz-panel { padding: 22px; }
+.cap-intro {
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: var(--post-text-mid);
+  text-align: left;
+}
+.cap-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) minmax(220px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.cap-board-wrap {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 10px;
+}
+.cap-board { display: block; border-radius: 4px; }
+.cap-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.cap-status {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  color: var(--post-text);
+}
+.cap-status.is-warn {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+.cap-status.is-over {
+  background: var(--post-accent-s);
+  border-color: var(--post-accent);
+  color: var(--post-accent);
+}
+.cap-slider {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--post-text-mid);
+}
+.cap-slider input[type="range"] { width: 100%; accent-color: var(--post-accent); }
+.cap-slider .cap-val {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  color: var(--post-text);
+  min-width: 14px;
+  text-align: right;
+}
+.cap-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--post-border);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cap-stat {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  padding: 8px 12px;
+}
+.cap-stat-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--post-text-mut);
+  text-transform: uppercase;
+}
+.cap-stat-value {
+  font-size: 13px;
+  color: var(--post-text);
+  text-align: right;
+}
+.cap-stat-value.cap-num { font-family: var(--post-mono); font-size: 13px; }
+.cap-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.cap-btn {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.cap-btn:hover:not(:disabled) { background: var(--post-bg-sub); color: var(--post-text); }
+.cap-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cap-btn-primary {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.cap-btn-primary:hover:not(:disabled) { background: #1d4ed8; color: #fff; }
+
+.cap-history {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  background: var(--post-bg-sub);
+  padding: 8px 10px;
+  font-family: var(--post-mono);
+  font-size: 12px;
+  color: var(--post-text-mid);
+  line-height: 1.7;
+}
+.cap-history-empty { color: var(--post-text-mut); font-style: italic; }
+.cap-history-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 1fr;
+  gap: 6px;
+}
+.cap-history-num { color: var(--post-text-mut); }
+.cap-history-w   { color: var(--post-text); }
+.cap-history-b   { color: var(--post-text-mid); }
+
+@media (max-width: 720px) {
+  .cap-grid { grid-template-columns: 1fr; }
+  .cap-board-wrap { padding: 6px; }
+}

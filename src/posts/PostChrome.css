@@ -1,0 +1,278 @@
+/* src/posts/PostChrome.css
+   Shared chrome for post-2026 redesign-era posts.
+   Apply by adding `post-2026` to the article root, e.g.
+     <article className="post-2026 mm-post">
+   Widget-specific styles still live in each post's own CSS file (scoped
+   under that post's slug class).
+*/
+
+.post-2026 {
+  --post-bg:       #ffffff;
+  --post-bg-sub:   #f8fafc;   /* slate-50 */
+  --post-bg-sunk:  #f1f5f9;   /* slate-100 */
+  --post-border:   #e2e8f0;   /* slate-200 */
+  --post-border-s: #cbd5e1;   /* slate-300 */
+  --post-text:     #0f172a;   /* slate-900 */
+  --post-text-mid: #334155;   /* slate-700 */
+  --post-text-mut: #64748b;   /* slate-500 */
+  --post-text-fnt: #94a3b8;   /* slate-400 */
+  --post-accent:   #2563eb;   /* blue-600 */
+  --post-accent-s: #eff6ff;   /* blue-50 */
+
+  --post-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --post-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  background: var(--post-bg);
+  color: var(--post-text);
+  font-family: var(--post-sans);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.post-2026 .post-wrap {
+  /* Match .nav-inner exactly so the post column aligns with the nav. */
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 56px 28px 80px;
+}
+
+/* =====================================================
+   Header
+   ===================================================== */
+.post-series-tag {
+  font-family: var(--post-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--post-accent);
+  margin: 0 0 22px;
+}
+.post-2026 h1 {
+  font-family: var(--post-sans);
+  font-weight: 600;
+  font-size: 46px;
+  letter-spacing: -0.032em;
+  line-height: 1.08;
+  margin: 0 0 20px;
+  color: var(--post-text);
+  text-wrap: balance;
+}
+.post-lede {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--post-text-mid);
+  margin: 0 0 24px;
+}
+.post-byline {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  color: var(--post-text-mut);
+  padding: 18px 0 0;
+  border-top: 1px solid var(--post-border);
+  margin: 28px 0 40px;
+}
+.post-link { color: var(--post-accent); text-decoration: none; }
+.post-link:hover { text-decoration: underline; }
+
+/* =====================================================
+   Body
+   ===================================================== */
+.post-2026 h2 {
+  font-family: var(--post-sans);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+  margin: 56px 0 14px;
+  color: var(--post-text);
+}
+.post-2026 p {
+  margin: 0 0 18px;
+  color: var(--post-text-mid);
+  font-size: 17.5px;
+  line-height: 1.7;
+}
+.post-2026 p strong { color: var(--post-text); font-weight: 600; }
+.post-2026 em { color: var(--post-text-mid); font-style: italic; }
+
+/* =====================================================
+   Panels (widget cards)
+   ===================================================== */
+.post-2026 .viz-panel {
+  background: #fff;
+  border: 1px solid var(--post-border);
+  border-radius: 14px;
+  padding: 22px;
+  margin: 24px 0 28px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
+}
+.post-2026 .viz-caption {
+  font-size: 13.5px;
+  color: var(--post-text-mut);
+  margin: 12px 0 0;
+  font-style: italic;
+}
+
+/* =====================================================
+   Code expander (Show implementation)
+   ===================================================== */
+.post-code-details {
+  margin: 20px 0 28px;
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  background: var(--post-bg-sub);
+  overflow: hidden;
+}
+.post-code-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-family: var(--post-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--post-text);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: background 120ms ease;
+}
+.post-code-details > summary::-webkit-details-marker { display: none; }
+.post-code-details > summary:hover { background: var(--post-bg-sunk); }
+.post-code-summary-icon {
+  display: inline-block;
+  font-family: var(--post-mono);
+  font-size: 18px;
+  color: var(--post-text-mut);
+  transition: transform 160ms ease;
+  width: 12px;
+  text-align: center;
+}
+.post-code-details[open] > summary .post-code-summary-icon { transform: rotate(90deg); }
+.post-code-summary-hint {
+  margin-left: auto;
+  font-family: var(--post-mono);
+  font-size: 11px;
+  color: var(--post-text-mut);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.post-code-details[open] > summary .post-code-summary-hint { display: none; }
+.post-code-details > :not(summary) { padding: 0 16px 16px; }
+.post-code-details pre { margin: 0 !important; }
+
+/* =====================================================
+   References + Footer
+   ===================================================== */
+.post-refs {
+  display: grid;
+  grid-template-columns: 160px 1fr 130px;
+  gap: 10px 20px;
+  align-items: baseline;
+  margin: 8px 0 0;
+  font-size: 14.5px;
+}
+.post-refs .head {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--post-border);
+  margin-bottom: 6px;
+}
+.post-refs .ref-cite { font-family: var(--post-mono); font-size: 12.5px; color: var(--post-text-mut); }
+.post-refs .ref-title a { color: var(--post-text); border-bottom: 1px dotted var(--post-border-s); }
+.post-refs .ref-title a:hover { color: var(--post-accent); border-color: var(--post-accent); }
+.post-refs .ref-note { color: var(--post-text-mut); font-size: 13px; margin-top: 2px; }
+.post-refs .ref-link a { font-family: var(--post-mono); font-size: 12px; color: var(--post-text-mut); }
+.post-refs .ref-link a:hover { color: var(--post-accent); }
+
+.post-footer {
+  margin: 56px 0 0;
+  font-size: 14.5px;
+  color: var(--post-text-mid);
+  border-top: 1px solid var(--post-border);
+  padding-top: 24px;
+}
+
+/* =====================================================
+   Micro-animations
+   ===================================================== */
+
+/* Pulsing accent dot in front of the series tag */
+.post-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--post-accent);
+  margin-right: 9px;
+  position: relative;
+  top: -1px;
+  animation: post-dot-pulse 2.2s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes post-dot-pulse {
+  0%   { box-shadow: 0 0 0 0  color-mix(in srgb, var(--post-accent) 55%, transparent); }
+  70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--post-accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0  color-mix(in srgb, var(--post-accent) 0%, transparent); }
+}
+
+/* Hero entrance — staggered fade-rise for the header block */
+.post-hero > * {
+  opacity: 0;
+  animation: post-hero-rise 800ms cubic-bezier(.2, .7, .2, 1) forwards;
+}
+.post-hero > .post-series-tag { animation-delay: 80ms; }
+.post-hero > h1               { animation-delay: 180ms; }
+.post-hero > .post-lede       { animation-delay: 320ms; }
+.post-hero > .post-byline     { animation-delay: 460ms; }
+@keyframes post-hero-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reveal-on-scroll for panels + code expander + h2s.
+   The cross-route observer in src/App.js picks panels/code-details up
+   automatically; h2s opt in by adding `className="reveal"`. */
+.post-2026 .viz-panel,
+.post-2026 .post-code-details {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 700ms cubic-bezier(.2, .7, .2, 1),
+    transform 700ms cubic-bezier(.2, .7, .2, 1),
+    box-shadow 200ms ease;
+  will-change: opacity, transform;
+}
+.post-2026 .viz-panel.in,
+.post-2026 .post-code-details.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.post-2026 .viz-panel.in:hover {
+  box-shadow: 0 4px 16px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-hero > *,
+  .post-2026 .viz-panel,
+  .post-2026 .post-code-details {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .post-live-dot { animation: none; }
+}
+
+/* =====================================================
+   Mobile
+   ===================================================== */
+@media (max-width: 720px) {
+  .post-2026 h1 { font-size: 34px; }
+  .post-2026 h2 { font-size: 22px; }
+  .post-refs { grid-template-columns: 1fr; }
+  .post-refs .head { display: none; }
+}

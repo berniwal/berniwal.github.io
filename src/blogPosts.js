@@ -46,21 +46,21 @@ export const blogPosts = [
     slug: 'mini-max',
     title: 'Minimax Search',
     category: 'Algorithm',
-    excerpt: 'Simple Decision Making Algorithm for two-player games.',
-    file: 'chess/minimax.md'
+    excerpt: 'Simple decision-making algorithm for two-player games — walk every move sequence, assume the opponent plays optimally, pick the move that minimizes your worst case.',
+    component: 'MinimaxSearch'
   },
   {
     slug: 'alpha-beta',
     title: 'Alpha-Beta Pruning',
     category: 'Algorithm',
-    excerpt: 'Decision Making Algorithm for two-player games.',
-    file: 'chess/alphabeta.md'
+    excerpt: 'An enhancement to minimax that skips branches it can prove can\'t change the answer — same chosen move, far fewer nodes evaluated. The reason real chess engines can look further ahead.',
+    component: 'AlphaBetaPruning'
   },
   {
     slug: 'monte-carlo',
     title: 'Monte Carlo Tree Search',
     category: 'Algorithm',
-    excerpt: 'Decision Making Algorithm for two-player games.',
-    file: 'chess/montecarlo.md'
+    excerpt: 'Simulation-based search: random rollouts replace exhaustive evaluation. Selection (UCB1), expansion, simulation, backpropagation — the four steps that beat humans at Go.',
+    component: 'MonteCarloTreeSearch'
   }
 ];

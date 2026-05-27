@@ -249,10 +249,11 @@ a.viz-link:hover { border-bottom-color: var(--accent); }
 .viz-code {
   font-family: var(--mono);
   font-size: 0.85rem;
-  background: #1A1F2C;
-  color: #E6E9F0;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
   padding: 14px 16px;
-  border-radius: 8px;
+  border-radius: 10px;
   margin: 16px 0 24px;
   overflow-x: auto;
   line-height: 1.55;

@@ -1,10 +1,9 @@
 // src/Blog.js
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// You can choose any style you like; here we use 'tomorrow'
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { blogPosts } from './blogPosts';
 import VisualizingAttention from './posts/VisualizingAttention';
 import VisualizingKVCache from './posts/VisualizingKVCache';
@@ -12,6 +11,9 @@ import VisualizingRoPE from './posts/VisualizingRoPE';
 import VisualizingRLHF from './posts/VisualizingRLHF';
 import VisualizingSelfImprovement from './posts/VisualizingSelfImprovement';
 import VisualizingSymbolicRegression from './posts/VisualizingSymbolicRegression';
+import MinimaxSearch from './posts/MinimaxSearch';
+import AlphaBetaPruning from './posts/AlphaBetaPruning';
+import MonteCarloTreeSearch from './posts/MonteCarloTreeSearch';
 import './BlogPage.css';
 
 const componentRegistry = {
@@ -21,6 +23,9 @@ const componentRegistry = {
   VisualizingRLHF,
   VisualizingSelfImprovement,
   VisualizingSymbolicRegression,
+  MinimaxSearch,
+  AlphaBetaPruning,
+  MonteCarloTreeSearch,
 };
 
 function CodeBlock({ node, inline, className, children, ...props }) {
@@ -39,62 +44,92 @@ function CodeBlock({ node, inline, className, children, ...props }) {
     return (
       <div className="code-block-wrapper">
         <button onClick={handleCopy} className="copy-button">
-          {isCopied ? "Copied!" : "Copy"}
+          {isCopied ? 'Copied!' : 'Copy'}
         </button>
         <SyntaxHighlighter
-          style={tomorrow}
+          style={oneLight}
           language={match[1]}
           PreTag="div"
           customStyle={{
-            borderRadius: "8px",
-            overflow: "auto",
-            padding: "1em"
+            borderRadius: 10,
+            overflow: 'auto',
+            padding: '16px 18px',
+            background: '#f1f5f9',
+            border: '1px solid #e2e8f0',
+            fontSize: 13.5,
+            lineHeight: 1.55,
+            margin: '24px 0',
           }}
+          codeTagProps={{ style: { background: 'transparent', textShadow: 'none' } }}
           {...props}
         >
           {codeContent}
         </SyntaxHighlighter>
       </div>
     );
-  } else {
-    return <code className={className} {...props}>{children}</code>;
   }
+  return <code className={className} {...props}>{children}</code>;
+}
+
+function MarkdownPost({ postMeta }) {
+  const [content, setContent] = useState('');
+  useEffect(() => {
+    fetch(`${process.env.PUBLIC_URL || ''}/blog/${postMeta.file}`)
+      .then((res) => res.text())
+      .then((text) => setContent(text))
+      .catch((err) => console.error('Error fetching markdown:', err));
+  }, [postMeta.file]);
+
+  return (
+    <article>
+      <div className="post-wrap">
+        <div className="post-grid">
+          <header className="post-header">
+            <div className="post-kicker">
+              <span>{postMeta.category}</span>
+            </div>
+            <h1 className="post-title">{postMeta.title}</h1>
+            <p className="post-lede">{postMeta.excerpt}</p>
+            <div className="post-byline">
+              <div className="byline-avatars">
+                <div className="byline-avatar">BW</div>
+              </div>
+              <div className="byline-authors">
+                <strong>Bernhard Walser</strong>
+              </div>
+            </div>
+          </header>
+
+          <div className="post-body markdown-body">
+            <ReactMarkdown components={{ code: CodeBlock }}>
+              {content}
+            </ReactMarkdown>
+          </div>
+
+          <footer className="post-foot full">
+            <div>
+              <Link to="/#writing">← Back to writing</Link>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 function Blog() {
   const { slug } = useParams();
   const postMeta = blogPosts.find((post) => post.slug === slug);
-  const [content, setContent] = useState('');
 
-  useEffect(() => {
-    if (postMeta && postMeta.file) {
-      fetch(`/blog/${postMeta.file}`)
-        .then((res) => res.text())
-        .then((text) => setContent(text))
-        .catch((err) => console.error('Error fetching markdown:', err));
-    }
-  }, [postMeta]);
-
-  if (!postMeta) return <div>Post not found</div>;
+  if (!postMeta) return <div className="page" style={{ padding: '96px 28px' }}>Post not found</div>;
 
   if (postMeta.component) {
     const PostComponent = componentRegistry[postMeta.component];
-    if (!PostComponent) return <div>Post component not found</div>;
+    if (!PostComponent) return <div className="page" style={{ padding: '96px 28px' }}>Post component not found</div>;
     return <PostComponent />;
   }
 
-  return (
-    <div className="main-page">
-      <section id="blog-post-section" className="section">
-        <div className="blog-post">
-          <h1>{postMeta.title}</h1>
-          <ReactMarkdown components={{ code: CodeBlock }}>
-            {content}
-          </ReactMarkdown>
-        </div>
-      </section>
-    </div>
-  );
+  return <MarkdownPost postMeta={postMeta} />;
 }
 
 export default Blog;

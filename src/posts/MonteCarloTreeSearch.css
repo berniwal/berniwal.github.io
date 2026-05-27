@@ -1,0 +1,275 @@
+/* src/posts/MonteCarloTreeSearch.css
+   Widget-specific styles. Chrome lives in PostChrome.css. */
+
+.mcts-post {
+  --mcts-good: #10b981;  /* emerald-500 — win/reward */
+}
+
+/* =====================================================
+   Widget 1 — MCTS iteration tree
+   ===================================================== */
+.mcts-tree svg { display: block; }
+
+.mcts-tree .mcts-edge {
+  stroke: var(--post-border-s);
+  stroke-width: 1.6;
+  transition: stroke 350ms ease, stroke-width 350ms ease, opacity 350ms ease;
+}
+.mcts-tree .mcts-edge.is-active {
+  stroke: var(--post-accent);
+  stroke-width: 2.8;
+}
+.mcts-tree .mcts-edge-new {
+  stroke-dasharray: 0;
+  stroke: var(--post-accent);
+  stroke-width: 2.4;
+}
+
+.mcts-tree .mcts-node circle {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+  transition: stroke 350ms ease, fill 350ms ease;
+}
+.mcts-tree .mcts-node-label {
+  fill: var(--post-text);
+  font-family: var(--post-mono);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: fill 350ms ease;
+}
+.mcts-tree .mcts-node-id {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.mcts-tree .mcts-node.is-on-path circle {
+  stroke: var(--post-accent);
+  stroke-width: 2.2;
+  fill: var(--post-accent-s);
+}
+.mcts-tree .mcts-node.is-updated circle {
+  animation: mcts-pulse 360ms cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes mcts-pulse {
+  0%   { transform: scale(1); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.mcts-tree .mcts-node.is-updated circle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.mcts-tree .mcts-node-new circle {
+  fill: var(--post-accent-s);
+  stroke: var(--post-accent);
+  animation: mcts-grow 320ms cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes mcts-grow {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+.mcts-tree .mcts-node-new circle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Rollout arrows */
+.mcts-tree .mcts-rollout {
+  stroke: var(--mcts-good);
+  stroke-width: 1.5;
+  opacity: 0.7;
+  animation: mcts-fade-in 320ms ease;
+}
+.mcts-tree .mcts-rollout-arrow {
+  fill: var(--mcts-good);
+  font-family: var(--post-mono);
+  font-size: 14px;
+  font-weight: 600;
+  animation: mcts-fade-in 320ms ease;
+}
+.mcts-tree .mcts-rollout-result {
+  fill: var(--mcts-good);
+  font-family: var(--post-mono);
+  font-size: 18px;
+  font-weight: 600;
+  animation: mcts-fade-in 320ms ease;
+}
+@keyframes mcts-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 0.85; }
+}
+
+/* Caption + controls */
+.mcts-tree .mcts-caption {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 8px;
+  font-size: 14.5px;
+  color: var(--post-text-mid);
+  min-height: 44px;
+}
+.mcts-tree .mcts-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+.mcts-tree .mcts-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.mcts-tree .mcts-step-btn {
+  font-family: var(--post-mono);
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.mcts-tree .mcts-step-btn:hover { border-color: var(--post-border-s); color: var(--post-text); }
+.mcts-tree .mcts-step-btn.active {
+  background: var(--post-text);
+  color: #fff;
+  border-color: var(--post-text);
+}
+.mcts-tree .mcts-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mcts-tree .mcts-btn {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.mcts-tree .mcts-btn:hover { background: var(--post-bg-sub); color: var(--post-text); }
+.mcts-tree .mcts-btn-primary {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.mcts-tree .mcts-btn-primary:hover { background: #1d4ed8; color: #fff; }
+
+/* =====================================================
+   Widget 2 — UCB1 explorer
+   ===================================================== */
+.mcts-ucb-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.mcts-slider {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--post-text-mid);
+}
+.mcts-slider strong { color: var(--post-text); font-family: var(--post-mono); }
+.mcts-slider input[type="range"] { width: 100%; accent-color: var(--post-accent); }
+.mcts-slider .mcts-val {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  min-width: 28px;
+  text-align: right;
+  color: var(--post-text);
+}
+.mcts-ucb-formula {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  color: var(--post-text-mut);
+  text-align: right;
+}
+.mcts-ucb-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.mcts-ucb-card {
+  background: var(--post-bg-sub);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.mcts-ucb-card.is-winner {
+  border-color: var(--post-accent);
+  background: var(--post-accent-s);
+}
+.mcts-ucb-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.mcts-ucb-card-id {
+  font-family: var(--post-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--post-text);
+}
+.mcts-ucb-card-stats {
+  font-family: var(--post-mono);
+  font-size: 13px;
+  color: var(--post-text-mut);
+}
+.mcts-ucb-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--post-text-mid);
+}
+.mcts-ucb-row-label { font-family: var(--post-mono); }
+.mcts-ucb-row-val { font-family: var(--post-mono); color: var(--post-text); }
+.mcts-ucb-total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--post-border-s);
+  font-weight: 600;
+}
+.mcts-ucb-total .mcts-ucb-row-val {
+  color: var(--post-text);
+  font-size: 15px;
+}
+.mcts-ucb-card.is-winner .mcts-ucb-total .mcts-ucb-row-val {
+  color: var(--post-accent);
+}
+
+@media (max-width: 720px) {
+  .mcts-ucb-controls { grid-template-columns: 1fr; }
+  .mcts-ucb-formula { text-align: left; }
+  .mcts-ucb-grid { grid-template-columns: 1fr; }
+  .mcts-tree .mcts-controls { flex-direction: column; align-items: stretch; }
+}
+
+/* =====================================================
+   KaTeX wrappers
+   ===================================================== */
+.mcts-katex-block {
+  display: block;
+  margin: 18px 0 24px;
+  text-align: center;
+  font-size: 1.15em;
+  overflow-x: auto;
+}
+.mcts-katex-inline {
+  display: inline-block;
+  vertical-align: -0.05em;
+}

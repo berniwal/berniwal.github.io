@@ -1,0 +1,162 @@
+/* src/posts/AlphaBetaPruning.css
+   Widget-specific styles for the Alpha-Beta post. Post chrome lives in
+   PostChrome.css. */
+
+.ab-post {
+  --c-yellow-bg: #fde68a;
+  --c-yellow-ink: #92400e;
+  --c-yellow-bd: #f59e0b;
+  --c-green-bg:  #a7f3d0;
+  --c-green-ink: #065f46;
+  --c-green-bd:  #10b981;
+  --c-red-bg:    #fecaca;
+  --c-red-ink:   #991b1b;
+  --c-red-bd:    #ef4444;
+}
+
+/* =====================================================
+   Alpha-Beta tree widget
+   ===================================================== */
+.ab-tree svg { display: block; }
+
+.ab-tree .ab-edge {
+  stroke: var(--post-border-s);
+  stroke-width: 1.4;
+  transition: stroke 300ms ease, stroke-width 300ms ease, opacity 400ms ease;
+}
+.ab-tree .ab-edge.is-active {
+  stroke: var(--post-accent);
+  stroke-width: 2.6;
+}
+
+.ab-tree .ab-band rect {
+  fill: var(--post-bg-sunk);
+  stroke: var(--post-border);
+  stroke-width: 1;
+  opacity: 0.45;
+  transition: opacity 250ms ease, fill 250ms ease, stroke 250ms ease;
+}
+.ab-tree .ab-band .ab-band-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 12px;
+  text-anchor: middle;
+  letter-spacing: 0.04em;
+  transition: fill 250ms ease;
+}
+.ab-tree .ab-band.on rect { opacity: 1; }
+.ab-tree .ab-band-yellow.on rect { fill: var(--c-yellow-bg); stroke: var(--c-yellow-bd); }
+.ab-tree .ab-band-yellow.on .ab-band-label { fill: var(--c-yellow-ink); }
+.ab-tree .ab-band-green.on  rect { fill: var(--c-green-bg);  stroke: var(--c-green-bd); }
+.ab-tree .ab-band-green.on  .ab-band-label { fill: var(--c-green-ink); }
+.ab-tree .ab-band-red.on    rect { fill: var(--c-red-bg);    stroke: var(--c-red-bd); }
+.ab-tree .ab-band-red.on    .ab-band-label { fill: var(--c-red-ink); }
+
+.ab-tree .ab-cell rect {
+  fill: #fff;
+  stroke: var(--post-border-s);
+  stroke-width: 1.2;
+  transition: fill 250ms ease, stroke 250ms ease, opacity 400ms ease;
+}
+.ab-tree .ab-cell-label {
+  fill: var(--post-text-mut);
+  font-family: var(--post-mono);
+  font-size: 14px;
+  font-weight: 600;
+  text-anchor: middle;
+  transition: fill 250ms ease;
+}
+.ab-tree .ab-cell.on.ab-cell-yellow rect { fill: var(--c-yellow-bg); stroke: var(--c-yellow-bd); }
+.ab-tree .ab-cell.on.ab-cell-yellow .ab-cell-label { fill: var(--c-yellow-ink); }
+.ab-tree .ab-cell.on.ab-cell-green  rect { fill: var(--c-green-bg);  stroke: var(--c-green-bd); }
+.ab-tree .ab-cell.on.ab-cell-green  .ab-cell-label { fill: var(--c-green-ink); }
+.ab-tree .ab-cell.on.ab-cell-red    rect { fill: var(--c-red-bg);    stroke: var(--c-red-bd); }
+.ab-tree .ab-cell.on.ab-cell-red    .ab-cell-label { fill: var(--c-red-ink); }
+
+.ab-tree .ab-cell.is-chosen rect {
+  stroke: var(--post-accent);
+  stroke-width: 2.2;
+}
+.ab-tree .ab-cell.is-root.on rect { stroke-width: 2; }
+
+/* Cutoff labels */
+.ab-tree .ab-cut-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+  letter-spacing: 0.02em;
+}
+.ab-tree .ab-cut-beta { fill: var(--c-red-ink); }
+.ab-tree .ab-cut-alpha { fill: var(--c-red-ink); }
+
+/* Stats row */
+.ab-tree .ab-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: 18px;
+  background: var(--post-border);
+  border: 1px solid var(--post-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ab-tree .ab-stat {
+  background: #fff;
+  padding: 12px 16px;
+}
+.ab-tree .ab-stat-label {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--post-text-mut);
+  margin-bottom: 4px;
+}
+.ab-tree .ab-stat-value {
+  font-family: var(--post-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--post-text);
+  letter-spacing: -0.01em;
+}
+.ab-tree .ab-stat-unit {
+  font-family: var(--post-mono);
+  font-size: 11px;
+  color: var(--post-text-mut);
+  margin-left: 6px;
+  font-weight: 400;
+}
+.ab-tree .ab-stat-primary { background: var(--post-accent-s); }
+.ab-tree .ab-stat-primary .ab-stat-value { color: var(--post-accent); }
+
+/* Controls */
+.ab-tree .ab-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.ab-tree .ab-btn {
+  font-family: var(--post-sans);
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--post-border);
+  background: #fff;
+  color: var(--post-text-mid);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.ab-tree .ab-btn:hover { background: var(--post-bg-sub); color: var(--post-text); }
+.ab-tree .ab-btn-primary {
+  background: var(--post-accent);
+  color: #fff;
+  border-color: var(--post-accent);
+}
+.ab-tree .ab-btn-primary:hover { background: #1d4ed8; color: #fff; }
+
+/* Mobile */
+@media (max-width: 720px) {
+  .ab-tree .ab-stats { grid-template-columns: 1fr; }
+}
