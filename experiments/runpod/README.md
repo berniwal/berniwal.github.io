@@ -99,24 +99,54 @@ tokenizer + BFGS const-fit**, not by raw matmul. H100/A100's tensor-core
 advantage is mostly wasted; we'd need much larger batch (≥ 64) or much longer
 sequences to start seeing the speedup that justifies the price.
 
-**Rule of thumb:**
+### Plausibly cheaper, NOT YET MEASURED on this workload
+
+RunPod has a wider catalogue than the four above. The candidates worth a
+smoke test (single $0.30–$0.50 pod to measure per-round time before
+committing to 5 of them) are, in rough order of "likely good cost/perf":
+
+| GPU             | VRAM   | $/hr (approx) | FA2? | Notes for our workload                          |
+|-----------------|-------:|--------------:|:---:|-------------------------------------------------|
+| RTX A5000       | 24 GB  | ~0.30         | ✓   | Ampere workstation, likely A40-equivalent       |
+| RTX 3090        | 24 GB  | ~0.25         | ✓   | Consumer Ampere; probably fine                  |
+| RTX 4090        | 24 GB  | ~0.35         | ✓   | Ada generation; plausibly **faster** than A40   |
+| L4              | 24 GB  | ~0.40         | ✓   | Modern Ada, efficient                           |
+| A4000           | 16 GB  | ~0.20         | ✓   | Tight VRAM but batch ≤ 8 fits with grad-ckpt    |
+| L40             | 48 GB  | ~0.69         | ✓   | Big VRAM; useful for batch ≥ 32                 |
+
+**Do not use:**
+- **T4** (Turing, no FlashAttention-2 — silent fallback to slow naive attn).
+- **RTX 2000 Ada** (we hit reproducible stuck-init failures on this card
+  earlier in the project; 6 of 8 pods got stuck and we never used it again).
+
+### Rule of thumb
 
 1. **Prefer A40 (secure cloud, $0.44/hr) for any LLM-rollout-heavy run.** RTX
-   A6000 is a near-perfect equivalent if A40 is sold out.
-2. **Do NOT escalate to A100/H100 just because A40 is briefly unavailable.**
-   A40 secure-cloud capacity comes back within ~10 min in our experience. Wait
-   and retry, or accept fewer parallel seeds, before paying 3-6× the rate.
+   A6000 is a near-perfect measured equivalent if A40 is sold out.
+2. **If A40/A6000 are both unavailable**, the next move is **not** to escalate
+   to A100/H100. It's either (a) wait 10 min and retry — secure-cloud A40
+   capacity churns back fast; (b) try one of the unmeasured-but-likely-cheap
+   options above (RTX A5000, RTX 4090, RTX 3090) with a quick smoke test;
+   or (c) accept fewer parallel seeds. **Anything ≥ $1/hr needs an explicit
+   reason.**
 3. **Sanity-check the per-round wall time against expectations** before
    committing to a long run. If a "fast" GPU is barely faster than A40 for
-   your workload, you're not getting the speedup you paid for.
+   your workload, you're not getting the speedup you paid for. The table
+   above is the canonical reference; new GPUs should be benchmarked the
+   same way (run ~5 rounds, look at `elapsed_s / len(history)`).
 4. **The fallback ladder in `launch.py --gpu-type` should be A40 → RTX A6000,
-   then stop.** Anything more expensive needs explicit justification (e.g.
-   "the model genuinely doesn't fit in 44 GB" — but with gradient
-   checkpointing on, Qwen3-1.7B at batch=32 fits comfortably on A40).
-5. **If you do need >44 GB VRAM** (e.g. Qwen3-8B+ models without aggressive
-   sharding), prefer A100 80GB PCIe SECURE over H100. H100 only pays back its
-   premium when FlashAttention-3 + large-batch + long-seq are all in play
-   simultaneously, which is rarely true for our small-model RL loops.
+   then stop and assess.** Anything more expensive needs explicit
+   justification (e.g. "the model genuinely doesn't fit in 44 GB" — but
+   with gradient checkpointing on, Qwen3-1.7B at batch=32 fits comfortably
+   on A40).
+5. **If you genuinely need > 44 GB VRAM** (e.g. Qwen3-8B+ models without
+   aggressive sharding), prefer A100 80GB PCIe SECURE over H100. H100 only
+   pays back its premium when FlashAttention-3 + large-batch + long-seq are
+   all in play simultaneously, which is rarely true for our small-model RL
+   loops.
+6. **Before benchmarking any new GPU, check `python availability.py gpu`** —
+   the catalogue and prices change. Don't rely on the numbers above for
+   anything except A40 / A6000 / A100 / H100, which we have measured.
 
 This rule cost us ~$5 of avoidable spend the first time we hit it (one H100
 + two A100s where two more A40s would have been ~$2). Worth writing down so
