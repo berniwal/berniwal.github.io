@@ -933,6 +933,103 @@ New formula for f(x):`}</pre>
           transfers; the broad prior makes <em>exact</em> recovery harder, not easier.
         </p>
 
+        {/*
+          ============================================================
+          TODO -- REASONING ADDENDUM (in flight, finishes 2026-05-27 ~PM):
+          ============================================================
+          New section to slot in here (between "Does the ranking transfer?"
+          and "Run it yourself"). Working title: "What if the LLM also THINKS?"
+
+          Story arc:
+            1. Recap the ceiling on `harder` -- symbolic recovery ~zero.
+            2. Toggle reasoning ON for Qwen3-1.7B (enable_thinking=True).
+            3. Show the resulting 5-seed 2x2 (in-flight data):
+                                no-reasoning b=8   |   reasoning b=8 (budgeted)
+                  risk            ? / 5 num            ? / 5 num,  ? / 5 sym
+                  best_of_n       ? / 5 num            ? / 5 num,  ? / 5 sym
+              Headline (preliminary, from 3-seed overnight): reasoning + risk
+              hit 2/3 numeric and 1/3 DSR-symbolic on harder, breaking the
+              0/5 floor every numerical-only arm sits at.
+            4. Caveat #1: the symbolic recovery used const-snap; under the
+               strict "no junk terms" test it's 0/3. Be honest about this.
+            5. Caveat #2: comparing per-call vs per-dollar of compute -- the
+               reasoning arm spends ~30x more tokens per sample. Both framings
+               in the writeup.
+
+          ============================================================
+          TODO -- INFO BOX: "Fitting RL training on a single GPU"
+          ============================================================
+          User-suggested aside. Best dropped at the moment we mention "the
+          experiment OOM'd until we fixed two things" -- natural pivot from
+          narrative ("we hit a wall") to mechanism ("here is what activations
+          actually cost").
+
+          Visual concept: a horizontal GPU memory bar (say A40 = 44 GB) sliced
+          into colored segments, and a 3-row table showing how the activation
+          slice shrinks as we add each technique.
+
+          Row 1 -- "Naive batch=16, maxnew=2048":
+            [weights 3.4GB][optim 0.2GB][KV cache 0.3GB][ACTIVATIONS ~40 GB ⚠ OOM]
+
+          Row 2 -- "+ Micro-batch / gradient accumulation (micro=2)":
+            same total batch effect, but only 2 rollouts' activations resident
+            at a time during backward:
+            [weights][optim][KV][activations ~5 GB][   free ~35 GB   ]
+            Mechanic: 8 chunks of backward() + .grad accumulation, one step.
+            Trade: wall-time (~unchanged because chunks are sequential) for memory.
+
+          Row 3 -- "+ Gradient checkpointing":
+            activations are not even fully retained per chunk; layer outputs
+            are recomputed during backward (~30% extra compute, ~28x less
+            activation memory for Qwen3-1.7B's 28 layers):
+            [weights][optim][KV][acts 0.2GB][      free 40 GB      ]
+            Trade: compute for memory.
+
+          Optional interactive: drag a "max_new_tokens" slider and a batch
+          slider; toggle (a) micro-batch, (b) checkpointing. Bar fills the
+          GPU and a "fits? / OOMs" indicator flips. The point is to make the
+          two knobs concretely visible as memory shifts.
+
+          Reference snippets we already have running:
+            - layer1/torch_lora_proposer.py __init__ (the three lines that
+              enabled checkpointing)
+            - run_layer1_torch.py --micro-batch flag exposure
+
+          Citations for the info box:
+            - Gradient checkpointing (deep-learning version):
+                Chen, Xu, Zhang, Guestrin 2016 -- "Training Deep Nets with
+                Sublinear Memory Cost", arXiv:1604.06174. The seminal paper
+                for the O(N) -> O(sqrt(N)) memory trick by recomputing
+                activations in backward.
+            - Underlying classical theory (automatic differentiation):
+                Griewank & Walther 2000 -- "Algorithm 799: Revolve" (TOMS).
+                The optimal recompute schedule for reverse-mode AD; predates
+                deep learning by decades.
+            - Modern transformer refinement:
+                Korthikanti et al. 2022 -- "Reducing Activation Recomputation
+                in Large Transformer Models", arXiv:2205.05198 (Megatron-LM).
+                Selective recomputation -- only recompute the T^2 attention
+                matrix; keep the cheaper bits. ~5% overhead instead of ~30%.
+            - Different attack on the same memory wall (composes with
+              checkpointing):
+                Dao, Fu, Ermon, Rudra, Re 2022 -- "FlashAttention",
+                arXiv:2205.14135. Never materialises the T^2 attention matrix
+                at all (block-wise tiling + softmax accumulator) -- O(T)
+                memory for attention forward AND backward. Backward is built
+                in via block-wise recomputation, basically gradient
+                checkpointing baked into the attention kernel.
+            - Gradient accumulation: folklore, no single seminal paper.
+              Mentioned in passing by Smith et al. 2017 (arXiv:1711.00489),
+              Goyal et al. 2017 (arXiv:1706.02677), and GPT-3 (Brown 2020) as
+              standard tooling for large effective batch sizes.
+
+          Composition note: FlashAttention kills the per-layer T^2 attention
+          cost; checkpointing kills the per-layer-times-num-layers
+          multiplier on residual / MLP / layernorm activations. Both can be
+          on at the same time and they target different terms.
+          ============================================================
+        */}
+
         <h2>Run it yourself</h2>
         <p>
           Everything in this post — the four Layer-0 proposers, the LoRA + GRPO Layer-1 LLM arm,
