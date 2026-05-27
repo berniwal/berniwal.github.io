@@ -189,6 +189,37 @@ def _snap_consts(node: Node, tol: float) -> Node:
     return Node(node.op, [_snap_consts(c, tol) for c in node.children])
 
 
+def _snap_floats_to_pi(expr, tol: float):
+    """In a SymPy expression, replace Float atoms within ``tol`` of a small
+    multiple of pi with the exact symbolic form (e.g. 1.5707963 -> pi/2).
+
+    Reasoning-LLMs often emit numeric approximations of pi/k inside sin/cos
+    arguments (e.g. write 1.5707963... for pi/2 when proposing cos(2x) as
+    sin(2x + pi/2)). Without this snap the post-simplify equivalence check
+    misses these recoveries even though the structure is exact.
+    """
+    import math
+    import sympy as sp
+
+    candidates = []
+    for sign in (1, -1):
+        for denom in (1, 2, 3, 4, 6):
+            candidates.append((sign * math.pi / denom, sign * sp.pi / denom))
+        candidates.append((sign * 2 * math.pi, sign * 2 * sp.pi))
+
+    def repl(f):
+        v = float(f)
+        for nv, sym in candidates:
+            if abs(v - nv) <= tol:
+                return sym
+        return f
+
+    # Match any concrete Number atom (Float or exact Rational): to_sympy turns
+    # numeric Node leaves into Rationals to avoid float-noise simplification, so
+    # an is_Float-only filter never fires on Layer-1 LLM outputs.
+    return expr.replace(lambda x: x.is_Number and not x.is_Integer, repl)
+
+
 def sympy_equivalent(node: Node, target_str: str, const_tol: float = 0.0) -> bool:
     """True iff ``node`` is exactly symbolically equivalent to ``target_str``
     (DSR's recovery criterion). Robust to CAS hiccups (a bad expression -> False),
@@ -197,8 +228,11 @@ def sympy_equivalent(node: Node, target_str: str, const_tol: float = 0.0) -> boo
     where sympy wasn't installed).
 
     ``const_tol > 0`` snaps fitted float constants to nearby integers/halves first
-    (see :func:`_snap_consts`) -- the right setting for the BFGS const-placeholder
-    Layer-1 path. Default 0 (no snapping) keeps Layer-0 / Nguyen behavior exact.
+    (see :func:`_snap_consts`) AND in the post-conversion SymPy expression to
+    multiples of pi (see :func:`_snap_floats_to_pi`) -- both are needed for the
+    Layer-1 LLM proposer which BFGS-fits floats AND may emit pi/k directly as a
+    float inside sin/cos arguments. Default 0 (no snapping) keeps Layer-0 /
+    Nguyen behavior exact.
     """
     import sympy as sp  # required dep -- let ImportError propagate, do NOT swallow it
 
@@ -206,6 +240,8 @@ def sympy_equivalent(node: Node, target_str: str, const_tol: float = 0.0) -> boo
         if const_tol > 0:
             node = _snap_consts(node, const_tol)
         expr = to_sympy(node)
+        if const_tol > 0:
+            expr = _snap_floats_to_pi(expr, const_tol)
         target = sp.sympify(target_str)
         return bool(sp.simplify(expr - target) == 0)
     except Exception:
