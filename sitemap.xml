@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://walsertech.ch/</loc>
+    <lastmod>2026-05-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Algorithms series -->
+  <url><loc>https://walsertech.ch/blog/mini-max</loc><lastmod>2026-01-15</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/alpha-beta</loc><lastmod>2026-01-22</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/monte-carlo</loc><lastmod>2026-01-29</lastmod><priority>0.8</priority></url>
+
+  <!-- Transformers series -->
+  <url><loc>https://walsertech.ch/blog/nlp-history</loc><lastmod>2026-01-08</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/self-attention</loc><lastmod>2026-02-05</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/from-attention-to-transformer</loc><lastmod>2026-02-12</lastmod><priority>0.8</priority></url>
+
+  <!-- Transformer Costs series -->
+  <url><loc>https://walsertech.ch/blog/training-cost</loc><lastmod>2026-02-19</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/training-cost-optimization</loc><lastmod>2026-02-26</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/inference-cost</loc><lastmod>2026-03-05</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/inference-cost-optimization</loc><lastmod>2026-03-12</lastmod><priority>0.8</priority></url>
+
+  <!-- Positions in Transformers series -->
+  <url><loc>https://walsertech.ch/blog/positional-encodings</loc><lastmod>2026-03-19</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/rope</loc><lastmod>2026-03-26</lastmod><priority>0.8</priority></url>
+
+  <!-- Aligning LMs series -->
+  <url><loc>https://walsertech.ch/blog/rlhf-and-ppo</loc><lastmod>2026-04-02</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/beyond-ppo</loc><lastmod>2026-04-09</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/beyond-human-feedback</loc><lastmod>2026-04-16</lastmod><priority>0.8</priority></url>
+
+  <!-- Self-Improvement series -->
+  <url><loc>https://walsertech.ch/blog/alphago-to-alphazero</loc><lastmod>2026-05-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/external-verifiers</loc><lastmod>2026-05-14</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/internal-verifiers</loc><lastmod>2026-05-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/evolutionary-search</loc><lastmod>2026-05-25</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/test-time-training</loc><lastmod>2026-05-26</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/measuring-self-improvement</loc><lastmod>2026-05-27</lastmod><priority>0.8</priority></url>
+
+  <!-- Symbolic Regression series -->
+  <url><loc>https://walsertech.ch/blog/symbolic-regression-arena</loc><lastmod>2026-05-10</lastmod><priority>0.8</priority></url>
+  <url><loc>https://walsertech.ch/blog/symbolic-regression-llm-transfer</loc><lastmod>2026-05-17</lastmod><priority>0.8</priority></url>
+</urlset>
