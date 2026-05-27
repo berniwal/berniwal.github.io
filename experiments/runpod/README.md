@@ -81,6 +81,47 @@ GPU (future, after Layer 1 is ported off MLX):
 python launch.py --gpu --exp l1-smoke --cmd "python3 run_layer1.py --config ..."
 ```
 
+## GPU selection guide (lesson learned 2026-05-27)
+
+For the kinds of workloads in this repo (Qwen3-1.7B LoRA + GRPO, batch ≤ 32,
+maxnew ≤ 2048), **the H100 and A100 are not worth their premium.** Measured
+per-round wall time across a real 5-pod parallel run (`batch=16 maxnew=2048+96`):
+
+| GPU            | $/hr  | per-round | $ per round  | notes                       |
+|----------------|------:|----------:|-------------:|-----------------------------|
+| A40 (44 GB)    | 0.44  | 151 s     | $0.018       | reference                   |
+| RTX A6000      | 0.49  | 139 s     | $0.019       | ≈ A40                       |
+| A100 80GB PCIe | 1.39  | 139 s     | $0.054       | **3× cost, ≈ A40 speed**    |
+| H100 PCIe      | 2.89  | 127 s     | $0.102       | **6× cost, 1.15× speed**    |
+
+The workload is bottlenecked by **autoregressive decode + KV cache management +
+tokenizer + BFGS const-fit**, not by raw matmul. H100/A100's tensor-core
+advantage is mostly wasted; we'd need much larger batch (≥ 64) or much longer
+sequences to start seeing the speedup that justifies the price.
+
+**Rule of thumb:**
+
+1. **Prefer A40 (secure cloud, $0.44/hr) for any LLM-rollout-heavy run.** RTX
+   A6000 is a near-perfect equivalent if A40 is sold out.
+2. **Do NOT escalate to A100/H100 just because A40 is briefly unavailable.**
+   A40 secure-cloud capacity comes back within ~10 min in our experience. Wait
+   and retry, or accept fewer parallel seeds, before paying 3-6× the rate.
+3. **Sanity-check the per-round wall time against expectations** before
+   committing to a long run. If a "fast" GPU is barely faster than A40 for
+   your workload, you're not getting the speedup you paid for.
+4. **The fallback ladder in `launch.py --gpu-type` should be A40 → RTX A6000,
+   then stop.** Anything more expensive needs explicit justification (e.g.
+   "the model genuinely doesn't fit in 44 GB" — but with gradient
+   checkpointing on, Qwen3-1.7B at batch=32 fits comfortably on A40).
+5. **If you do need >44 GB VRAM** (e.g. Qwen3-8B+ models without aggressive
+   sharding), prefer A100 80GB PCIe SECURE over H100. H100 only pays back its
+   premium when FlashAttention-3 + large-batch + long-seq are all in play
+   simultaneously, which is rarely true for our small-model RL loops.
+
+This rule cost us ~$5 of avoidable spend the first time we hit it (one H100
++ two A100s where two more A40s would have been ~$2). Worth writing down so
+the next experiment doesn't repeat it.
+
 ## Behavior notes
 
 - **Resumable:** each run checkpoints per-JSON to `results/.../logs/`. The worker
