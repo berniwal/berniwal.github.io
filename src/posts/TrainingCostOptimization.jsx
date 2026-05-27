@@ -3,6 +3,7 @@
 // TAGS FOR REGISTRATION: ['transformers', 'training', 'optimization']
 // EXCERPT: Part 1 showed activations dominate training memory. Part 2 walks through the four tricks that fight back — gradient accumulation, gradient checkpointing, mixed precision, and ZeRO/FSDP sharding — and where Flash Attention fits in.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -476,11 +477,13 @@ function CodeBlock() {
    Page
    ============================================================ */
 export default function TrainingCostOptimization() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Optimizing Training Cost — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Optimizing Training Cost',
+    description: 'Gradient accumulation, gradient checkpointing, mixed precision, ZeRO/FSDP — four optimizations that each target a different memory bucket.',
+    slug: 'training-cost-optimization',
+    publishedDate: '2026-02-26',
+    keywords: ['gradient checkpointing', 'mixed precision', 'ZeRO', 'FSDP', 'training'],
+  });
 
   return (
     <article className="post-2026 tco-post">
@@ -686,9 +689,9 @@ export default function TrainingCostOptimization() {
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Transformer Costs</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/training-cost">Training Cost of a Transformer</a>
+            <a className="post-link" href="/blog/training-cost">Training Cost of a Transformer</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/inference-cost">Inference Cost of a Transformer</a>.
+            <a className="post-link" href="/blog/inference-cost">Inference Cost of a Transformer</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

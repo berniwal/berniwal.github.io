@@ -7,6 +7,7 @@
 // TAGS FOR REGISTRATION: ['transformers', 'inference', 'cost']
 // EXCERPT: When you chat with an LLM, the first token takes ~500 ms but the rest stream at ~20 ms each. That asymmetry is prefill vs decode — and the reason inference is memory-bound while training is compute-bound.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -889,11 +890,13 @@ function CodeBlock() {
    Page
    ========================================================= */
 export default function InferenceCost() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Inference Cost of a Transformer — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Inference Cost of a Transformer',
+    description: 'Why the first token takes 500 ms and the rest stream at 20 ms each — prefill/decode, the KV cache, and the arithmetic-intensity argument.',
+    slug: 'inference-cost',
+    publishedDate: '2026-03-05',
+    keywords: ['inference', 'KV cache', 'prefill', 'decode', 'arithmetic intensity'],
+  });
 
   return (
     <article className="post-2026 ic-post">
@@ -1102,9 +1105,9 @@ export default function InferenceCost() {
         <footer className="post-footer">
           <p>
             <strong>Part 3 of Transformer Costs</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/training-cost-optimization">Optimizing Training Cost</a>
+            <a className="post-link" href="/blog/training-cost-optimization">Optimizing Training Cost</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/inference-cost-optimization">Optimizing Inference Cost</a>.
+            <a className="post-link" href="/blog/inference-cost-optimization">Optimizing Inference Cost</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

@@ -5,6 +5,7 @@
 // TAGS FOR REGISTRATION: ['transformers', 'positions', 'history']
 // EXCERPT: Self-attention is permutation-invariant. Five additive position-encoding schemes — absolute, Shaw, T5, Swin, ALiBi — and where each one injects position.
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './PositionalEncodings.css';
 
@@ -509,11 +510,13 @@ function SectionPosEncodingZoo() {
    Page
    ========================================================= */
 export default function PositionalEncodings() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Positional Encodings: A Tour — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Positional Encodings: A Tour',
+    description: 'Self-attention is permutation-invariant. Five additive position-encoding schemes — absolute, Shaw, T5, Swin, ALiBi — and where each one injects position.',
+    slug: 'positional-encodings',
+    publishedDate: '2026-03-19',
+    keywords: ['positional encoding', 'ALiBi', 'T5 bias', 'transformers'],
+  });
 
   return (
     <article className="post-2026 pe-post">
@@ -577,7 +580,7 @@ export default function PositionalEncodings() {
         <SectionPosEncodingZoo />
         <p>
           Different surface, same shape: position is something the model{' '}
-          <em>adds</em> on top of attention. <a className="post-link" href="#/blog/rope">Part 2</a> throws that
+          <em>adds</em> on top of attention. <a className="post-link" href="/blog/rope">Part 2</a> throws that
           habit out — instead of adding a bias, it{' '}
           <em>rotates</em> Q and K, so relative position falls out of the
           dot product for free.
@@ -638,7 +641,7 @@ export default function PositionalEncodings() {
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Positions in Transformers</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/rope">Rotary Positional Embeddings (RoPE)</a>.
+            <a className="post-link" href="/blog/rope">Rotary Positional Embeddings (RoPE)</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

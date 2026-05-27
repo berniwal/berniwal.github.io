@@ -6,6 +6,7 @@
 // Ported from the original VisualizingAttention post: multi-head, causal
 // masking, positional embeddings. Adds a new MLP section.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -865,11 +866,13 @@ function BlockDiagram() {
    Page
    ========================================================= */
 export default function FromAttentionToTransformer() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'From Attention to Transformer — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'From Attention to Transformer',
+    description: 'Multiple heads, an MLP per token, a causal mask, and positional information — the block that powers every modern language model.',
+    slug: 'from-attention-to-transformer',
+    publishedDate: '2026-02-12',
+    keywords: ['transformer', 'multi-head attention', 'MLP', 'LayerNorm', 'causal mask'],
+  });
 
   return (
     <article className="post-2026 fat-post">
@@ -987,7 +990,7 @@ export default function FromAttentionToTransformer() {
         <PositionalWidget />
         <p>
           Modern models mostly use{' '}
-          <a className="post-link" href="#/blog/visualizing-rope">rotary positional embeddings (RoPE)</a>{' '}
+          <a className="post-link" href="/blog/visualizing-rope">rotary positional embeddings (RoPE)</a>{' '}
           instead, which rotate the Q and K vectors inside attention rather
           than adding a separate vector at the input. Same goal, cleaner
           extrapolation to longer sequences. We covered RoPE in its own post.
@@ -1080,19 +1083,19 @@ export default function FromAttentionToTransformer() {
           <div className="ref-cite">Earlier posts</div>
           <div>
             <div className="ref-title">
-              <a href="#/blog/visualizing-rope" target="_blank" rel="noreferrer">Visualizing RoPE</a>
+              <a href="/blog/visualizing-rope" target="_blank" rel="noreferrer">Visualizing RoPE</a>
             </div>
             <div className="ref-note">Rotary positional embeddings, in detail.</div>
           </div>
-          <div className="ref-link"><a href="#/blog/visualizing-rope" target="_blank" rel="noreferrer">this site</a></div>
+          <div className="ref-link"><a href="/blog/visualizing-rope" target="_blank" rel="noreferrer">this site</a></div>
         </div>
 
         <footer className="post-footer">
           <p>
             <strong>Part 3 of Transformers</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/self-attention">Inside Self-Attention</a>
+            <a className="post-link" href="/blog/self-attention">Inside Self-Attention</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/nlp-history">From TF-IDF to Attention</a>.
+            <a className="post-link" href="/blog/nlp-history">From TF-IDF to Attention</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

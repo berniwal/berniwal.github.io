@@ -1,12 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta http-equiv="refresh" content="0; url=/" />
-    <script type="text/javascript">
-        // Redirect to the home page if the path doesn't exist.
-        window.location.replace("/");
-    </script>
+  <meta charset="utf-8" />
+  <title>Bernhard Walser</title>
+  <!--
+    GitHub Pages SPA fallback. GH Pages serves this file whenever a request
+    doesn't match an actual file on disk. We rewrite the URL path into a
+    query string and bounce to "/". A small script in index.html then
+    restores the original path before React Router boots.
+
+    Based on https://github.com/rafgraph/spa-github-pages — MIT licensed.
+  -->
+  <script>
+    (function () {
+      var segmentCount = 0; // 0 because GH Pages serves the site from the apex (walsertech.ch / *.github.io)
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + segmentCount).join('/') +
+        '/?p=/' +
+        l.pathname.split('/').slice(1 + segmentCount).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    })();
+  </script>
 </head>
 <body>
+  Redirecting…
 </body>
 </html>

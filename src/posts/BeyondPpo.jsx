@@ -3,6 +3,7 @@
 // TAGS FOR REGISTRATION: ['rlhf', 'dpo', 'grpo']
 // EXCERPT: PPO works, but it needs four networks in memory and is hard to tune. DPO drops the reward model, GRPO drops the value net, and DAPO patches GRPO's failure modes — the post-PPO landscape, side by side.
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './BeyondPpo.css';
 
@@ -194,11 +195,13 @@ function SectionMethodCompare() {
    Page
    ============================================================ */
 export default function BeyondPpo() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Beyond PPO: DPO, GRPO, DAPO — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Beyond PPO: DPO, GRPO, DAPO',
+    description: 'DPO drops the reward model, GRPO drops the value net, and DAPO patches GRPO\'s failure modes — the post-PPO landscape, side by side.',
+    slug: 'beyond-ppo',
+    publishedDate: '2026-04-09',
+    keywords: ['DPO', 'GRPO', 'DAPO', 'RLHF', 'alignment'],
+  });
 
   return (
     <article className="post-2026 bp-post">
@@ -228,7 +231,7 @@ export default function BeyondPpo() {
 
         <p>
           A quick recap from{' '}
-          <a className="post-link" href="#/blog/rlhf-and-ppo">Part 1</a>: PPO
+          <a className="post-link" href="/blog/rlhf-and-ppo">Part 1</a>: PPO
           aligns a language model by sampling completions from the policy,
           scoring them with a learned reward model, and pushing the policy
           toward higher reward inside a trust region. It works — InstructGPT,
@@ -489,9 +492,9 @@ export default function BeyondPpo() {
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Aligning LMs</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/rlhf-and-ppo">RLHF and PPO</a>
+            <a className="post-link" href="/blog/rlhf-and-ppo">RLHF and PPO</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/beyond-human-feedback">Beyond Human Feedback (RLAIF, Process Rewards, RLVR)</a>.
+            <a className="post-link" href="/blog/beyond-human-feedback">Beyond Human Feedback (RLAIF, Process Rewards, RLVR)</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

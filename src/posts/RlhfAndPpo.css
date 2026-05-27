@@ -126,6 +126,21 @@
   background: #fff;
   color: var(--post-text);
   cursor: pointer;
+  max-width: 100%;
+}
+.rp-post .rp-controls select {
+  text-overflow: ellipsis;
+}
+@media (max-width: 720px) {
+  .rp-post .rp-controls { width: 100%; }
+  .rp-post .rp-controls label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+  }
+  .rp-post .rp-controls select { width: 100%; }
 }
 .rp-post .rp-controls-hint {
   color: var(--post-text-mid);

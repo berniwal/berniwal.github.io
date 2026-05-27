@@ -6,6 +6,7 @@
 // EXCERPT: RoPE encodes token position by rotating each query and key vector — the dot product naturally depends on relative offset, with zero new parameters and a clean path to long context.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './RotaryPositionalEmbeddings.css';
 
@@ -928,11 +929,13 @@ function CodeBlock() {
    Page
    ========================================================= */
 export default function RotaryPositionalEmbeddings() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Rotary Positional Embeddings (RoPE) — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Rotary Positional Embeddings (RoPE)',
+    description: 'RoPE encodes token position by rotating each query and key vector — the dot product naturally depends on relative offset, with zero new parameters and a clean path to long context.',
+    slug: 'rope',
+    publishedDate: '2026-03-19',
+    keywords: ['RoPE', 'rotary positional embedding', 'Llama', 'long context', 'YaRN'],
+  });
 
   return (
     <article className="post-2026 rope-post">
@@ -1189,19 +1192,19 @@ export default function RotaryPositionalEmbeddings() {
           <div className="ref-cite">Earlier post</div>
           <div>
             <div className="ref-title">
-              <a href="#/blog/positional-encodings">Positional Encodings: A Tour</a>
+              <a href="/blog/positional-encodings">Positional Encodings: A Tour</a>
             </div>
             <div className="ref-note">Part 1 of this series — absolute, Shaw, T5, Swin: the predecessors RoPE replaces.</div>
           </div>
-          <div className="ref-link"><a href="#/blog/positional-encodings">post</a></div>
+          <div className="ref-link"><a href="/blog/positional-encodings">post</a></div>
         </div>
 
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Positions in Transformers</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/positional-encodings">Positional Encodings: A Tour</a>
+            <a className="post-link" href="/blog/positional-encodings">Positional Encodings: A Tour</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/positional-encodings">Positional Encodings: A Tour</a>.
+            <a className="post-link" href="/blog/positional-encodings">Positional Encodings: A Tour</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

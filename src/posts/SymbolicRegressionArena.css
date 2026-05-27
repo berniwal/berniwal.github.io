@@ -202,6 +202,19 @@
   margin: 18px 0 24px;
 }
 @media (max-width: 720px) { .sra-post .sra-proposers { grid-template-columns: 1fr; } }
+
+/* Mobile: allow wide result tables to scroll horizontally instead of
+   forcing the whole post wider than the viewport. */
+@media (max-width: 720px) {
+  .sra-post table.sra-results,
+  .sra-post table.sra-batch {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+}
 .sra-post .sra-proposer {
   background: var(--post-bg-sub);
   border: 1px solid var(--post-border);

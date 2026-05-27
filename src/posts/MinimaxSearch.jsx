@@ -3,6 +3,7 @@
 // Ported from the original 2023 markdown post; prose preserved, visuals reimagined
 // as interactive widgets, design tokens aligned with the redesigned site.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ChessAgentPlayer, { minimaxAgent } from './ChessAgentPlayer';
@@ -509,11 +510,13 @@ function CodeBlock() {
    Page
    ============================================================ */
 export default function MinimaxSearch() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Minimax Search — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Minimax Search',
+    description: 'Simple decision-making algorithm for two-player games — walk every move sequence, assume the opponent plays optimally, pick the move that minimizes your worst case.',
+    slug: 'mini-max',
+    publishedDate: '2026-01-15',
+    keywords: ['minimax', 'chess', 'search', 'algorithms', 'game theory'],
+  });
 
   return (
     <article className="post-2026 mm-post">
@@ -637,7 +640,7 @@ export default function MinimaxSearch() {
           Minimax is doing more work than it needs to. Once it sees that one branch is
           worse than something already found, it could stop searching that branch
           entirely. That's the idea behind{' '}
-          <a className="post-link" href="#/blog/alpha-beta">alpha-beta pruning</a> — same
+          <a className="post-link" href="/blog/alpha-beta">alpha-beta pruning</a> — same
           answer as minimax, far fewer nodes evaluated.
         </p>
 
@@ -669,9 +672,9 @@ export default function MinimaxSearch() {
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Algorithms</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/alpha-beta">Alpha-Beta Pruning</a>
+            <a className="post-link" href="/blog/alpha-beta">Alpha-Beta Pruning</a>
             {' · '}Continues with:{' '}
-            <a className="post-link" href="#/blog/monte-carlo">Monte Carlo Tree Search</a>.
+            <a className="post-link" href="/blog/monte-carlo">Monte Carlo Tree Search</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

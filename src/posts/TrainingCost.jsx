@@ -8,6 +8,7 @@
 // EXCERPT: Training Llama-2-7B took ~1.7M GPU-hours. To know why, count what one transformer layer actually does — forward and backward — and what has to be held in memory between them.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -591,11 +592,13 @@ function CodeBlock() {
    Page
    ========================================================= */
 export default function TrainingCost() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Training Cost of a Transformer — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Training Cost of a Transformer',
+    description: 'What one transformer layer actually does — forward and backward — and what has to be held in memory between them.',
+    slug: 'training-cost',
+    publishedDate: '2026-02-19',
+    keywords: ['training cost', 'transformer', 'FLOPs', 'memory', 'Llama'],
+  });
 
   return (
     <article className="post-2026 tc-post">
@@ -738,7 +741,7 @@ export default function TrainingCost() {
           The practical consequence: training clusters are sized for FLOPs; serving
           clusters are sized for HBM bandwidth. Same hardware, two different
           economics. Part 3 picks up the inference side of that asymmetry — see{' '}
-          <a className="post-link" href="#/blog/inference-cost">Inference Cost of a Transformer</a>.
+          <a className="post-link" href="/blog/inference-cost">Inference Cost of a Transformer</a>.
         </p>
 
         <h2 className="reveal">References</h2>
@@ -805,9 +808,9 @@ export default function TrainingCost() {
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Transformer Costs</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/training-cost-optimization">Optimizing Training Cost</a>
+            <a className="post-link" href="/blog/training-cost-optimization">Optimizing Training Cost</a>
             {' · '}Continues with:{' '}
-            <a className="post-link" href="#/blog/inference-cost">Inference Cost of a Transformer</a>.
+            <a className="post-link" href="/blog/inference-cost">Inference Cost of a Transformer</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

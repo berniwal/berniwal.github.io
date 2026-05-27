@@ -3,6 +3,7 @@
 // TAGS FOR REGISTRATION: ['self-improvement', 'benchmarks', 'alignment']
 // EXCERPT: A tour of the benchmark landscape for self-improving AI — MLE-Bench, RE-Bench, PaperBench, PostTrainBench, METR's time horizons, and Anthropic's Automated Alignment Researcher. Where the numbers actually sit today, and what they still don't measure.
 import React, { useEffect, useRef } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './MeasuringSelfImprovement.css';
 
@@ -130,11 +131,13 @@ function BenchmarkGrid() {
    Page
    ========================================================= */
 export default function MeasuringSelfImprovement() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Measuring Self-Improvement — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Measuring Self-Improvement',
+    description: 'MLE-Bench, RE-Bench, PaperBench, PostTrainBench, METR time-horizon curves, and Anthropic\'s Automated Alignment Researcher.',
+    slug: 'measuring-self-improvement',
+    publishedDate: '2026-05-27',
+    keywords: ['MLE-Bench', 'RE-Bench', 'PaperBench', 'METR', 'self-improvement', 'benchmarks'],
+  });
 
   return (
     <article className="post-2026 msi-post">
@@ -339,15 +342,15 @@ export default function MeasuringSelfImprovement() {
         <h2 className="reveal">Closing — the series in one picture</h2>
         <p>
           Across six posts this series walked a deliberate arc:{' '}
-          <a className="post-link" href="#/blog/alphago-to-alphazero">AlphaGo → AlphaZero</a>{' '}
+          <a className="post-link" href="/blog/alphago-to-alphazero">AlphaGo → AlphaZero</a>{' '}
           (the historical proof that self-play works);{' '}
-          <a className="post-link" href="#/blog/the-map">the map</a>{' '}
+          <a className="post-link" href="/blog/the-map">the map</a>{' '}
           (a two-axis lens for the modern methods);{' '}
-          <a className="post-link" href="#/blog/training-time-self-improvement">training-time self-improvement</a>{' '}
+          <a className="post-link" href="/blog/training-time-self-improvement">training-time self-improvement</a>{' '}
           (RLVR, R-Zero, the verifier-grounded lineage);{' '}
-          <a className="post-link" href="#/blog/inference-time-self-improvement">inference-time self-improvement</a>{' '}
+          <a className="post-link" href="/blog/inference-time-self-improvement">inference-time self-improvement</a>{' '}
           (AlphaEvolve, FunSearch, the search-only branch);{' '}
-          <a className="post-link" href="#/blog/test-time-training">test-time training</a>{' '}
+          <a className="post-link" href="/blog/test-time-training">test-time training</a>{' '}
           (weights that update online); and this post (the yardstick).
         </p>
         <p>
@@ -419,11 +422,11 @@ export default function MeasuringSelfImprovement() {
           <div className="ref-cite">Earlier posts</div>
           <div>
             <div className="ref-title">
-              <a href="#/blog/alphago-to-alphazero">AlphaGo to AlphaZero</a> ·{' '}
-              <a href="#/blog/the-map">The map</a> ·{' '}
-              <a href="#/blog/training-time-self-improvement">Training-time self-improvement</a> ·{' '}
-              <a href="#/blog/inference-time-self-improvement">Inference-time self-improvement</a> ·{' '}
-              <a href="#/blog/test-time-training">Test-time training</a>
+              <a href="/blog/alphago-to-alphazero">AlphaGo to AlphaZero</a> ·{' '}
+              <a href="/blog/the-map">The map</a> ·{' '}
+              <a href="/blog/training-time-self-improvement">Training-time self-improvement</a> ·{' '}
+              <a href="/blog/inference-time-self-improvement">Inference-time self-improvement</a> ·{' '}
+              <a href="/blog/test-time-training">Test-time training</a>
             </div>
             <div className="ref-note">Parts 1–5 of this series.</div>
           </div>
@@ -433,9 +436,9 @@ export default function MeasuringSelfImprovement() {
         <footer className="post-footer">
           <p>
             <strong>Part 6 of Self-Improvement</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/test-time-training">Test-Time Training</a>
+            <a className="post-link" href="/blog/test-time-training">Test-Time Training</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/alphago-to-alphazero">AlphaGo to AlphaZero</a>.
+            <a className="post-link" href="/blog/alphago-to-alphazero">AlphaGo to AlphaZero</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

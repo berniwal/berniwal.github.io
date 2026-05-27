@@ -8,6 +8,7 @@
 //          decode: shrinking the KV cache (GQA/MQA), paging it like virtual memory,
 //          and batching requests at the iteration level.
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -515,11 +516,13 @@ function PagedCodeBlock() {
    Page
    ========================================================= */
 export default function InferenceCostOptimization() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Optimizing Inference Cost — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Optimizing Inference Cost',
+    description: 'Decode is bandwidth-bound, so every optimization shrinks the KV cache or packs the GPU better: GQA/MQA, PagedAttention, continuous batching.',
+    slug: 'inference-cost-optimization',
+    publishedDate: '2026-03-12',
+    keywords: ['GQA', 'MQA', 'PagedAttention', 'continuous batching', 'inference'],
+  });
 
   return (
     <article className="post-2026 ico-post">
@@ -547,7 +550,7 @@ export default function InferenceCostOptimization() {
 
         <h2 className="reveal">Why decode is bandwidth-bound, not compute-bound</h2>
         <p>
-          <a className="post-link" href="#/blog/inference-cost">Part 3</a> ended on a
+          <a className="post-link" href="/blog/inference-cost">Part 3</a> ended on a
           number: a decode step on a 7B model with an 8k context sits at an{' '}
           <em>arithmetic intensity</em> — useful FLOPs per byte read from HBM —
           of roughly 1. The H100's "ridge point" between memory-bound and
@@ -731,19 +734,19 @@ export default function InferenceCostOptimization() {
           <div className="ref-cite">Earlier posts</div>
           <div>
             <div className="ref-title">
-              <a href="#/blog/inference-cost" target="_blank" rel="noreferrer">Inference Cost of a Transformer</a>
+              <a href="/blog/inference-cost" target="_blank" rel="noreferrer">Inference Cost of a Transformer</a>
             </div>
             <div className="ref-note">Part 3 — where the bandwidth-bound diagnosis came from.</div>
           </div>
-          <div className="ref-link"><a href="#/blog/inference-cost" target="_blank" rel="noreferrer">this site</a></div>
+          <div className="ref-link"><a href="/blog/inference-cost" target="_blank" rel="noreferrer">this site</a></div>
         </div>
 
         <footer className="post-footer">
           <p>
             <strong>Part 4 of Transformer Costs</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/inference-cost">Inference Cost of a Transformer</a>
+            <a className="post-link" href="/blog/inference-cost">Inference Cost of a Transformer</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/training-cost">Training Cost of a Transformer</a>.
+            <a className="post-link" href="/blog/training-cost">Training Cost of a Transformer</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

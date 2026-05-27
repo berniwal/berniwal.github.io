@@ -7,6 +7,7 @@
 // TAGS FOR REGISTRATION: ['symbolic-regression', 'rl', 'self-improvement']
 // EXCERPT: Four classical search algorithms race to recover a hidden equation under one shared budget. Only the proposer changes — and the ranking is surprisingly sharp.
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './SymbolicRegressionArena.css';
 
@@ -379,11 +380,13 @@ function NguyenTable() {
 
 /* ============================ the post ============================ */
 export default function SymbolicRegressionArena() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Racing Search Algorithms on Symbolic Regression — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Racing Search Algorithms on Symbolic Regression',
+    description: 'Symbolic regression as a self-improvement testbed: evolution, greedy RL, and risk-seeking RL race to recover a hidden equation under one shared compute budget.',
+    slug: 'symbolic-regression-arena',
+    publishedDate: '2026-05-10',
+    keywords: ['symbolic regression', 'evolution', 'PPO', 'risk-seeking', 'self-improvement'],
+  });
 
   return (
     <article className="post-2026 sra-post">
@@ -497,7 +500,7 @@ export default function SymbolicRegressionArena() {
           <a className="post-link" href="https://arxiv.org/abs/1912.04871" target="_blank" rel="noreferrer">Deep Symbolic Regression</a>{' '}
           (Petersen et al. 2021). An LLM proposer — Qwen2.5 fine-tuned with LoRA + GRPO under the
           same advantage formulas — is the subject of{' '}
-          <a className="post-link" href="#/blog/symbolic-regression-llm-transfer">Part 2</a>.
+          <a className="post-link" href="/blog/symbolic-regression-llm-transfer">Part 2</a>.
         </p>
 
         <h2 className="reveal">Two things that make the search well-posed</h2>
@@ -606,7 +609,7 @@ export default function SymbolicRegressionArena() {
           The obvious next question: swap the small RNN policy for a pre-trained language model.
           Does the same objective still pick the same winner, or does the LLM's prior wash the
           ranking out?{' '}
-          <a className="post-link" href="#/blog/symbolic-regression-llm-transfer">Part 2</a> runs
+          <a className="post-link" href="/blog/symbolic-regression-llm-transfer">Part 2</a> runs
           that experiment.
         </p>
 
@@ -674,7 +677,7 @@ export default function SymbolicRegressionArena() {
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Symbolic Regression</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/symbolic-regression-llm-transfer">Does the Ranking Transfer to an LLM?</a>
+            <a className="post-link" href="/blog/symbolic-regression-llm-transfer">Does the Ranking Transfer to an LLM?</a>
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

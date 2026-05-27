@@ -6,6 +6,7 @@
 // Ported from the original VisualizingAttention.jsx; prose preserved,
 // design tokens aligned with the post-2026 redesign.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -928,11 +929,13 @@ function CodeBlock() {
    ========================================================= */
 
 export default function SelfAttention() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Inside Self-Attention — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Inside Self-Attention',
+    description: 'How a single self-attention layer works — three projections (Q, K, V), a scaled dot-product, a softmax, and a weighted sum.',
+    slug: 'self-attention',
+    publishedDate: '2026-02-05',
+    keywords: ['self-attention', 'Q K V', 'softmax', 'transformers'],
+  });
 
   return (
     <article className="post-2026 sa-post">
@@ -960,7 +963,7 @@ export default function SelfAttention() {
         </div>
 
         <p>
-          In <a className="post-link" href="#/blog/nlp-history">Part 1</a> we
+          In <a className="post-link" href="/blog/nlp-history">Part 1</a> we
           walked the road from one-hot vectors and TF-IDF up to the moment
           attention arrives. This post zooms into one self-attention layer —
           three matrices, a dot product, a softmax, a weighted sum — and shows
@@ -1108,9 +1111,9 @@ export default function SelfAttention() {
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Transformers</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/nlp-history">From TF-IDF to Attention</a>
+            <a className="post-link" href="/blog/nlp-history">From TF-IDF to Attention</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/from-attention-to-transformer">From Attention to Transformer</a>.
+            <a className="post-link" href="/blog/from-attention-to-transformer">From Attention to Transformer</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

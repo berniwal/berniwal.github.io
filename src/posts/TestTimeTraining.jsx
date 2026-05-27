@@ -4,6 +4,7 @@
 // TAGS FOR REGISTRATION: ['self-improvement', 'ttt', 'test-time-training']
 // EXCERPT: TTT-Discover updates the model's weights mid-inference, accumulates them within one problem, then resets — a peak-targeting entropic objective with PUCT search.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './TestTimeTraining.css';
 
@@ -399,11 +400,13 @@ function SectionTTTDiscover() {
    Page
    ========================================================= */
 export default function TestTimeTraining() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Test-Time Training — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Test-Time Training: When the Model Updates Mid-Inference',
+    description: 'TTT-Discover updates the model\'s weights while solving one problem, then resets before the next. Entropic peak-vs-average objective and PUCT-guided mutation selection.',
+    slug: 'test-time-training',
+    publishedDate: '2026-05-26',
+    keywords: ['test-time training', 'TTT-Discover', 'PUCT', 'self-improvement'],
+  });
 
   return (
     <article className="post-2026 ttt-post">
@@ -657,9 +660,9 @@ export default function TestTimeTraining() {
         <footer className="post-footer">
           <p>
             <strong>Part 5 of Self-Improvement</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/evolutionary-search">Evolutionary Search</a>
+            <a className="post-link" href="/blog/evolutionary-search">Evolutionary Search</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/measuring-self-improvement">Measuring Self-Improvement</a>.
+            <a className="post-link" href="/blog/measuring-self-improvement">Measuring Self-Improvement</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

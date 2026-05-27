@@ -5,6 +5,7 @@
 // Ported from the original Visualizing Attention markdown post; widgets reused
 // from VisualizingAttention.jsx, restyled for the post-2026 chrome.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './NlpHistory.css';
 
@@ -550,11 +551,13 @@ function SectionHistory() {
    Page
    ============================================================ */
 export default function NlpHistory() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'From TF-IDF to Attention — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'From TF-IDF to Attention',
+    description: 'How NLP got from counting words to attention — tokens, TF-IDF, embeddings, and the RNN/CNN limits that attention was built to escape.',
+    slug: 'nlp-history',
+    publishedDate: '2026-01-08',
+    keywords: ['NLP', 'TF-IDF', 'word embeddings', 'transformers', 'history'],
+  });
 
   return (
     <article className="post-2026 nlp-post">
@@ -675,7 +678,7 @@ export default function NlpHistory() {
           are computed in parallel. The cost is quadratic in sequence length —
           but the receptive field is the whole sequence from layer one. What
           attention actually computes is the subject of{' '}
-          <a className="post-link" href="#/blog/self-attention">Part 2</a>.
+          <a className="post-link" href="/blog/self-attention">Part 2</a>.
         </p>
 
         <h2 className="reveal">References</h2>
@@ -724,9 +727,9 @@ export default function NlpHistory() {
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Transformers</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/self-attention">Inside Self-Attention (Q, K, V, and Softmax)</a>
+            <a className="post-link" href="/blog/self-attention">Inside Self-Attention (Q, K, V, and Softmax)</a>
             {' · '}Continues with:{' '}
-            <a className="post-link" href="#/blog/from-attention-to-transformer">From Attention to Transformer</a>.
+            <a className="post-link" href="/blog/from-attention-to-transformer">From Attention to Transformer</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

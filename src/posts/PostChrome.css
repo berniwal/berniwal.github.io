@@ -113,6 +113,16 @@
   font-style: italic;
 }
 
+/* Inline code in prose — let long dotted identifiers
+   (torch.utils.checkpoint.checkpoint) wrap on mobile instead
+   of forcing horizontal page overflow. */
+.post-2026 p code,
+.post-2026 li code,
+.post-2026 td code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* =====================================================
    Code expander (Show implementation)
    ===================================================== */

@@ -3,6 +3,7 @@
 // Prose preserved from the original 2023 markdown post; visuals are
 // interactive widgets, design tokens match the redesigned site.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ChessAgentPlayer, { mctsAgent } from './ChessAgentPlayer';
@@ -377,11 +378,13 @@ const ITER_TABLE = [0, 50, 100, 200, 400, 800];
 const iterFormatter = (d) => ITER_TABLE[d]?.toLocaleString() ?? d;
 
 export default function MonteCarloTreeSearch() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Monte Carlo Tree Search — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Monte Carlo Tree Search',
+    description: 'Simulation-based search: random rollouts replace exhaustive evaluation. Selection (UCB1), expansion, simulation, backpropagation.',
+    slug: 'monte-carlo',
+    publishedDate: '2026-01-29',
+    keywords: ['MCTS', 'UCB1', 'AlphaGo', 'algorithms'],
+  });
 
   // mctsAgent wants raw iterations, but ChessAgentPlayer's slider passes
   // depth 1..5. Wrap so depth maps through ITER_TABLE.
@@ -399,7 +402,7 @@ export default function MonteCarloTreeSearch() {
           </div>
           <h1>Monte Carlo Tree Search</h1>
           <p className="post-lede">
-            In the previous post, we explored the <a className="post-link" href="#/blog/mini-max">minimax algorithm</a> enhanced with <a className="post-link" href="#/blog/alpha-beta">alpha-beta pruning</a> and saw how we could cut off branches that would never influence the final decision. Now, we shift gears to a different paradigm for game tree search — Monte Carlo Tree Search (MCTS).
+            In the previous post, we explored the <a className="post-link" href="/blog/mini-max">minimax algorithm</a> enhanced with <a className="post-link" href="/blog/alpha-beta">alpha-beta pruning</a> and saw how we could cut off branches that would never influence the final decision. Now, we shift gears to a different paradigm for game tree search — Monte Carlo Tree Search (MCTS).
           </p>
           <div className="post-byline">
             By <strong>Bernhard Walser</strong> &amp;{' '}
@@ -509,9 +512,9 @@ export default function MonteCarloTreeSearch() {
         <footer className="post-footer">
           <p>
             <strong>Part 3 of Algorithms</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/alpha-beta">Alpha-Beta Pruning</a>
+            <a className="post-link" href="/blog/alpha-beta">Alpha-Beta Pruning</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/mini-max">Minimax Search</a>.
+            <a className="post-link" href="/blog/mini-max">Minimax Search</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

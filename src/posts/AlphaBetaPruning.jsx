@@ -4,6 +4,7 @@
 // reimagined as interactive widgets, design tokens aligned with the
 // redesigned site (post-2026 chrome).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ChessAgentPlayer, { alphaBetaAgent } from './ChessAgentPlayer';
@@ -411,11 +412,13 @@ function CodeBlock() {
    Page
    ============================================================ */
 export default function AlphaBetaPruning() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Alpha-Beta Pruning — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Alpha-Beta Pruning',
+    description: 'An enhancement to minimax that skips branches it can prove can\'t change the answer — same chosen move, far fewer nodes evaluated.',
+    slug: 'alpha-beta',
+    publishedDate: '2026-01-22',
+    keywords: ['alpha-beta pruning', 'chess', 'search', 'algorithms', 'minimax'],
+  });
 
   return (
     <article className="post-2026 ab-post">
@@ -426,7 +429,7 @@ export default function AlphaBetaPruning() {
           </div>
           <h1>Alpha-Beta Pruning</h1>
           <p className="post-lede">
-            In the previous post, we explored the <a className="post-link" href="#/blog/mini-max">minimax algorithm</a> and saw how it evaluates every branch of the game tree to determine the best move. However, the exponential growth in nodes evaluated can be a major performance issue. That's where alpha-beta pruning comes in.
+            In the previous post, we explored the <a className="post-link" href="/blog/mini-max">minimax algorithm</a> and saw how it evaluates every branch of the game tree to determine the best move. However, the exponential growth in nodes evaluated can be a major performance issue. That's where alpha-beta pruning comes in.
           </p>
           <div className="post-byline">
             By <strong>Bernhard Walser</strong> &amp;{' '}
@@ -509,7 +512,7 @@ export default function AlphaBetaPruning() {
         <h2 className="reveal">What's next?</h2>
         <p>
           In the next post, we will explore{' '}
-          <a className="post-link" href="#/blog/monte-carlo">Monte Carlo Tree Search (MCTS)</a> — the algorithm that helped AlphaGo defeat the world champion in Go.
+          <a className="post-link" href="/blog/monte-carlo">Monte Carlo Tree Search (MCTS)</a> — the algorithm that helped AlphaGo defeat the world champion in Go.
         </p>
 
         <h2 className="reveal">References</h2>
@@ -549,9 +552,9 @@ export default function AlphaBetaPruning() {
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Algorithms</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/mini-max">Minimax Search</a>
+            <a className="post-link" href="/blog/mini-max">Minimax Search</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/monte-carlo">Monte Carlo Tree Search</a>.
+            <a className="post-link" href="/blog/monte-carlo">Monte Carlo Tree Search</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

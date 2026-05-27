@@ -8,6 +8,7 @@
 // EXCERPT: When ground truth runs out, can a model judge its own work? Three recent papers — R-Zero, Agent0, G-Zero — try, each dropping a different assumption about what counts as verifiable.
 
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './InternalVerifiers.css';
 
@@ -230,11 +231,13 @@ function ComparisonDiagram() {
    Page
    ========================================================= */
 export default function InternalVerifiers() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Internal Verifiers — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Internal Verifiers: When the Model Judges Its Own Work',
+    description: 'R-Zero, Agent0, and G-Zero generate their own training signal: one model proposes, another solves, reward comes from self-consistency.',
+    slug: 'internal-verifiers',
+    publishedDate: '2026-05-21',
+    keywords: ['R-Zero', 'Agent0', 'G-Zero', 'self-improvement'],
+  });
 
   return (
     <article className="post-2026 iv-post">
@@ -265,7 +268,7 @@ export default function InternalVerifiers() {
 
         <h2 className="reveal">Where external verifiers stop</h2>
         <p>
-          <a className="post-link" href="#/blog/external-verifiers">Part 2</a>{' '}
+          <a className="post-link" href="/blog/external-verifiers">Part 2</a>{' '}
           covered the methods that quietly carry most of the field:
           AlphaZero's win/loss signal, STaR and ReST/RLVR's
           answer-checkers, RLHF's reward model. Their power comes from a
@@ -419,7 +422,7 @@ export default function InternalVerifiers() {
           looking improved through the same biased lens that trained it,
           turns out to be a surprisingly hard question. We'll come back
           to it in{' '}
-          <a className="post-link" href="#/blog/measuring-self-improvement">Part 6 (Measuring Self-Improvement)</a>{' '}
+          <a className="post-link" href="/blog/measuring-self-improvement">Part 6 (Measuring Self-Improvement)</a>{' '}
           — what it would even mean to know.
         </p>
 
@@ -466,9 +469,9 @@ export default function InternalVerifiers() {
         <footer className="post-footer">
           <p>
             <strong>Part 3 of Self-Improvement</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/external-verifiers">External Verifiers</a>
+            <a className="post-link" href="/blog/external-verifiers">External Verifiers</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/evolutionary-search">Evolutionary Search (FunSearch, AlphaEvolve, ThetaEvolve)</a>.
+            <a className="post-link" href="/blog/evolutionary-search">Evolutionary Search (FunSearch, AlphaEvolve, ThetaEvolve)</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

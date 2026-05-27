@@ -11,6 +11,41 @@
     />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
 
+    <!--
+      SPA path restoration for GitHub Pages. 404.html rewrites unknown paths
+      into ?p=... query strings; we restore them to actual path/search here
+      using replaceState, before any React code runs. No effect on direct
+      visits to "/" (no ?p present). Pair with public/404.html.
+    -->
+    <script>
+      (function () {
+        var l = window.location;
+        if (l.search.indexOf('p=') === -1) return;
+        var query = l.search.slice(1).split('&').reduce(function (acc, kv) {
+          var i = kv.indexOf('=');
+          acc[kv.slice(0, i)] = kv.slice(i + 1);
+          return acc;
+        }, {});
+        if (!query.p) return;
+        var path = query.p.replace(/~and~/g, '&');
+        var rest = query.q ? '?' + query.q.replace(/~and~/g, '&') : '';
+        window.history.replaceState(
+          null, null,
+          l.pathname.replace(/\/$/, '') + path + rest + l.hash
+        );
+      })();
+
+      // Migrate legacy HashRouter URLs: visitors with bookmarks like
+      // walsertech.ch/#/blog/foo get rewritten to /blog/foo before React boots.
+      (function () {
+        var h = window.location.hash;
+        if (h && h.length > 2 && h.charAt(1) === '/') {
+          var target = h.slice(1) + window.location.search;
+          window.history.replaceState(null, null, target);
+        }
+      })();
+    </script>
+
     <!-- Google Analytics 4 with Consent Mode v2.
          Defaults to denied; ConsentBanner.jsx flips analytics_storage to
          granted once the visitor accepts. Hash-route pageviews are fired

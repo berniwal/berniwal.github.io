@@ -9,6 +9,7 @@
 // for the whole self-improvement series, plus an interactive PUCT search tree.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './AlphaGoToAlphaZero.css';
 
@@ -498,11 +499,13 @@ function SectionAlphaZeroPUCT() {
    Page
    ========================================================= */
 export default function AlphaGoToAlphaZero() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'AlphaGo to AlphaZero — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'AlphaGo to AlphaZero',
+    description: 'The 2-axis map of self-improvement methods, and how AlphaGo → AlphaGo Zero → AlphaZero set the template: search + a learned policy/value, self-play, no human labels.',
+    slug: 'alphago-to-alphazero',
+    publishedDate: '2026-05-07',
+    keywords: ['AlphaGo', 'AlphaZero', 'self-play', 'MCTS', 'PUCT', 'self-improvement'],
+  });
 
   return (
     <article className="post-2026 aga-post">
@@ -698,7 +701,7 @@ export default function AlphaGoToAlphaZero() {
           The structural recipe is the same — selection by upper-confidence
           score, expansion, evaluation, backup — and you may already have
           read{' '}
-          <a className="post-link" href="#/blog/monte-carlo">my older post on
+          <a className="post-link" href="/blog/monte-carlo">my older post on
           Monte Carlo Tree Search</a> for the basics. PUCT is the version
           that learns its priors instead of hard-coding them.
         </p>
@@ -749,17 +752,17 @@ export default function AlphaGoToAlphaZero() {
           <div className="ref-cite">Earlier posts</div>
           <div>
             <div className="ref-title">
-              <a href="#/blog/monte-carlo">Monte Carlo Tree Search</a>
+              <a href="/blog/monte-carlo">Monte Carlo Tree Search</a>
             </div>
             <div className="ref-note">Vanilla MCTS — the algorithm AlphaZero's PUCT refines.</div>
           </div>
-          <div className="ref-link"><a href="#/blog/monte-carlo">/monte-carlo</a></div>
+          <div className="ref-link"><a href="/blog/monte-carlo">/monte-carlo</a></div>
         </div>
 
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Self-Improvement</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/external-verifiers">External Verifiers (STaR, ReST, RLVR)</a>.
+            <a className="post-link" href="/blog/external-verifiers">External Verifiers (STaR, ReST, RLVR)</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

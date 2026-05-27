@@ -8,6 +8,7 @@
 // EXCERPT: Freeze the weights, evolve the programs. FunSearch, AlphaEvolve, and ThetaEvolve put the LLM in the mutation slot and let an evolutionary loop do the learning.
 
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './EvolutionarySearch.css';
 
@@ -192,11 +193,13 @@ function SectionEvolution() {
    Page
    ========================================================= */
 export default function EvolutionarySearch() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Evolutionary Search — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Evolutionary Search: FunSearch, AlphaEvolve, ThetaEvolve',
+    description: 'When the model is a mutation operator, not the learner. FunSearch and AlphaEvolve freeze the LM and evolve a program population around it.',
+    slug: 'evolutionary-search',
+    publishedDate: '2026-05-25',
+    keywords: ['FunSearch', 'AlphaEvolve', 'ThetaEvolve', 'evolution', 'self-improvement'],
+  });
 
   return (
     <article className="post-2026 es-post">
@@ -351,7 +354,7 @@ export default function EvolutionarySearch() {
         </p>
         <p>
           <strong>Next:</strong>{' '}
-          <a className="post-link" href="#/blog/test-time-training">Test-Time Training</a>{' '}
+          <a className="post-link" href="/blog/test-time-training">Test-Time Training</a>{' '}
           flips the quadrant: weights update <em>during inference</em>,
           accumulating within a single problem and resetting between
           problems. Same population idea, but the proposer is now the
@@ -395,9 +398,9 @@ export default function EvolutionarySearch() {
         <footer className="post-footer">
           <p>
             <strong>Part 4 of Self-Improvement</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/internal-verifiers">Internal Verifiers</a>
+            <a className="post-link" href="/blog/internal-verifiers">Internal Verifiers</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/test-time-training">Test-Time Training</a>.
+            <a className="post-link" href="/blog/test-time-training">Test-Time Training</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

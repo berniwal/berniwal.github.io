@@ -6,6 +6,7 @@
 // TAGS FOR REGISTRATION: ['symbolic-regression', 'llm', 'self-improvement']
 // EXCERPT: Swap the numpy RNN proposer for an LLM behind the same ask/tell seam. Same task, same verifier, same budget — does the Part-1 ranking survive?
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -146,11 +147,13 @@ function CodeDetails({ label, code, lang = 'bash' }) {
 
 /* ============================ the post ============================ */
 export default function SymbolicRegressionLlmTransfer() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Does the Ranking Transfer to an LLM? — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Does the Ranking Transfer to an LLM?',
+    description: 'Swap the proposer for an LLM and ask whether the same Layer-0 ranking survives — what the model sees, how the search budget is shared.',
+    slug: 'symbolic-regression-llm-transfer',
+    publishedDate: '2026-05-17',
+    keywords: ['symbolic regression', 'LLM', 'transfer', 'self-improvement'],
+  });
 
   return (
     <article className="post-2026 srl-post">
@@ -162,7 +165,7 @@ export default function SymbolicRegressionLlmTransfer() {
           </div>
           <h1>Does the Ranking Transfer to an LLM?</h1>
           <p className="post-lede">
-            In <a className="post-link" href="#/blog/symbolic-regression-arena">Part 1</a>{' '}
+            In <a className="post-link" href="/blog/symbolic-regression-arena">Part 1</a>{' '}
             we raced four proposers on Nguyen — evolution, greedy RL, risk-seeking RL, an
             entropic variant — under one shared verifier and one shared budget. A stable
             ranking emerged: risk-seeking on top, evolution close behind, greedy collapsing
@@ -414,19 +417,19 @@ New formula for f(x):`}</pre>
           <div className="ref-cite">Earlier posts</div>
           <div>
             <div className="ref-title">
-              <a href="#/blog/symbolic-regression-arena">Racing Search Algorithms on Symbolic Regression</a>
+              <a href="/blog/symbolic-regression-arena">Racing Search Algorithms on Symbolic Regression</a>
             </div>
             <div className="ref-note">Part 1 of this series — the Layer-0 arena and the Nguyen result.</div>
           </div>
-          <div className="ref-link"><a href="#/blog/symbolic-regression-arena">post</a></div>
+          <div className="ref-link"><a href="/blog/symbolic-regression-arena">post</a></div>
         </div>
 
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Symbolic Regression</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/symbolic-regression-arena">Racing Search Algorithms on Symbolic Regression</a>
+            <a className="post-link" href="/blog/symbolic-regression-arena">Racing Search Algorithms on Symbolic Regression</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/symbolic-regression-arena">Racing Search Algorithms on Symbolic Regression</a>.
+            <a className="post-link" href="/blog/symbolic-regression-arena">Racing Search Algorithms on Symbolic Regression</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

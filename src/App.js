@@ -1,6 +1,6 @@
 // src/App.js
 import React, { useEffect, useState } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { HashLink } from 'react-router-hash-link';
 import './App.css';
 import MainPage from './MainPage';
@@ -74,14 +74,14 @@ function useRevealObserver(pathname) {
   }, [pathname]);
 }
 
-// Fires a Google Analytics page_view on every HashRouter route change.
+// Fires a Google Analytics page_view on every route change.
 // The script tag in public/index.html sets `send_page_view: false`, so we
-// own pageview emission here — including the hash portion of the URL.
+// own pageview emission here.
 function usePageView(pathname) {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.gtag) return;
     window.gtag('event', 'page_view', {
-      page_path: window.location.pathname + window.location.hash,
+      page_path: window.location.pathname,
       page_location: window.location.href,
       page_title: document.title,
     });

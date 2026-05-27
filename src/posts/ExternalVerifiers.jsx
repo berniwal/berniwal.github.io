@@ -7,6 +7,7 @@
 // EXCERPT: AlphaZero had a built-in verifier — the game told it who won. Most useful tasks don't. STaR and ReST/RLVR keep the verifier outside the model and train on what it accepts.
 
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './PostChrome.css';
@@ -273,11 +274,13 @@ function CodeBlock() {
    ========================================================= */
 
 export default function ExternalVerifiers() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'External Verifiers: STaR and ReST/RLVR — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'External Verifiers: STaR and ReST/RLVR',
+    description: 'When ground truth exists outside the model (math answer keys, unit tests), bootstrap rationales against it. STaR and ReST/RLVR.',
+    slug: 'external-verifiers',
+    publishedDate: '2026-05-14',
+    keywords: ['STaR', 'ReST', 'RLVR', 'self-improvement', 'verifier'],
+  });
 
   return (
     <article className="post-2026 ev-post">
@@ -383,7 +386,7 @@ export default function ExternalVerifiers() {
         <p>
           What happens when the verifier has to come from <em>inside</em>{' '}
           the model? That's{' '}
-          <a className="post-link" href="#/blog/internal-verifiers">Part 3 — Internal Verifiers</a>.
+          <a className="post-link" href="/blog/internal-verifiers">Part 3 — Internal Verifiers</a>.
         </p>
 
         <h2 className="reveal">References</h2>
@@ -432,9 +435,9 @@ export default function ExternalVerifiers() {
         <footer className="post-footer">
           <p>
             <strong>Part 2 of Self-Improvement</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/alphago-to-alphazero">AlphaGo to AlphaZero</a>
+            <a className="post-link" href="/blog/alphago-to-alphazero">AlphaGo to AlphaZero</a>
             {' · '}Next:{' '}
-            <a className="post-link" href="#/blog/internal-verifiers">Internal Verifiers (R-Zero, Agent0, G-Zero)</a>.
+            <a className="post-link" href="/blog/internal-verifiers">Internal Verifiers (R-Zero, Agent0, G-Zero)</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

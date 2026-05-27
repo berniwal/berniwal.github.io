@@ -3,6 +3,7 @@
 // TAGS FOR REGISTRATION: ['rlhf', 'training', 'transformers']
 // EXCERPT: How a base language model that just predicts the next token becomes a helpful assistant — SFT, reward modelling, and PPO with its clipped surrogate, walked through with interactive widgets.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './RlhfAndPpo.css';
 
@@ -669,11 +670,13 @@ function SectionClipGradient() {
    Page
    ============================================================ */
 export default function RlhfAndPpo() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'RLHF and PPO — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'RLHF and PPO',
+    description: 'How a base language model becomes an instruction-following assistant: SFT, reward modelling from preferences, and PPO with its clipped surrogate.',
+    slug: 'rlhf-and-ppo',
+    publishedDate: '2026-04-02',
+    keywords: ['RLHF', 'PPO', 'reward model', 'InstructGPT', 'alignment'],
+  });
 
   return (
     <article className="post-2026 rp-post">
@@ -946,7 +949,7 @@ export default function RlhfAndPpo() {
           The last two years of alignment research are mostly the same story
           told in different ways: do more with less. Drop the reward model.
           Drop the value net. Patch the failure modes that show up at scale.
-          That's <a className="post-link" href="#/blog/beyond-ppo">Part 2</a>.
+          That's <a className="post-link" href="/blog/beyond-ppo">Part 2</a>.
         </p>
 
         <h2 className="reveal">References</h2>
@@ -986,9 +989,9 @@ export default function RlhfAndPpo() {
         <footer className="post-footer">
           <p>
             <strong>Part 1 of Aligning LMs</strong> · Next:{' '}
-            <a className="post-link" href="#/blog/beyond-ppo">Beyond PPO (DPO, GRPO, DAPO)</a>
+            <a className="post-link" href="/blog/beyond-ppo">Beyond PPO (DPO, GRPO, DAPO)</a>
             {' · '}Continues with:{' '}
-            <a className="post-link" href="#/blog/beyond-human-feedback">Beyond Human Feedback (RLAIF, Process Rewards, RLVR)</a>.
+            <a className="post-link" href="/blog/beyond-human-feedback">Beyond Human Feedback (RLAIF, Process Rewards, RLVR)</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}

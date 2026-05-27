@@ -3,6 +3,7 @@
 // TAGS FOR REGISTRATION: ['rlhf', 'rlaif', 'rlvr']
 // EXCERPT: PPO, DPO and GRPO fixed the algorithm side of alignment. The labels are still the bottleneck. Three answers — RLAIF, process rewards, RLVR — each replace the human in the loop with something cheaper, sharper, or deterministic.
 import React, { useEffect, useRef, useState } from 'react';
+import usePageMeta from '../usePageMeta';
 import './PostChrome.css';
 import './BeyondHumanFeedback.css';
 
@@ -432,11 +433,13 @@ function SectionRLVR() {
    Page
    ============================================================ */
 export default function BeyondHumanFeedback() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Beyond Human Feedback: RLAIF, Process Rewards, RLVR — Bernhard Walser';
-    return () => { document.title = prev; };
-  }, []);
+  usePageMeta({
+    title: 'Beyond Human Feedback: RLAIF, Process Rewards, RLVR',
+    description: 'RLAIF replaces the labeller with a model; process reward models densify the signal; RLVR removes the learned reward entirely in verifiable domains.',
+    slug: 'beyond-human-feedback',
+    publishedDate: '2026-04-16',
+    keywords: ['RLAIF', 'process reward model', 'RLVR', 'alignment'],
+  });
 
   return (
     <article className="post-2026 bhf-post">
@@ -448,8 +451,8 @@ export default function BeyondHumanFeedback() {
           </div>
           <h1>Beyond Human Feedback: RLAIF, Process Rewards, RLVR</h1>
           <p className="post-lede">
-            <a className="post-link" href="#/blog/rlhf-and-ppo">Part 1</a> and{' '}
-            <a className="post-link" href="#/blog/beyond-ppo">Part 2</a> fixed
+            <a className="post-link" href="/blog/rlhf-and-ppo">Part 1</a> and{' '}
+            <a className="post-link" href="/blog/beyond-ppo">Part 2</a> fixed
             the algorithm side of alignment — clipped surrogates, group
             baselines, closed-form policies. This post tackles a different
             bottleneck: <em>human labels are expensive, noisy, and slow</em>.
@@ -590,7 +593,7 @@ export default function BeyondHumanFeedback() {
         <p>
           This is <strong>RLVR — RL with Verifiable Rewards</strong>. The
           training loop is exactly GRPO from{' '}
-          <a className="post-link" href="#/blog/beyond-ppo">Part 2</a>, with
+          <a className="post-link" href="/blog/beyond-ppo">Part 2</a>, with
           the learned <Katex tex="r_\varphi" /> swapped for a verifier that
           returns:
         </p>
@@ -661,9 +664,9 @@ export default function BeyondHumanFeedback() {
         </p>
         <p>
           The progression across this series traces a single arc.{' '}
-          <a className="post-link" href="#/blog/rlhf-and-ppo">Part 1</a>{' '}
+          <a className="post-link" href="/blog/rlhf-and-ppo">Part 1</a>{' '}
           set up the canonical SFT → RM → PPO pipeline.{' '}
-          <a className="post-link" href="#/blog/beyond-ppo">Part 2</a>{' '}
+          <a className="post-link" href="/blog/beyond-ppo">Part 2</a>{' '}
           stripped away parts of that machinery — DPO drops the reward
           model, GRPO drops the value net, DAPO patches the rough edges.
           This part attacks the remaining bottleneck: the labels themselves.
@@ -738,9 +741,9 @@ export default function BeyondHumanFeedback() {
         <footer className="post-footer">
           <p>
             <strong>Part 3 of Aligning LMs</strong> · Previous:{' '}
-            <a className="post-link" href="#/blog/beyond-ppo">Beyond PPO (DPO, GRPO, DAPO)</a>
+            <a className="post-link" href="/blog/beyond-ppo">Beyond PPO (DPO, GRPO, DAPO)</a>
             {' · '}Start of the series:{' '}
-            <a className="post-link" href="#/blog/rlhf-and-ppo">RLHF and PPO</a>.
+            <a className="post-link" href="/blog/rlhf-and-ppo">RLHF and PPO</a>.
           </p>
           <p style={{ marginBottom: 0 }}>
             Bernhard Walser · ML Engineer, Digitec Galaxus · ETH Computer Science ·{' '}
