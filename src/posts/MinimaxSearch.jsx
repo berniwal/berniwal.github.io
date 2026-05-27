@@ -14,9 +14,14 @@ import './MinimaxSearch.css';
    board: 8 strings of 8 chars (rank 8 → rank 1).
    Uppercase = white, lowercase = black, '.' = empty.
    ============================================================ */
+// Use the *filled* black-piece glyphs (U+265A–U+265F) for both colors and
+// recolor via SVG `fill`. The trailing U+FE0E variation selector forces
+// text presentation so iOS Safari doesn't substitute color-emoji glyphs
+// (which would ignore our fill and always render dark).
+const VS = '\uFE0E';
 const PIECE_GLYPH = {
-  K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟',
-  k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
+  K: '♚' + VS, Q: '♛' + VS, R: '♜' + VS, B: '♝' + VS, N: '♞' + VS, P: '♟' + VS,
+  k: '♚' + VS, q: '♛' + VS, r: '♜' + VS, b: '♝' + VS, n: '♞' + VS, p: '♟' + VS,
 };
 function ChessBoardSvg({ board, size = 224, highlight = null }) {
   const sq = size / 8;
@@ -50,12 +55,15 @@ function ChessBoardSvg({ board, size = 224, highlight = null }) {
               <text
                 x={c * sq + sq / 2}
                 y={r * sq + sq * 0.74}
-                fontSize={sq * 0.78}
+                fontSize={sq * 0.82}
                 textAnchor="middle"
-                fill={isWhite ? '#fafafa' : '#101418'}
+                fill={isWhite ? '#f5f5f5' : '#101418'}
                 stroke={isWhite ? '#101418' : 'none'}
-                strokeWidth={isWhite ? 0.7 : 0}
-                style={{ paintOrder: 'stroke' }}
+                strokeWidth={isWhite ? sq * 0.025 : 0}
+                style={{
+                  paintOrder: 'stroke',
+                  fontFamily: '"DejaVu Sans", "Arial Unicode MS", system-ui, sans-serif',
+                }}
               >
                 {PIECE_GLYPH[piece]}
               </text>

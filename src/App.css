@@ -151,7 +151,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .page {
   max-width: var(--measure-page);
   margin: 0 auto;
-  padding: 0 28px;
+  /* Directional padding so .section's vertical-only padding doesn't clobber us. */
+  padding-left: 28px;
+  padding-right: 28px;
 }
 .prose-col {
   max-width: var(--measure);
@@ -163,7 +165,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .section {
-  padding: 96px 0;
+  padding-top: 96px;
+  padding-bottom: 96px;
   border-top: 1px solid var(--border);
 }
 .section:first-of-type { border-top: none; }
@@ -308,13 +311,17 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   stroke-linejoin: round;
 }
 
-@media (max-width: 640px) {
-  .nav-inner { padding: 12px 20px; }
+/* Mobile gutter — slightly generous so content doesn't kiss the screen edge.
+   Triggers on the iPhone landscape range too (matches .post-2026's 720 breakpoint). */
+@media (max-width: 720px) {
+  .nav-inner { padding: 12px 24px; }
   .nav-links { gap: 0; }
   .nav-links a { padding: 6px 10px; }
-  .page { padding: 0 20px; }
-  .section { padding: 64px 0; }
+  .page { padding-left: 24px; padding-right: 24px; }
+  .section { padding-top: 64px; padding-bottom: 64px; }
   .section-title { font-size: 28px; }
+  .writing-item { padding: 24px 0; }
+  .writing-tags { margin-top: 8px; }
 }
 
 /* =====================================================

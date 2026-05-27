@@ -250,9 +250,14 @@ export function mctsAgent(chess, iterations = 500) {
 /* ============================================================
    Inline chess board (SVG, unicode pieces, click-to-move)
    ============================================================ */
+// Use the *filled* black-piece glyphs (U+265A–U+265F) for both colors and
+// recolor via SVG `fill`. The trailing U+FE0E variation selector forces
+// text presentation so iOS Safari doesn't substitute color-emoji glyphs
+// (which would ignore our fill and always render dark).
+const VS = '\uFE0E';
 const PIECE_GLYPH = {
-  K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟',
-  k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
+  K: '♚' + VS, Q: '♛' + VS, R: '♜' + VS, B: '♝' + VS, N: '♞' + VS, P: '♟' + VS,
+  k: '♚' + VS, q: '♛' + VS, r: '♜' + VS, b: '♝' + VS, n: '♞' + VS, p: '♟' + VS,
 };
 function squareName(col, row) {
   return `${'abcdefgh'[col]}${8 - row}`;
@@ -311,12 +316,16 @@ function PlayableBoard({ chess, onSquareClick, selected, legalDests, lastMove, h
               <text
                 x={c * sq + sq / 2}
                 y={r * sq + sq * 0.74}
-                fontSize={sq * 0.78}
+                fontSize={sq * 0.82}
                 textAnchor="middle"
-                fill={isWhite ? '#fafafa' : '#101418'}
+                fill={isWhite ? '#f5f5f5' : '#101418'}
                 stroke={isWhite ? '#101418' : 'none'}
-                strokeWidth={isWhite ? 0.8 : 0}
-                style={{ paintOrder: 'stroke', pointerEvents: 'none' }}
+                strokeWidth={isWhite ? sq * 0.025 : 0}
+                style={{
+                  pointerEvents: 'none',
+                  paintOrder: 'stroke',
+                  fontFamily: '"DejaVu Sans", "Arial Unicode MS", system-ui, sans-serif',
+                }}
               >
                 {PIECE_GLYPH[piece.type.toUpperCase()]}
               </text>
