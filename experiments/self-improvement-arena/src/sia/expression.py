@@ -11,6 +11,7 @@ import ast
 import copy
 import math
 import re
+import sys
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -411,15 +412,32 @@ def parse_expression(text: str, const_placeholder: bool = False) -> Node | None:
     ``const_placeholder``: DSR-style constant token. The bare symbol ``C`` (or
     ``const``) is treated as a placeholder and, together with any numeric literal,
     is set to 1.0 — so the model proposes *structure* (``C*x*x + C*sin(x)``) and we
-    score it with all constants = 1 (a stand-in until BFGS constant-fitting)."""
+    score it with all constants = 1 (a stand-in until BFGS constant-fitting).
+
+    ``_from_ast`` is recursive, so a pathologically deeply-nested model output
+    (observed: 992-level left-associative + chain from Qwen3-1.7B at maxnew=2048,
+    which crashed two pods of our batch=16 reasoning run) can blow Python's
+    default 1000-depth recursion limit. We treat any such crash as "this candidate
+    doesn't parse" rather than letting it kill the whole training run -- the
+    proposer will just record an INVALID and move on. We also bump the limit
+    once (idempotently) so cleanly-deep but legitimate expressions still parse.
+    """
+    if sys.getrecursionlimit() < 10_000:
+        sys.setrecursionlimit(10_000)
     if const_placeholder:
         text = re.sub(r"\bC\b|\bconst\b", "1", text)
     for cand in _candidate_strings(text):
         try:
             tree = ast.parse(cand, mode="eval")
-        except (SyntaxError, ValueError):
+        except (SyntaxError, ValueError, RecursionError):
+            # RecursionError: ast.parse itself can recurse into the CPython
+            # compiler beyond 10k for pathological inputs (~10^4+ binops).
             continue
-        node = _from_ast(tree)
+        try:
+            node = _from_ast(tree)
+        except RecursionError:
+            # > 10k-deep pathological tree; treat as unparseable, continue.
+            continue
         if node is not None:
             if const_placeholder:
                 _consts_to_one(node)
