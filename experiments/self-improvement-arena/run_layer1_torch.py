@@ -68,6 +68,10 @@ def main():
     ap.add_argument("--eps-success", type=float, default=1e-6)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="results/layer1-torch")
+    ap.add_argument("--checkpoint-every", type=int, default=0,
+                    help="if >0, write summary.json every N rounds (in addition to "
+                         "the final write). Lets us inspect partial results mid-run, "
+                         "and preserves data if the pod is killed before completion.")
     args = ap.parse_args()
 
     lo, hi = (float(v) for v in args.x_range.split(","))
@@ -90,6 +94,17 @@ def main():
     num_solved_at = sym_solved_at = None
     history = []
     t0 = time.time()
+
+    out_dir = os.path.join(args.out, f"{args.arm}-{args.mode}-{args.target}-seed{args.seed}")
+    os.makedirs(out_dir, exist_ok=True)
+
+    def _write_summary():
+        summary = dict(args=vars(args), best=best, best_expr=best_expr,
+                       numeric_solved_at=num_solved_at, symbolic_solved_at=sym_solved_at,
+                       elapsed_s=round(time.time() - t0, 1), history=history)
+        with open(os.path.join(out_dir, "summary.json"), "w") as f:
+            json.dump(summary, f, indent=1)
+
     for rd in range(1, args.rounds + 1):
         cands = prop.ask()
         results = [ver(c) for c in cands]
@@ -113,13 +128,10 @@ def main():
               f"valid={d['valid_fraction']:.2f} loss={d['loss']:.4f} "
               f"num_solved={num_solved_at} sym_solved={sym_solved_at}", flush=True)
 
-    out_dir = os.path.join(args.out, f"{args.arm}-{args.mode}-{args.target}-seed{args.seed}")
-    os.makedirs(out_dir, exist_ok=True)
-    summary = dict(args=vars(args), best=best, best_expr=best_expr,
-                   numeric_solved_at=num_solved_at, symbolic_solved_at=sym_solved_at,
-                   elapsed_s=round(time.time() - t0, 1), history=history)
-    with open(os.path.join(out_dir, "summary.json"), "w") as f:
-        json.dump(summary, f, indent=1)
+        if args.checkpoint_every > 0 and rd % args.checkpoint_every == 0:
+            _write_summary()
+
+    _write_summary()
     print(f"\n=== {args.arm}/{args.mode} on {args.target} ===")
     print(f"best={best:.4f} expr={best_expr}")
     print(f"numeric_solved_at={num_solved_at} symbolic_solved_at={sym_solved_at} "

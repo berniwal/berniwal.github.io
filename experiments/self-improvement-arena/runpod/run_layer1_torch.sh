@@ -38,6 +38,7 @@ for SEED in $(echo "${SEEDS:-0}" | tr ',' ' '); do
       --rounds "${ROUNDS:-60}" --batch "${BATCH:-32}" --micro-batch "${MICROBATCH:-8}" \
       --max-new-tokens "${MAXNEW:-48}" \
       --thinking-budget "${THINKINGBUDGET:-0}" --answer-budget "${ANSWERBUDGET:-64}" \
+      --checkpoint-every "${CHECKPOINTEVERY:-0}" \
       --temperature "${TEMP:-1.0}" --lr "${LR:-1e-5}" --epsilon "${EPSILON:-0.25}" \
       --x-range="${XRANGE:--1,1}" --n-points "${NPOINTS:-20}" \
       --seed "$SEED" --out results/layer1-torch ${REASONING_FLAG} ${EXTRA:-} 2>&1 | tail -45
