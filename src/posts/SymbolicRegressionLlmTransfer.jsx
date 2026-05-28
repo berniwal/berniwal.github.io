@@ -237,6 +237,37 @@ function layoutTree({ roots, children }) {
   return { positions, w: maxX + NODE_W, h: maxY + LEVEL_H };
 }
 
+// Round long-tail floats so the pattern jumps out instead of being buried under
+// 14-digit BFGS-fit precision. Snaps to π, π/2, π/3, π/4 within a small
+// tolerance; to integers and half-integers within a small tolerance; otherwise
+// renders to 2 significant decimals.
+const PI_SNAPS = [
+  { v: Math.PI,     label: 'π'    },
+  { v: -Math.PI,    label: '-π'   },
+  { v: Math.PI / 2, label: 'π/2'  },
+  { v: -Math.PI/2,  label: '-π/2' },
+  { v: Math.PI / 3, label: 'π/3'  },
+  { v: Math.PI / 4, label: 'π/4'  },
+  { v: 2 * Math.PI, label: '2π'   },
+];
+function prettyExpr(s, tol = 0.005) {
+  if (!s) return s;
+  // Match floats (including in scientific notation). Negative sign is preserved
+  // as a separate character in the source so we don't accidentally eat operators.
+  return s.replace(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi, (match) => {
+    const v = parseFloat(match);
+    if (!isFinite(v)) return match;
+    for (const p of PI_SNAPS) {
+      if (Math.abs(v - p.v) < tol) return p.label;
+    }
+    if (Math.abs(v - Math.round(v)) < tol) return String(Math.round(v));
+    const half = Math.round(v * 2) / 2;
+    if (Math.abs(v - half) < tol) return half.toString();
+    // Two decimals, but trim trailing zeros so "1.50" -> "1.5".
+    return parseFloat(v.toFixed(2)).toString();
+  });
+}
+
 // Reward -> colour. Red at 0, amber at 0.5, green at 1.
 function rewardColor(v) {
   if (v == null || !isFinite(v)) return '#cbd5e1';
@@ -306,6 +337,15 @@ function PuctTree() {
 
   return (
     <div className="viz-panel">
+      <div className="srl-puct-targetbar">
+        <span className="srl-puct-targetbar-label">target</span>
+        <code className="srl-puct-targetbar-expr">
+          f(x) = x³ − x + cos(2·x)
+        </code>
+        <span className="srl-puct-targetbar-meta">
+          benchmark <code>harder</code> · Qwen3-1.7B + reasoning · seed 0
+        </span>
+      </div>
       <div className="srl-controls">
         <label className="srl-control-label" style={{ flex: 1 }}>
           round&nbsp;<b>{round}</b>&nbsp;/&nbsp;{maxRoundInData}
@@ -385,8 +425,16 @@ function PuctTree() {
                 <b>{focusNode.kind === 'seed' ? 'initial seed' : 'child'}</b>
               </div>
               <div className="srl-puct-expr">
-                <code>{focusNode.expr || '(initial seed — empty prompt)'}</code>
+                <code>{focusNode.expr ? prettyExpr(focusNode.expr) : '(initial seed — empty prompt)'}</code>
               </div>
+              {focusNode.expr ? (
+                <div className="srl-puct-info-raw">
+                  <details>
+                    <summary>raw constants</summary>
+                    <code>{focusNode.expr}</code>
+                  </details>
+                </div>
+              ) : null}
             </>
           ) : <p className="srl-note">Hover any node to inspect.</p>}
         </div>
