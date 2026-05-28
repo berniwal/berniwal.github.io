@@ -822,13 +822,56 @@ export default function RlhfAndPpo() {
           one more ingredient: an <strong>advantage</strong>{' '}
           <Katex tex="\hat{A}_t" /> for every token in every sampled
           completion. The advantage answers "was this token better or worse
-          than we'd have expected from the current state on average?" — and
-          using it instead of the raw reward dramatically reduces gradient
-          variance. To estimate the expected part, PPO trains a small{' '}
+          than we'd have expected from the current state on average?" The
+          simplest form just subtracts a learned baseline from the return:
+        </p>
+        <Katex
+          block
+          tex={'\\hat{A}_t \\;=\\; G_t \\;-\\; V_\\psi(s_t)'}
+        />
+        <p>
+          Here <Katex tex="G_t" /> is the return-to-go (the reward summed from
+          token <Katex tex="t" /> to the end of the response) and{' '}
+          <Katex tex="V_\psi(s_t)" /> is the model's prediction of that return
+          from the current state. Subtracting the baseline keeps the gradient
+          direction but kills its variance — without it, every token in a
+          high-reward completion would pull just as hard, even the throat-
+          clearing ones.
+        </p>
+        <p>
+          To produce the baseline, PPO trains a small{' '}
           <strong>value network</strong> <Katex tex="V_\psi(s_t)" /> alongside
           the policy, typically initialised from a copy of the SFT or
           reward-model checkpoint and trained by mean-squared regression
           against observed returns.
+        </p>
+        <p>
+          In practice, almost no one uses the bare{' '}
+          <Katex tex="G_t - V_\psi(s_t)" /> form. The standard estimator is{' '}
+          <strong>Generalized Advantage Estimation (GAE)</strong>, which
+          interpolates between a one-step TD residual (low variance, high
+          bias) and the full Monte-Carlo return (high variance, low bias)
+          via a knob <Katex tex="\lambda \in [0, 1]" />:
+        </p>
+        <Katex
+          block
+          tex={'\\delta_t \\;=\\; r_t \\;+\\; \\gamma\\, V_\\psi(s_{t+1}) \\;-\\; V_\\psi(s_t)'}
+        />
+        <Katex
+          block
+          tex={'\\hat{A}_t^{\\mathrm{GAE}} \\;=\\; \\sum_{l=0}^{\\infty} (\\gamma\\lambda)^l\\, \\delta_{t+l}'}
+        />
+        <p>
+          <Katex tex="\delta_t" /> is the one-step temporal-difference error:
+          the reward we actually got, plus the value of where we landed, minus
+          the value we'd predicted. GAE then exponentially averages those
+          residuals over the future of the trajectory.{' '}
+          <Katex tex="\lambda = 0" /> falls back to one-step TD;{' '}
+          <Katex tex="\lambda = 1" /> recovers Monte-Carlo. RLHF papers
+          typically pick <Katex tex="\lambda \approx 0.95" />,{' '}
+          <Katex tex="\gamma \approx 1" /> — heavily weighted toward
+          long-horizon credit because language responses are short and
+          terminal-reward dominated.
         </p>
         <p>
           So PPO ends up carrying <em>four</em> models at training time: the
@@ -984,6 +1027,15 @@ export default function RlhfAndPpo() {
             <div className="ref-note">PPO — the clipped surrogate and trust-region machinery used in stage 3.</div>
           </div>
           <div className="ref-link"><a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noreferrer">arxiv.org/abs/1707.06347</a></div>
+
+          <div className="ref-cite">Schulman et al. 2016</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noreferrer">High-Dimensional Continuous Control Using Generalized Advantage Estimation</a>
+            </div>
+            <div className="ref-note">GAE — the bias/variance-knob advantage estimator PPO uses in practice.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noreferrer">arxiv.org/abs/1506.02438</a></div>
         </div>
 
         <footer className="post-footer">
