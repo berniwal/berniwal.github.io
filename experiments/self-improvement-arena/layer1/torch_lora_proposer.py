@@ -295,6 +295,12 @@ class TorchLoRAProposer:
                 forced_lens.append(len(forced_ids))
 
         # Right-pad to the longest stage-1+force row, then generate stage 2.
+        # IMPORTANT for left-padded inputs: carry forward the ORIGINAL attn0 for
+        # the prompt section (which has 0s at the left-pad positions). Only the
+        # newly-generated stage-1 content (positions plen..r.shape[0]) is "real".
+        # The old code set attn1[:, :r.shape[0]] = 1 indiscriminately, which made
+        # the model attend to the PAD tokens at the start of left-padded rows --
+        # the main reason validity dropped from 0.79 to 0.52 in the optimized run.
         max_len = max(r.shape[0] for r in rows)
         pid = self.tok.pad_token_id
         padded = torch.full((len(rows), max_len), pid, device=self.device,
@@ -302,7 +308,11 @@ class TorchLoRAProposer:
         attn1 = torch.zeros_like(padded)
         for i, r in enumerate(rows):
             padded[i, :r.shape[0]] = r
-            attn1[i, :r.shape[0]] = 1
+            # 1) original prompt mask (preserves left-pad 0s)
+            attn1[i, :plen] = attn0[i, :plen]
+            # 2) newly-generated stage-1 content + any spliced FORCED_END = all real
+            attn1[i, plen:r.shape[0]] = 1
+            # 3) right-padding after this row's end stays 0 (already initialised)
 
         seqs = self.model.generate(
             padded, attention_mask=attn1,
@@ -399,13 +409,22 @@ class TorchLoRAProposer:
 
         ``attention_mask``: when supplied (PUCT arm's left-padded batches),
         passed to the model so attention over the padded prompt positions is
-        zeroed. Without it, the model would attend to garbage pad tokens for
-        any row that started with left-padding.
+        zeroed. We ALSO derive explicit ``position_ids`` from the mask --
+        without them, ``model.forward`` (unlike ``model.generate``) defaults
+        position_ids to torch.arange(seq_len), which gives padded positions
+        the real-token IDs 0, 1, ... and offsets the actual prompt by pad_len.
+        For RoPE-based models like Qwen3 that subtly degrades both logprobs
+        and (during training-time forward) gradients.
         """
         ctx = torch.enable_grad() if grad else torch.no_grad()
         with ctx:
             if attention_mask is not None:
-                logits = self.model(seqs, attention_mask=attention_mask).logits[:, :-1, :]
+                # cumsum-1 gives the conventional position scheme: pad positions
+                # cluster at 0 (or get clamped), real tokens start fresh at 0.
+                position_ids = attention_mask.long().cumsum(-1) - 1
+                position_ids = position_ids.clamp(min=0)
+                logits = self.model(seqs, attention_mask=attention_mask,
+                                      position_ids=position_ids).logits[:, :-1, :]
             else:
                 logits = self.model(seqs).logits[:, :-1, :]
             tgt = seqs[:, 1:].unsqueeze(-1)                          # (B, T-1, 1)
