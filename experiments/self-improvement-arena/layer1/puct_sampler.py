@@ -105,6 +105,7 @@ class PUCTSampler:
 
     def _compute_scale(self, vals: np.ndarray, mask: np.ndarray | None = None) -> float:
         v = vals[mask] if mask is not None else vals
+        v = v[np.isfinite(v)]   # drop -inf seeds before computing max-min
         if v.size == 0:
             return 1.0
         return float(max(np.max(v) - np.min(v), 1e-6))
@@ -260,7 +261,9 @@ class PUCTSampler:
                 kept_non_initial = [s for s, _ in non_initial[:max(budget, 0)]]
                 self._states = list(self._initial_states) + kept_non_initial
 
-            self._log_event(round_n, "update", [(c, {"value": c.value}) for c, _ in additions])
+            # value is already passed via `value=s.value` in _log_event; meta is
+            # only used here for sample events (PUCT score breakdown), empty for updates.
+            self._log_event(round_n, "update", [(c, {}) for c, _ in additions])
 
     def record_failed_rollout(self, parent: State) -> None:
         """A rollout produced no parseable candidate: still counts as a visit
@@ -291,11 +294,15 @@ class PUCTSampler:
                     entries: list[tuple[State, dict]]) -> None:
         if not self.tree_log_path or round_n is None:
             return
+        def _row(s, meta):
+            base = dict(id=s.id, parent_id=s.parent_id, expr=s.expr,
+                         value=s.value, timestep=s.timestep)
+            # meta keys override base on collision (no double-pass to dict()).
+            base.update(meta)
+            return base
+
         rec = dict(round=round_n, kind=kind, T=self._T,
                     buffer_size=len(self._states),
-                    entries=[dict(id=s.id, parent_id=s.parent_id,
-                                   expr=s.expr, value=s.value,
-                                   timestep=s.timestep, **meta)
-                              for s, meta in entries])
+                    entries=[_row(s, meta) for s, meta in entries])
         with open(self.tree_log_path, "a") as f:
             f.write(json.dumps(rec) + "\n")
