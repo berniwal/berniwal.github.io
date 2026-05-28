@@ -47,6 +47,29 @@ function useJson(url) {
   return data;
 }
 
+// Same shape as useJson but for JSONL — splits on newlines, parses each line.
+function useJsonLines(url) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(url)
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.text(); })
+      .then((t) => {
+        if (!alive) return;
+        try {
+          // Custom parser: -Infinity is not valid JSON; replace before parsing.
+          const events = t.trim().split('\n').filter(Boolean).map((line) => (
+            JSON.parse(line.replace(/-Infinity/g, '-1e308').replace(/\bInfinity\b/g, '1e308'))
+          ));
+          setData(events);
+        } catch { setData(false); }
+      })
+      .catch(() => { if (alive) setData(false); });
+    return () => { alive = false; };
+  }, [url]);
+  return data;
+}
+
 /* ============================ Layer-1 transfer widget ============================ */
 const L1_ARM_ORDER = ['risk', 'best_of_n', 'entropic', 'evolution', 'greedy'];
 
@@ -108,6 +131,275 @@ function Layer1Transfer() {
           : t === 'medium'
           ? 'On medium every arm recovers numerically; symbolic recovery is also near-perfect (the entropic arm misses one seed). The methods only separate on harder.'
           : 'On harder every arm gets the curve roughly right, but exact symbolic recovery nearly vanishes — best-of-N lands it once in five, the rest never.'}
+      </p>
+    </div>
+  );
+}
+
+/* ============================ PUCT tree widget ============================ */
+// Builds a tidy-tree layout from the proposer's tree_log.jsonl.
+//
+// What we visualise: every entry in the buffer over the run, drawn as a node,
+// with edges parent -> child. A slider scrubs through rounds; nodes are only
+// shown when their .timestep <= the selected round. The lineage from the
+// best-found-so-far back to its initial-seed root is highlighted in colour;
+// the rest of the tree fades to grey so the eye lands on the search path.
+//
+// Layout: classic "tidy tree" (subtree-width pass, then x-place pass).
+// Pure SVG — no D3.
+
+function buildTree(events, maxRound) {
+  // Walk events in order, materialising all states ever added; filter by round.
+  const states = {};   // id -> { id, parent_id, expr, value, timestep, kind: 'seed'|'child' }
+  for (const ev of events) {
+    if (ev.kind === 'sample') {
+      for (const e of ev.entries) {
+        if (!states[e.id]) {
+          states[e.id] = {
+            id: e.id, parent_id: e.parent_id, expr: e.expr || '',
+            value: e.value, timestep: e.timestep,
+            kind: e.parent_id == null ? 'seed' : 'child',
+          };
+        }
+      }
+    } else if (ev.kind === 'update') {
+      for (const e of ev.entries) {
+        states[e.id] = {
+          id: e.id, parent_id: e.parent_id, expr: e.expr || '',
+          value: e.value, timestep: e.timestep,
+          kind: e.parent_id == null ? 'seed' : 'child',
+        };
+      }
+    }
+  }
+  // Filter by round + build parent->children index
+  const visible = Object.values(states).filter((s) => s.timestep <= maxRound);
+  const byId = new Map(visible.map((s) => [s.id, s]));
+  const children = new Map();
+  for (const s of visible) {
+    if (s.parent_id && byId.has(s.parent_id)) {
+      const arr = children.get(s.parent_id) || [];
+      arr.push(s);
+      children.set(s.parent_id, arr);
+    }
+  }
+  // Sort children of each parent by timestep, then value desc (so high-reward
+  // siblings end up on the left -- the eye reads them first).
+  for (const arr of children.values()) {
+    arr.sort((a, b) => (a.timestep - b.timestep) || ((b.value || 0) - (a.value || 0)));
+  }
+  // Find roots (visible states with no parent or parent not visible -- the
+  // initial seeds)
+  const roots = visible.filter((s) => !s.parent_id || !byId.has(s.parent_id));
+  return { roots, children, byId };
+}
+
+function layoutTree({ roots, children }) {
+  // Standard tidy-tree recursion: compute subtreeWidth, then place.
+  const NODE_W = 18;    // horizontal slot per leaf
+  const LEVEL_H = 56;   // vertical gap between depths
+  const widths = new Map();
+  function widthOf(node) {
+    if (widths.has(node.id)) return widths.get(node.id);
+    const kids = children.get(node.id) || [];
+    const w = kids.length === 0 ? NODE_W : kids.reduce((s, k) => s + widthOf(k), 0);
+    widths.set(node.id, w);
+    return w;
+  }
+  for (const r of roots) widthOf(r);
+  const positions = new Map();
+  let cursor = 0;
+  function place(node, depth) {
+    const kids = children.get(node.id) || [];
+    if (kids.length === 0) {
+      const x = cursor + NODE_W / 2;
+      cursor += NODE_W;
+      positions.set(node.id, { x, y: depth * LEVEL_H });
+      return x;
+    }
+    const xs = kids.map((k) => place(k, depth + 1));
+    const x = (xs[0] + xs[xs.length - 1]) / 2;
+    positions.set(node.id, { x, y: depth * LEVEL_H });
+    return x;
+  }
+  // Place each root in turn, padding between roots
+  const ROOT_PAD = NODE_W * 1.5;
+  for (let i = 0; i < roots.length; i++) {
+    if (i > 0) cursor += ROOT_PAD;
+    place(roots[i], 0);
+  }
+  // total width / height for the SVG viewBox
+  let maxX = 0, maxY = 0;
+  for (const { x, y } of positions.values()) {
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return { positions, w: maxX + NODE_W, h: maxY + LEVEL_H };
+}
+
+// Reward -> colour. Red at 0, amber at 0.5, green at 1.
+function rewardColor(v) {
+  if (v == null || !isFinite(v)) return '#cbd5e1';
+  const t = Math.max(0, Math.min(1, v));
+  if (t < 0.5) {
+    const k = t / 0.5;
+    return `rgb(${239 - Math.round(43 * k)},${Math.round(180 * k) + 68},${Math.round(60 * k) + 68})`;
+  }
+  const k = (t - 0.5) / 0.5;
+  return `rgb(${Math.round(60 + 60 * (1 - k))},${180 + Math.round(20 * k)},${Math.round(110 + 60 * k)})`;
+}
+
+// Walk back from a leaf to its root via parent_id; returns the set of ids.
+function lineageIds(leafId, byId) {
+  const set = new Set();
+  let cur = byId.get(leafId);
+  while (cur) {
+    set.add(cur.id);
+    if (!cur.parent_id) break;
+    cur = byId.get(cur.parent_id);
+  }
+  return set;
+}
+
+function PuctTree() {
+  const events = useJsonLines(`${DATA_BASE}/puct/tree_log.jsonl`);
+  // maxRound from the data; default slider to the final round.
+  const maxRoundInData = events && events.length
+    ? events[events.length - 1].round : 1;
+  const [round, setRound] = useState(maxRoundInData);
+  // Keep the slider value in sync when data finishes loading.
+  useEffect(() => { setRound(maxRoundInData); }, [maxRoundInData]);
+  const [hover, setHover] = useState(null);
+
+  if (events === false) {
+    return <div className="viz-panel"><p className="srl-note">Could not load PUCT tree log.</p></div>;
+  }
+  if (!events) {
+    return <div className="viz-panel"><p className="srl-note">Loading PUCT tree…</p></div>;
+  }
+  const { roots, children, byId } = buildTree(events, round);
+  const { positions, w, h } = layoutTree({ roots, children });
+  // Best-of-round and lineage to highlight.
+  let bestNode = null;
+  for (const s of byId.values()) {
+    if (s.value == null || !isFinite(s.value)) continue;
+    if (!bestNode || s.value > bestNode.value) bestNode = s;
+  }
+  const lineage = bestNode ? lineageIds(bestNode.id, byId) : new Set();
+  // Hovered (or best) node info for the side panel.
+  const focusNode = hover ? byId.get(hover) : bestNode;
+
+  // Edge list for rendering: parent -> each child (only those visible).
+  const edges = [];
+  for (const [pid, kids] of children.entries()) {
+    const p = positions.get(pid);
+    if (!p) continue;
+    for (const k of kids) {
+      const c = positions.get(k.id);
+      if (!c) continue;
+      edges.push({ pid, cid: k.id, x1: p.x, y1: p.y, x2: c.x, y2: c.y });
+    }
+  }
+  // Quick stats
+  const total = byId.size;
+  const nVisited = Array.from(byId.values()).filter((s) => s.value != null && isFinite(s.value)).length;
+
+  return (
+    <div className="viz-panel">
+      <div className="srl-controls">
+        <label className="srl-control-label" style={{ flex: 1 }}>
+          round&nbsp;<b>{round}</b>&nbsp;/&nbsp;{maxRoundInData}
+          <input
+            type="range"
+            min={1}
+            max={maxRoundInData}
+            value={round}
+            onChange={(e) => setRound(Number(e.target.value))}
+            style={{ width: '100%', marginTop: 6 }}
+          />
+        </label>
+        <span className="srl-note srl-tag-right">
+          buffer: {total} states · valued: {nVisited}
+          {bestNode && bestNode.value != null
+            ? ` · best so far ${bestNode.value.toFixed(4)}`
+            : ''}
+        </span>
+      </div>
+      <div className="srl-puct-tree">
+        <svg
+          viewBox={`-10 -10 ${w + 20} ${h + 20}`}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ width: '100%', height: 'auto', maxHeight: 460,
+                   background: '#fafbfc', borderRadius: 6 }}
+        >
+          {/* edges first so they sit under nodes */}
+          {edges.map((e) => {
+            const inLineage = lineage.has(e.pid) && lineage.has(e.cid);
+            return (
+              <line
+                key={`${e.pid}-${e.cid}`}
+                x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                stroke={inLineage ? '#0ea5e9' : '#d6dde6'}
+                strokeWidth={inLineage ? 2.2 : 0.9}
+                opacity={inLineage ? 0.95 : 0.7}
+              />
+            );
+          })}
+          {/* nodes */}
+          {Array.from(positions.entries()).map(([id, p]) => {
+            const s = byId.get(id);
+            const isLineage = lineage.has(id);
+            const isBest = bestNode && id === bestNode.id;
+            return (
+              <circle
+                key={id}
+                cx={p.x} cy={p.y}
+                r={isBest ? 6.5 : (isLineage ? 5 : 4)}
+                fill={rewardColor(s.value)}
+                stroke={isBest ? '#0c4a6e' : (isLineage ? '#0ea5e9' : '#fff')}
+                strokeWidth={isBest ? 2 : (isLineage ? 1.5 : 0.8)}
+                onMouseEnter={() => setHover(id)}
+                onMouseLeave={() => setHover(null)}
+                style={{ cursor: 'pointer' }}
+              />
+            );
+          })}
+        </svg>
+        <div className="srl-puct-info">
+          <div className="srl-puct-info-h">
+            {focusNode === bestNode ? 'Best so far (root → leaf path is highlighted)' : 'Hovered node'}
+          </div>
+          {focusNode ? (
+            <>
+              <div className="srl-puct-info-row">
+                <span>reward</span>
+                <b>{focusNode.value != null && isFinite(focusNode.value)
+                    ? focusNode.value.toFixed(4) : '—'}</b>
+              </div>
+              <div className="srl-puct-info-row">
+                <span>added at round</span>
+                <b>{focusNode.timestep}</b>
+              </div>
+              <div className="srl-puct-info-row">
+                <span>kind</span>
+                <b>{focusNode.kind === 'seed' ? 'initial seed' : 'child'}</b>
+              </div>
+              <div className="srl-puct-expr">
+                <code>{focusNode.expr || '(initial seed — empty prompt)'}</code>
+              </div>
+            </>
+          ) : <p className="srl-note">Hover any node to inspect.</p>}
+        </div>
+      </div>
+      <p className="srl-note srl-note-block">
+        Each circle is one candidate expression in the buffer; edges run from
+        parent (a previous attempt) to child (a refinement). Colour encodes the
+        reward — <span style={{ color: rewardColor(0.1) }}>red</span> low,{' '}
+        <span style={{ color: rewardColor(1.0) }}>green</span> high. The lineage
+        from the current best back to its initial seed is traced in blue.
+        Drag the slider to watch how the search expands: in the first few rounds
+        all four roots get explored uniformly, then PUCT starts concentrating
+        rollouts on the high-reward branches.
       </p>
     </div>
   );
@@ -424,31 +716,19 @@ New formula for f(x):`}</pre>
           <code>puct</code> arm. The infrastructure for the rest (Qwen3-1.7B, GRPO,
           budgeted reasoning, the forced wrap-up sentence) stays unchanged.
         </p>
-        <p className="srl-caption">
-          {/*
-            TODO -- this section's result table + tree-search widget go here once the
-            5-seed validation lands. Data on disk so far:
-              experiments/self-improvement-arena/results/layer1-torch-reasoning/puct/tree_log_in_flight.jsonl
-            single-seed result at round 30/80 of the in-flight run:
-              best=0.9785 (= 1.0 fit − 0.022 length penalty for a 22-node expression tree)
-              expression: -1.0·x + 1.0·sin(2.0·x + π/2) + 1.0·x³  ≡  x³ − x + cos(2x)
-              DSR-symbolic ✓  · strict-symbolic ✓ (first in the arena)
-              num_solved_at = 96 (= round 6) · MSE on training data = 7.79e-20
-            widget plan: tree of {`{}`} ~640 nodes, slider over rounds, colour by reward,
-            highlight the lineage from initial seed to the strict-symbolic leaf.
-          */}
-          <em>Preliminary single-seed result (full 5-seed run in flight; numbers and tree
-          widget to follow):</em> at round 30 of 80 the policy converged on{' '}
-          <code>x³ − x + sin(2·x + π/2)</code> — coefficients fit to within{' '}
-          <Katex tex="\sim 10^{-8}" /> of their integer or <Katex tex="\pi/2" /> values,{' '}
-          mean-squared error{' '}
+        <PuctTree />
+        <p>
+          <em>Preliminary single-seed result (full 5-seed run in flight):</em> at round
+          30 of 80 the policy converged on <code>x³ − x + sin(2·x + π/2)</code> —
+          coefficients fit to within <Katex tex="\sim 10^{-8}" /> of their integer or{' '}
+          <Katex tex="\pi/2" /> values, mean-squared error{' '}
           <Katex tex="\sim 10^{-20}" /> on the training data. After const-snap and SymPy
           simplification this is <em>exactly</em> the target structure{' '}
           <Katex tex="x^3 - x + \cos(2x)" /> in three raw terms, no padding term BFGS has
-          to zero out. <strong>This is the first strict 3-term symbolic recovery anywhere
-          in the arena</strong>, across every Layer-0 arm and every Layer-1 arm we've tried
-          before this section. Whether multiple seeds reproduce the result is the question
-          the 5-seed run is meant to answer.
+          to zero out. <strong>This is the first strict 3-term symbolic recovery
+          anywhere in the arena</strong>, across every Layer-0 arm and every Layer-1 arm
+          we've tried before this section. Whether multiple seeds reproduce the result
+          is the question the 5-seed run is meant to answer.
         </p>
 
         <h2 className="reveal">Run it yourself</h2>

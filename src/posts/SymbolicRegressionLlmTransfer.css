@@ -206,3 +206,48 @@
 }
 .srl-post .srl-col-l0 { border-left: 3px solid hsl(218, 30%, 75%); }
 .srl-post .srl-col-l1 { border-left: 3px solid hsl(28, 60%, 60%); }
+
+/* ============ PUCT tree widget ============ */
+.srl-post .srl-puct-tree {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 14px;
+  margin-top: 14px;
+}
+@media (max-width: 720px) {
+  .srl-post .srl-puct-tree {
+    grid-template-columns: 1fr;
+  }
+}
+.srl-post .srl-puct-info {
+  border-left: 3px solid hsl(199, 80%, 55%);
+  padding: 6px 0 6px 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--post-text);
+}
+.srl-post .srl-puct-info-h {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--post-text-mut);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.srl-post .srl-puct-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.srl-post .srl-puct-info-row span { color: var(--post-text-mut); }
+.srl-post .srl-puct-expr {
+  margin-top: 10px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  line-height: 1.35;
+}
