@@ -313,6 +313,144 @@ New formula for f(x):`}</pre>
           a <em>direction</em>, not a verdict.
         </p>
 
+        <h2 className="reveal">Will reasoning close the gap?</h2>
+        <p>
+          The previous section ended at a ceiling: numerical recovery is fine, but{' '}
+          <em>exact</em> symbolic recovery on <code>harder</code> nearly disappears for the
+          LLM proposer. The natural next question — does giving the model a thinking budget
+          let it crack that ceiling?
+        </p>
+        <p>
+          We swap Qwen2.5-0.5B for{' '}
+          <a className="post-link" href="https://huggingface.co/Qwen/Qwen3-1.7B" target="_blank" rel="noreferrer">
+            Qwen3-1.7B
+          </a>{' '}
+          (dual-mode: the same model can be prompted with or without an internal{' '}
+          <code>&lt;think&gt;…&lt;/think&gt;</code> block) and run the harder target at{' '}
+          <em>matched batch</em> = 8, five seeds per cell. The thinking budget is 2048 tokens,
+          with a TTT-Discover-style "okay, I am out of thinking tokens" sentence spliced in if
+          the model hasn't closed <code>&lt;/think&gt;</code> on its own — a forced wrap-up
+          that keeps the answer in-distribution.
+        </p>
+        <table className="srl-results">
+          <caption><code>harder</code> · Qwen3-1.7B · 5 seeds · matched batch</caption>
+          <thead>
+            <tr>
+              <th></th>
+              <th>no reasoning</th>
+              <th>+ reasoning (budget 2048)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>best-of-N</b> (no GRPO update)</td>
+              <td>0/5 num · 0/5 DSR-sym</td>
+              <td>1/5 num · 0/5 DSR-sym</td>
+            </tr>
+            <tr>
+              <td><b>risk</b> (GRPO + quantile adv.)</td>
+              <td>0/5 num · 0/5 DSR-sym</td>
+              <td><b>4/5 num</b> · 1/5 DSR-sym*</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Two things land. <strong>First</strong>, on the diagonal you see the experiment
+          that didn't have to work: <code>risk + reasoning</code> jumps from 0/5 to 4/5
+          numeric recovery while the no-reasoning cells stay at zero. Neither GRPO without
+          reasoning, nor reasoning without GRPO, gets across the line — both ingredients are
+          required. Reasoning rollouts produce useful candidates; GRPO sharpens which ones
+          the policy commits to.
+        </p>
+        <p>
+          <strong>Second</strong>, and more honestly, the asterisk on that 1/5 DSR-symbolic
+          win is doing real work. The recovered seed-2 expression was{' '}
+          <code>x³ − x + sin(2x + π/2)</code>, which is mathematically{' '}
+          <Katex tex="\equiv x^3 - x + \cos(2x)" /> — except the LLM also wrote a{' '}
+          <code>+ ε·x²</code> padding term that BFGS happened to zero out. The DSR snap
+          credits the recovery; a strict 3-term match would not. Across all four cells,{' '}
+          <strong>0/20 candidates clear the strict bar</strong>. The ceiling moved, but it
+          didn't break.
+        </p>
+        <p className="srl-caption">
+          <em>Five seeds, single target, single model. Read this as a direction-of-effect,
+          not a verdict. The reasoning-mode runs use ~30× more tokens per sample than the
+          no-reasoning runs, so the per-call comparison above flatters reasoning on a
+          per-flop basis — both framings are honest, both belong in the writeup.</em>
+        </p>
+
+        <h2 className="reveal">The missing piece: tree search</h2>
+        <p>
+          The reasoning experiment hints at what's missing. Watch the seed-2 trace: the
+          model proposes a near-target shape (right frequency, right cubic), but every round
+          it starts from the same fixed prompt and re-derives everything from scratch.
+          There's no mechanism to take a 0.97-reward partial-shape candidate and{' '}
+          <em>refine</em> it — the rollouts are independent draws, even when one of them
+          got close.
+        </p>
+        <p>
+          That's exactly the gap{' '}
+          <a className="post-link" href="https://arxiv.org/abs/2511.23473" target="_blank" rel="noreferrer">
+            TTT-Discover
+          </a>{' '}
+          fills, by importing an MCTS-style state buffer on top of GRPO. The mechanism is a
+          slimmed{' '}
+          <a className="post-link" href="https://arxiv.org/abs/1712.01815" target="_blank" rel="noreferrer">
+            AlphaZero PUCT
+          </a>: every candidate solution becomes a <em>state</em> in a buffer; each round,
+          four states are selected and four rollouts are drawn from each, conditioned on the
+          state as a starting point. Selection uses
+        </p>
+        <p>
+          <Katex
+            block
+            tex={`\\text{score}(s) = Q(s) + c \\cdot P(s) \\cdot \\frac{\\sqrt{1+T}}{1+n(s)}`}
+          />
+        </p>
+        <p>
+          where <Katex tex="Q(s)" /> is the best reward any descendant of <Katex tex="s" />{' '}
+          has reached (optimistic, not the mean — encourages expansion of promising
+          branches), <Katex tex="P(s)" /> is a rank-based prior over the buffer's rewards,{' '}
+          <Katex tex="n(s)" /> propagates visit counts up the lineage, and{' '}
+          <Katex tex="T" /> is total expansions. Within a batch the four picks are{' '}
+          <em>lineage-blocked</em> — once a state is chosen, its ancestors and descendants
+          drop out of contention — so each round's rollouts span four genuinely different
+          exploration trajectories. AlphaZero handles this via a virtual loss; TTT-Discover
+          flips it to hard blocking.
+        </p>
+        <p>
+          We port their setup directly — same PUCT formula, same lineage-blocking, same
+          rank-based prior — and replace the four-arm proposer with a single{' '}
+          <code>puct</code> arm. The infrastructure for the rest (Qwen3-1.7B, GRPO,
+          budgeted reasoning, the forced wrap-up sentence) stays unchanged.
+        </p>
+        <p className="srl-caption">
+          {/*
+            TODO -- this section's result table + tree-search widget go here once the
+            5-seed validation lands. Data on disk so far:
+              experiments/self-improvement-arena/results/layer1-torch-reasoning/puct/tree_log_in_flight.jsonl
+            single-seed result at round 30/80 of the in-flight run:
+              best=0.9785 (= 1.0 fit − 0.022 length penalty for a 22-node expression tree)
+              expression: -1.0·x + 1.0·sin(2.0·x + π/2) + 1.0·x³  ≡  x³ − x + cos(2x)
+              DSR-symbolic ✓  · strict-symbolic ✓ (first in the arena)
+              num_solved_at = 96 (= round 6) · MSE on training data = 7.79e-20
+            widget plan: tree of {`{}`} ~640 nodes, slider over rounds, colour by reward,
+            highlight the lineage from initial seed to the strict-symbolic leaf.
+          */}
+          <em>Preliminary single-seed result (full 5-seed run in flight; numbers and tree
+          widget to follow):</em> at round 30 of 80 the policy converged on{' '}
+          <code>x³ − x + sin(2·x + π/2)</code> — coefficients fit to within{' '}
+          <Katex tex="\sim 10^{-8}" /> of their integer or <Katex tex="\pi/2" /> values,{' '}
+          mean-squared error{' '}
+          <Katex tex="\sim 10^{-20}" /> on the training data. After const-snap and SymPy
+          simplification this is <em>exactly</em> the target structure{' '}
+          <Katex tex="x^3 - x + \cos(2x)" /> in three raw terms, no padding term BFGS has
+          to zero out. <strong>This is the first strict 3-term symbolic recovery anywhere
+          in the arena</strong>, across every Layer-0 arm and every Layer-1 arm we've tried
+          before this section. Whether multiple seeds reproduce the result is the question
+          the 5-seed run is meant to answer.
+        </p>
+
         <h2 className="reveal">Run it yourself</h2>
         <p>
           Everything in both posts — the four Layer-0 proposers, the LoRA + GRPO Layer-1 LLM
@@ -368,6 +506,24 @@ New formula for f(x):`}</pre>
             <div className="ref-note">Risk-seeking policy gradient: the Layer-0 reference and the source of the const-placeholder trick.</div>
           </div>
           <div className="ref-link"><a href="https://arxiv.org/abs/1912.04871" target="_blank" rel="noreferrer">arxiv 1912.04871</a></div>
+
+          <div className="ref-cite">Jiang et al. 2025</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/2511.23473" target="_blank" rel="noreferrer">TTT-Discover</a>
+            </div>
+            <div className="ref-note">Test-time-training discovery: budgeted reasoning + GRPO + PUCT-style state buffer. The recipe we port for the reasoning and tree-search sections.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/2511.23473" target="_blank" rel="noreferrer">arxiv 2511.23473</a></div>
+
+          <div className="ref-cite">Silver et al. 2017</div>
+          <div>
+            <div className="ref-title">
+              <a href="https://arxiv.org/abs/1712.01815" target="_blank" rel="noreferrer">AlphaZero — mastering chess and shogi by self-play</a>
+            </div>
+            <div className="ref-note">The PUCT formula and its lineage-tracked tree expansion — what TTT-Discover (and we) adapt at the state-of-candidate-solutions level.</div>
+          </div>
+          <div className="ref-link"><a href="https://arxiv.org/abs/1712.01815" target="_blank" rel="noreferrer">arxiv 1712.01815</a></div>
 
           <div className="ref-cite">Novikov et al. 2025</div>
           <div>
