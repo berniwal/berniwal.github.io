@@ -244,7 +244,7 @@ class TorchLoRAProposer:
                   "message now.\n</think>\n")
 
     @torch.no_grad()
-    def _generate_two_stage(self, inp, plen):
+    def _generate_two_stage(self, inp, plen, attention_mask=None):
         """Two-stage budgeted reasoning.
 
         Stage 1: generate up to `thinking_budget` tokens. For any row that hasn't
@@ -252,12 +252,18 @@ class TorchLoRAProposer:
         model's own voice -- in-distribution wrap-up). Stage 2: generate up to
         `answer_budget` more tokens, which is where the final formula appears.
 
+        ``attention_mask`` (PUCT arm only): when supplied, ``inp`` is already a
+        batched, left-padded tensor of multiple-prompt-per-batch. The mask has 0
+        on the pad positions, 1 on the real prompt tokens; subsequent generated
+        tokens get attention 1 appended automatically by ``model.generate``.
+
         Returns (seqs, forced_mask) where forced_mask marks the spliced-in tokens
         so the GRPO loss can ignore them (they aren't samples from pi_theta).
         """
+        attn0 = torch.ones_like(inp) if attention_mask is None else attention_mask
         # Stage 1: free thinking.
         stage1 = self.model.generate(
-            inp, attention_mask=torch.ones_like(inp),
+            inp, attention_mask=attn0,
             do_sample=True, temperature=self.temperature, top_p=self.top_p,
             max_new_tokens=self.thinking_budget,
             pad_token_id=self.tok.pad_token_id)
@@ -314,51 +320,94 @@ class TorchLoRAProposer:
         return seqs, forced_mask
 
     @torch.no_grad()
-    def _generate(self, prompt_ids, n_rollouts: int | None = None):
-        """Generate rollouts. ``n_rollouts`` overrides self.batch_size when given;
-        used by the PUCT arm to draw smaller per-group batches from different
-        parent-state prompts."""
-        n = self.batch_size if n_rollouts is None else int(n_rollouts)
-        plen = prompt_ids.shape[1]
-        inp = prompt_ids.repeat(n, 1)
+    def _generate(self, prompt_ids, n_rollouts: int | None = None,
+                   attention_mask=None):
+        """Generate rollouts.
+
+        Two input modes:
+          - ``prompt_ids`` shape (1, plen): repeat to ``n_rollouts`` rows (the
+            standard single-prompt path used by greedy/risk/best_of_n/evolution).
+            ``attention_mask`` defaults to all-ones.
+          - ``prompt_ids`` shape (B, max_plen) where B > 1: a pre-batched
+            multi-prompt tensor (the PUCT arm's left-padded
+            states_per_batch * rollouts_per_state batch). ``attention_mask`` is
+            REQUIRED and tells the model which positions are real vs left-pad.
+
+        Returns (seqs, comp_mask[:,1:], old_logp, texts, plen, attn_full) where
+        ``attn_full`` is the attention mask covering both prompt and generation
+        — passed to ``_token_logprobs`` in tell() so the train-time forward also
+        ignores the left-padded prompt positions.
+        """
+        if prompt_ids.shape[0] == 1:
+            n = self.batch_size if n_rollouts is None else int(n_rollouts)
+            inp = prompt_ids.repeat(n, 1)
+            attn0 = (torch.ones_like(inp) if attention_mask is None
+                     else attention_mask.repeat(n, 1))
+        else:
+            inp = prompt_ids
+            if attention_mask is None:
+                raise ValueError("attention_mask is required when prompt_ids is "
+                                 "pre-batched with B > 1 (left-padded multi-prompt).")
+            attn0 = attention_mask
+        plen = inp.shape[1]
         # Generation needs the KV cache; training-time forwards disable it (see __init__
         # for the grad-checkpointing wiring). Toggle around generate() so the rest of
         # the proposer can leave use_cache=False as the steady state.
         self.model.config.use_cache = True
         try:
             if self.reasoning and self.thinking_budget > 0:
-                seqs, forced_mask = self._generate_two_stage(inp, plen)
+                seqs, forced_mask = self._generate_two_stage(inp, plen, attention_mask=attn0)
             else:
                 seqs = self.model.generate(
-                    inp, attention_mask=torch.ones_like(inp),
+                    inp, attention_mask=attn0,
                     do_sample=True, temperature=self.temperature, top_p=self.top_p,
                     max_new_tokens=self.max_new_tokens,
                     pad_token_id=self.tok.pad_token_id)  # (B, plen+gen)
                 forced_mask = torch.zeros_like(seqs, dtype=torch.float32)
         finally:
             self.model.config.use_cache = False
+        # Build full attention mask covering the generation: 1 wherever a real
+        # token sits (prompt-side from attn0, generation-side wherever not pad).
+        gen_attn = (seqs[:, plen:] != self.tok.pad_token_id).long()
+        attn_full = torch.cat([attn0, gen_attn], dim=1)
+        # Truncate / extend in case seqs is shorter than expected (early-EOS).
+        if attn_full.shape[1] != seqs.shape[1]:
+            if attn_full.shape[1] > seqs.shape[1]:
+                attn_full = attn_full[:, :seqs.shape[1]]
+            else:
+                extra = torch.zeros((seqs.shape[0], seqs.shape[1] - attn_full.shape[1]),
+                                     dtype=attn_full.dtype, device=attn_full.device)
+                attn_full = torch.cat([attn_full, extra], dim=1)
+        # comp_mask: completion tokens only, excluding padded prompt + spliced wrap-up.
         comp_mask = torch.zeros_like(seqs, dtype=torch.float32)
         comp_mask[:, plen:] = (seqs[:, plen:] != self.tok.pad_token_id).float()
-        # Tokens we forcibly injected aren't samples from pi_theta -- mask them out so
-        # they don't contribute to the policy gradient.
         comp_mask = comp_mask * (1.0 - forced_mask)
         texts = self.tok.batch_decode(seqs[:, plen:], skip_special_tokens=True)
-        # pi_old per-token, computed in no-grad micro-chunks so peak memory stays bounded
-        old_logp = torch.cat([self._token_logprobs(seqs[s:s + self.micro])
-                              for s in range(0, seqs.shape[0], self.micro)], dim=0)
-        return seqs, comp_mask[:, 1:], old_logp, texts, plen
+        old_logp = torch.cat(
+            [self._token_logprobs(seqs[s:s + self.micro],
+                                    attention_mask=attn_full[s:s + self.micro])
+             for s in range(0, seqs.shape[0], self.micro)], dim=0)
+        return seqs, comp_mask[:, 1:], old_logp, texts, plen, attn_full
 
-    def _token_logprobs(self, seqs, grad=False):
+    def _token_logprobs(self, seqs, grad=False, attention_mask=None):
         """Per-token log pi(token_t | <t) aligned to seqs[:,1:]. (B, T-1).
 
         Memory-efficient: log p(tgt) = logit_tgt - logsumexp(logits). Avoids
         materializing a full (B, T, vocab) log_softmax tensor (vocab ~152k -> ~5GB
         per copy; the naive version OOMs a 16GB GPU at batch 32). Keeps logits in the
         model dtype (bf16); only the (B, T) results are upcast to fp32.
+
+        ``attention_mask``: when supplied (PUCT arm's left-padded batches),
+        passed to the model so attention over the padded prompt positions is
+        zeroed. Without it, the model would attend to garbage pad tokens for
+        any row that started with left-padding.
         """
         ctx = torch.enable_grad() if grad else torch.no_grad()
         with ctx:
-            logits = self.model(seqs).logits[:, :-1, :]              # (B, T-1, V)
+            if attention_mask is not None:
+                logits = self.model(seqs, attention_mask=attention_mask).logits[:, :-1, :]
+            else:
+                logits = self.model(seqs).logits[:, :-1, :]
             tgt = seqs[:, 1:].unsqueeze(-1)                          # (B, T-1, 1)
             tgt_logit = logits.gather(-1, tgt).squeeze(-1)          # (B, T-1)
             lse = torch.logsumexp(logits, dim=-1)                   # (B, T-1), reduction
@@ -401,8 +450,8 @@ class TorchLoRAProposer:
             return self._ask_puct()
         # --- standard single-prompt path (greedy/risk/best_of_n/evolution) ---
         prompt_ids = self._prompt_ids()
-        seqs, comp_mask, old_logp, texts, _ = self._generate(prompt_ids)
-        self._pending = (seqs, comp_mask, old_logp)
+        seqs, comp_mask, old_logp, texts, _, attn_full = self._generate(prompt_ids)
+        self._pending = (seqs, comp_mask, old_logp, attn_full)
         cands, n_valid = self._parse_candidates(texts)
         self._last_valid_frac = n_valid / max(self.batch_size, 1)
         self._last_responses = texts
@@ -410,8 +459,15 @@ class TorchLoRAProposer:
 
     def _ask_puct(self) -> list[Node]:
         """PUCT arm: pick `states_per_batch` lineage-blocked parent states from
-        the buffer, generate `rollouts_per_state` rollouts conditioned on each,
-        concatenate everything into a single batch for downstream training."""
+        the buffer, then run ONE batched generation call over all
+        states_per_batch * rollouts_per_state rollouts using left-padding to
+        align the variable-length per-state prompts.
+
+        This is ~3x faster than the original per-state-loop version because
+        autoregressive decoding wall-time is dominated by sequential token
+        steps, not by batch size. One batch=16 call is much closer to one
+        batch=4 call than to four sequential batch=4 calls.
+        """
         import time
         # 1) sample parents
         picked = self.sampler.sample_states(self.states_per_batch,
@@ -420,24 +476,38 @@ class TorchLoRAProposer:
         print(f"[r{self._round_idx:03d} puct] picked {len(picked)} states  "
               f"buffer={self.sampler.buffer_size()} T={self.sampler.total_expansions()}",
               flush=True)
-        # 2) generate per-group rollouts
-        all_seqs, all_cmasks, all_logps, all_texts = [], [], [], []
+        # 2) tokenize per-state prompts (different lengths -> left-pad to max)
+        per_state_ids = [self._prompt_ids(parent_state=s) for s in picked]
+        max_plen = max(t.shape[1] for t in per_state_ids)
+        pid = self.tok.pad_token_id
+        rows = []
+        attn_rows = []
+        for ids in per_state_ids:
+            plen_i = ids.shape[1]
+            pad_len = max_plen - plen_i
+            if pad_len > 0:
+                pad_tok = torch.full((1, pad_len), pid, dtype=ids.dtype,
+                                       device=ids.device)
+                pad_attn = torch.zeros((1, pad_len), dtype=torch.long,
+                                         device=ids.device)
+                ones = torch.ones((1, plen_i), dtype=torch.long, device=ids.device)
+                padded_ids = torch.cat([pad_tok, ids], dim=1)
+                padded_attn = torch.cat([pad_attn, ones], dim=1)
+            else:
+                padded_ids = ids
+                padded_attn = torch.ones_like(ids, dtype=torch.long)
+            # tile by rollouts_per_state
+            rows.append(padded_ids.repeat(self.rollouts_per_state, 1))
+            attn_rows.append(padded_attn.repeat(self.rollouts_per_state, 1))
+        prompts = torch.cat(rows, dim=0)
+        prompt_attn = torch.cat(attn_rows, dim=0)
+        # 3) ONE batched generate call (~3x faster than the 4 sequential calls)
         gen_start = time.time()
-        for gi, state in enumerate(picked):
-            prompt_ids = self._prompt_ids(parent_state=state)
-            seqs, cmask, logp, texts, _ = self._generate(
-                prompt_ids, n_rollouts=self.rollouts_per_state)
-            all_seqs.append(seqs)
-            all_cmasks.append(cmask)
-            all_logps.append(logp)
-            all_texts.extend(texts)
+        seqs, cmask, logp, all_texts, _, attn_full = self._generate(
+            prompts, attention_mask=prompt_attn)
         print(f"[r{self._round_idx:03d} puct] gen done in {time.time()-gen_start:.0f}s",
               flush=True)
-        # 3) pad & concat to a uniform batch tensor for training
-        seqs_cat = self._pad_concat(all_seqs, pad_value=self.tok.pad_token_id)
-        cmask_cat = self._pad_concat(all_cmasks, pad_value=0.0)
-        logp_cat = self._pad_concat(all_logps, pad_value=0.0)
-        self._pending = (seqs_cat, cmask_cat, logp_cat)
+        self._pending = (seqs, cmask, logp, attn_full)
         # 4) parse all candidates (rollouts ordered group-by-group)
         cands, n_valid = self._parse_candidates(all_texts)
         self._last_valid_frac = n_valid / max(self.batch_size, 1)
@@ -475,7 +545,7 @@ class TorchLoRAProposer:
                 self.archive = sorted(((r, e) for e, r in best.items()), reverse=True)[:self.archive_k]
             self._pending = None
             return
-        seqs, comp_mask, old_logp = self._pending
+        seqs, comp_mask, old_logp, attn_full = self._pending
         # PUCT: per-group advantage (within each rollouts_per_state-sized chunk),
         # then update the sampler buffer with the new evaluated children.
         if self.arm == "puct":
@@ -519,7 +589,8 @@ class TorchLoRAProposer:
             # activations are O(T^2)*batch*layers and OOM the GPU at batch 32).
             for s in range(0, B, self.micro):
                 sl = slice(s, s + self.micro)
-                logp = self._token_logprobs(seqs[sl], grad=True)        # (m, T-1)
+                logp = self._token_logprobs(seqs[sl], grad=True,
+                                              attention_mask=attn_full[sl])  # (m, T-1)
                 ratio = torch.clamp(torch.exp(logp - old_logp[sl]), max=tc)  # truncated IS
                 a = adv[sl].unsqueeze(1)
                 surr = torch.minimum(ratio * a, torch.clamp(ratio, cl, ch) * a)  # GRPO surrogate
