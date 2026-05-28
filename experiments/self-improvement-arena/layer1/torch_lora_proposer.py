@@ -45,9 +45,13 @@ class TorchLoRAProposer:
                  const_placeholder=True, n_data_shown=12,
                  ppo_epochs=2, clip_low=0.2, clip_high=0.28, trunc_is=2.0,
                  std_normalize=False, reasoning=False, thinking_budget=0,
-                 answer_budget=64, seed=0, dtype="bfloat16"):
-        if arm not in ("greedy", "risk", "best_of_n", "evolution"):
-            raise ValueError("arm must be greedy, risk, best_of_n, or evolution")
+                 answer_budget=64, seed=0, dtype="bfloat16",
+                 # PUCT-arm-only knobs (ignored otherwise):
+                 states_per_batch=4, rollouts_per_state=4, puct_c=1.0,
+                 puct_buffer_size=200, puct_topk_children=2,
+                 puct_tree_log_path=None):
+        if arm not in ("greedy", "risk", "best_of_n", "evolution", "puct"):
+            raise ValueError("arm must be greedy, risk, best_of_n, evolution, or puct")
         self.archive: list[tuple[float, str]] = []  # (reward, expr) for the evolution arm
         self.archive_k = 6                           # top-K exemplars fed back into the prompt
         if mode not in ("quantile", "entropic", "cvar"):
@@ -111,13 +115,41 @@ class TorchLoRAProposer:
               f"trainable params={sum(p.numel() for p in self.model.parameters() if p.requires_grad)}",
               flush=True)
 
+        # PUCT state buffer (only used when arm == "puct"). See layer1/puct_sampler.py.
+        self.states_per_batch = states_per_batch
+        self.rollouts_per_state = rollouts_per_state
+        if arm == "puct":
+            from .puct_sampler import PUCTSampler
+            if batch_size != states_per_batch * rollouts_per_state:
+                raise ValueError(
+                    f"For arm=puct, batch_size ({batch_size}) must equal "
+                    f"states_per_batch ({states_per_batch}) * rollouts_per_state "
+                    f"({rollouts_per_state}).")
+            self.sampler = PUCTSampler(
+                max_buffer_size=puct_buffer_size,
+                seed_count=states_per_batch,
+                puct_c=puct_c,
+                topk_children=puct_topk_children,
+                tree_log_path=puct_tree_log_path)
+        else:
+            self.sampler = None
+        self._round_idx = 0   # incremented every ask()/tell() cycle
+
     # --- prompt (identical text to the MLX arm, for comparability) ------------
     def _data_block(self) -> str:
         x, y = self.task.x_train, self.task.y_train
         idx = np.linspace(0, len(x) - 1, min(self.n_data_shown, len(x))).astype(int)
         return "\n".join(f"  x = {x[i]:+.3f}   y = {y[i]:+.3f}" for i in idx)
 
-    def _prompt_text(self) -> str:
+    def _prompt_text(self, parent_state=None) -> str:
+        """Build the rollout prompt.
+
+        ``parent_state`` (only used by arm="puct"): when given AND the state has
+        an evaluated ``value``, the prompt is augmented with a TTT-Discover-style
+        "before/after" block so the model conditions on the parent attempt and
+        is asked to improve on it. ``None`` parent (or an unevaluated seed)
+        produces the original prompt unchanged.
+        """
         if self.const_placeholder:
             vocab = ("Allowed: the variable x, operators + - * /, the functions sin and "
                      "cos, and the constant placeholder C. Write C in place of every "
@@ -131,6 +163,20 @@ class TorchLoRAProposer:
             ex = "\n".join(f"  f(x) = {expr}   (score {r:.3f})" for r, expr in self.archive)
             archive_block = ("\n\nBest formulas found so far -- propose a DIFFERENT formula "
                              f"that fits better than these:\n{ex}")
+        # PUCT parent-state block (TTT-Discover style): only when arm="puct" and the
+        # parent has been evaluated (initial seeds with value=None fall through).
+        if self.arm == "puct" and parent_state is not None and parent_state.value is not None:
+            before = parent_state.parent_values[0] if parent_state.parent_values else None
+            after = parent_state.value
+            ba = (f"   before -> after: {before:.6f} -> {after:.6f}"
+                  if before is not None else f"   reward: {after:.6f}")
+            archive_block = (
+                f"\n\nA previous attempt at this problem scored {after:.6f} "
+                f"(target reward 1.0, higher is better):\n"
+                f"  f(x) = {parent_state.expr}\n{ba}\n"
+                "Propose a DIFFERENT formula that fits the data better than the one above. "
+                "You may keep what works (e.g. the right trig frequency) and change what "
+                "doesn't (e.g. add a missing term).")
         if self.reasoning:
             # Thinking-mode prompt with an EXPLICIT budget + commitment contract.
             # Small reasoning models (Qwen3-1.7B) ruminate the whole budget without
@@ -155,11 +201,11 @@ class TorchLoRAProposer:
                 f"terms like x*x, x*x*x, or sin/cos, not just straight lines.\n{instructions}\n\n"
                 f"Data points:\n{self._data_block()}{archive_block}\n\nNew formula for f(x):")
 
-    def _prompt_ids(self) -> torch.Tensor:
+    def _prompt_ids(self, parent_state=None) -> torch.Tensor:
         # Qwen3 (and other dual-mode reasoning models) honour `enable_thinking=...` in
         # apply_chat_template; older tokenizers (Qwen2.5, Llama) ignore the kwarg or
         # raise. Pass it only when reasoning is on, and fall back if rejected.
-        msgs = [{"role": "user", "content": self._prompt_text()}]
+        msgs = [{"role": "user", "content": self._prompt_text(parent_state=parent_state)}]
         try:
             ids = self.tok.apply_chat_template(
                 msgs, add_generation_prompt=True, return_tensors="pt",
@@ -268,9 +314,13 @@ class TorchLoRAProposer:
         return seqs, forced_mask
 
     @torch.no_grad()
-    def _generate(self, prompt_ids):
+    def _generate(self, prompt_ids, n_rollouts: int | None = None):
+        """Generate rollouts. ``n_rollouts`` overrides self.batch_size when given;
+        used by the PUCT arm to draw smaller per-group batches from different
+        parent-state prompts."""
+        n = self.batch_size if n_rollouts is None else int(n_rollouts)
         plen = prompt_ids.shape[1]
-        inp = prompt_ids.repeat(self.batch_size, 1)
+        inp = prompt_ids.repeat(n, 1)
         # Generation needs the KV cache; training-time forwards disable it (see __init__
         # for the grad-checkpointing wiring). Toggle around generate() so the rest of
         # the proposer can leave use_cache=False as the steady state.
@@ -315,10 +365,8 @@ class TorchLoRAProposer:
             return (tgt_logit - lse).float()
 
     # --- ask / tell ----------------------------------------------------------
-    def ask(self) -> list[Node]:
-        prompt_ids = self._prompt_ids()
-        seqs, comp_mask, old_logp, texts, _ = self._generate(prompt_ids)
-        self._pending = (seqs, comp_mask, old_logp)
+    def _parse_candidates(self, texts: list[str]) -> tuple[list, int]:
+        """Parse a list of model outputs into Node candidates (INVALID if unparseable)."""
         cands, n_valid = [], 0
         for text in texts:
             text = self._extract_formula(text)
@@ -331,8 +379,69 @@ class TorchLoRAProposer:
                 cands.append(INVALID)
             else:
                 cands.append(node); n_valid += 1
+        return cands, n_valid
+
+    def _pad_concat(self, tensors: list[torch.Tensor], pad_value=0):
+        """Right-pad a list of (b_i, L_i) tensors to common L, concat along dim 0."""
+        if not tensors:
+            return torch.empty(0)
+        max_len = max(t.shape[1] for t in tensors)
+        padded = []
+        for t in tensors:
+            if t.shape[1] < max_len:
+                pad = torch.full((t.shape[0], max_len - t.shape[1]),
+                                  pad_value, dtype=t.dtype, device=t.device)
+                t = torch.cat([t, pad], dim=1)
+            padded.append(t)
+        return torch.cat(padded, dim=0)
+
+    def ask(self) -> list[Node]:
+        self._round_idx += 1
+        if self.arm == "puct":
+            return self._ask_puct()
+        # --- standard single-prompt path (greedy/risk/best_of_n/evolution) ---
+        prompt_ids = self._prompt_ids()
+        seqs, comp_mask, old_logp, texts, _ = self._generate(prompt_ids)
+        self._pending = (seqs, comp_mask, old_logp)
+        cands, n_valid = self._parse_candidates(texts)
         self._last_valid_frac = n_valid / max(self.batch_size, 1)
         self._last_responses = texts
+        return cands
+
+    def _ask_puct(self) -> list[Node]:
+        """PUCT arm: pick `states_per_batch` lineage-blocked parent states from
+        the buffer, generate `rollouts_per_state` rollouts conditioned on each,
+        concatenate everything into a single batch for downstream training."""
+        import time
+        # 1) sample parents
+        picked = self.sampler.sample_states(self.states_per_batch,
+                                              round_n=self._round_idx)
+        self._picked_states = picked
+        print(f"[r{self._round_idx:03d} puct] picked {len(picked)} states  "
+              f"buffer={self.sampler.buffer_size()} T={self.sampler.total_expansions()}",
+              flush=True)
+        # 2) generate per-group rollouts
+        all_seqs, all_cmasks, all_logps, all_texts = [], [], [], []
+        gen_start = time.time()
+        for gi, state in enumerate(picked):
+            prompt_ids = self._prompt_ids(parent_state=state)
+            seqs, cmask, logp, texts, _ = self._generate(
+                prompt_ids, n_rollouts=self.rollouts_per_state)
+            all_seqs.append(seqs)
+            all_cmasks.append(cmask)
+            all_logps.append(logp)
+            all_texts.extend(texts)
+        print(f"[r{self._round_idx:03d} puct] gen done in {time.time()-gen_start:.0f}s",
+              flush=True)
+        # 3) pad & concat to a uniform batch tensor for training
+        seqs_cat = self._pad_concat(all_seqs, pad_value=self.tok.pad_token_id)
+        cmask_cat = self._pad_concat(all_cmasks, pad_value=0.0)
+        logp_cat = self._pad_concat(all_logps, pad_value=0.0)
+        self._pending = (seqs_cat, cmask_cat, logp_cat)
+        # 4) parse all candidates (rollouts ordered group-by-group)
+        cands, n_valid = self._parse_candidates(all_texts)
+        self._last_valid_frac = n_valid / max(self.batch_size, 1)
+        self._last_responses = all_texts
         return cands
 
     def _weights(self, results: list[Result]) -> np.ndarray:
@@ -367,7 +476,38 @@ class TorchLoRAProposer:
             self._pending = None
             return
         seqs, comp_mask, old_logp = self._pending
-        adv = torch.tensor(self._weights(results), dtype=torch.float32, device=self.device)
+        # PUCT: per-group advantage (within each rollouts_per_state-sized chunk),
+        # then update the sampler buffer with the new evaluated children.
+        if self.arm == "puct":
+            group_advs = []
+            for gi in range(self.states_per_batch):
+                lo = gi * self.rollouts_per_state
+                hi = lo + self.rollouts_per_state
+                group_advs.append(self._weights(results[lo:hi]))
+            adv = torch.tensor(np.concatenate(group_advs),
+                                dtype=torch.float32, device=self.device)
+            # update sampler buffer
+            from .puct_state import State as PUCTState
+            new_states, parents_for_new = [], []
+            for gi, parent in enumerate(self._picked_states):
+                lo = gi * self.rollouts_per_state
+                hi = lo + self.rollouts_per_state
+                any_valid = False
+                for i in range(lo, hi):
+                    c, r = candidates[i], results[i]
+                    if c is INVALID:
+                        continue
+                    ns = PUCTState(expr=to_infix(c), value=float(r.reward),
+                                    timestep=self._round_idx)
+                    new_states.append(ns)
+                    parents_for_new.append(parent)
+                    any_valid = True
+                if not any_valid:
+                    self.sampler.record_failed_rollout(parent)
+            self.sampler.update_states(new_states, parents_for_new,
+                                         round_n=self._round_idx)
+        else:
+            adv = torch.tensor(self._weights(results), dtype=torch.float32, device=self.device)
         cl, ch, tc = 1 - self.clip_low, 1 + self.clip_high, self.trunc_is
         B = seqs.shape[0]
         total_mask = comp_mask.sum().clamp(min=1)   # normalize over the FULL batch's tokens

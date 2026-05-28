@@ -28,7 +28,7 @@ def main():
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
     ap.add_argument("--target", default="medium")
     ap.add_argument("--arm", default="risk",
-                    choices=["greedy", "risk", "best_of_n", "evolution"])
+                    choices=["greedy", "risk", "best_of_n", "evolution", "puct"])
     ap.add_argument("--const-tol", type=float, default=1e-3,
                     help="snap fitted constants within this tol before the symbolic check")
     ap.add_argument("--mode", default="quantile", choices=["quantile", "entropic", "cvar"])
@@ -72,11 +72,28 @@ def main():
                     help="if >0, write summary.json every N rounds (in addition to "
                          "the final write). Lets us inspect partial results mid-run, "
                          "and preserves data if the pod is killed before completion.")
+    # PUCT-arm only:
+    ap.add_argument("--states-per-batch", type=int, default=4,
+                    help="(arm=puct only) lineage-blocked parent states drawn from "
+                         "the PUCT buffer per round. batch must equal "
+                         "states_per_batch * rollouts_per_state.")
+    ap.add_argument("--rollouts-per-state", type=int, default=4,
+                    help="(arm=puct only) rollouts per chosen parent (GRPO group size).")
+    ap.add_argument("--puct-c", type=float, default=1.0,
+                    help="(arm=puct only) PUCT exploration coefficient.")
+    ap.add_argument("--puct-buffer-size", type=int, default=200)
+    ap.add_argument("--puct-topk-children", type=int, default=2,
+                    help="(arm=puct only) keep only top-K children per parent in buffer.")
     args = ap.parse_args()
 
     lo, hi = (float(v) for v in args.x_range.split(","))
     task = make_task(args.target, n_points=args.n_points, x_range=(lo, hi), seed=args.seed)
     ver = Verifier(task, eps_success=args.eps_success, reward_mode=args.reward_mode)
+
+    out_dir = os.path.join(args.out, f"{args.arm}-{args.mode}-{args.target}-seed{args.seed}")
+    os.makedirs(out_dir, exist_ok=True)
+    tree_log_path = (os.path.join(out_dir, "tree_log.jsonl")
+                     if args.arm == "puct" else None)
 
     from layer1.torch_lora_proposer import TorchLoRAProposer
     prop = TorchLoRAProposer(
@@ -88,15 +105,17 @@ def main():
         ppo_epochs=args.ppo_epochs, clip_low=args.clip_low, clip_high=args.clip_high,
         trunc_is=args.trunc_is, std_normalize=args.std_normalize,
         reasoning=args.reasoning, thinking_budget=args.thinking_budget,
-        answer_budget=args.answer_budget, seed=args.seed)
+        answer_budget=args.answer_budget, seed=args.seed,
+        states_per_batch=args.states_per_batch,
+        rollouts_per_state=args.rollouts_per_state,
+        puct_c=args.puct_c, puct_buffer_size=args.puct_buffer_size,
+        puct_topk_children=args.puct_topk_children,
+        puct_tree_log_path=tree_log_path)
 
     best, best_expr = 0.0, ""
     num_solved_at = sym_solved_at = None
     history = []
     t0 = time.time()
-
-    out_dir = os.path.join(args.out, f"{args.arm}-{args.mode}-{args.target}-seed{args.seed}")
-    os.makedirs(out_dir, exist_ok=True)
 
     def _write_summary():
         summary = dict(args=vars(args), best=best, best_expr=best_expr,
