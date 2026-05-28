@@ -322,3 +322,39 @@
   word-break: break-all;
   color: var(--post-text-mut);
 }
+
+/* ============ PUCT tree pan/zoom controls ============ */
+.srl-post .srl-puct-svg-wrap {
+  position: relative;
+  user-select: none;
+}
+.srl-post .srl-puct-svg-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--post-text-mut);
+}
+.srl-post .srl-puct-svg-btn {
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: var(--post-text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.srl-post .srl-puct-svg-btn:hover {
+  background: #f1f5f9;
+}
+.srl-post .srl-puct-svg-hint {
+  font-style: italic;
+}
+@media (max-width: 720px) {
+  .srl-post .srl-puct-svg-hint {
+    display: none;
+  }
+}

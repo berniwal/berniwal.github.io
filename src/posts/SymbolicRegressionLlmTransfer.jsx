@@ -292,6 +292,28 @@ function lineageIds(leafId, byId) {
   return set;
 }
 
+// Compute the visible-bounds rectangle of an entire subtree rooted at `node`,
+// given the layout positions and the children adjacency. Used for "click a node
+// to zoom to its subtree".
+function subtreeBounds(rootId, children, positions) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop();
+    const p = positions.get(id);
+    if (p) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const kids = children.get(id) || [];
+    for (const k of kids) stack.push(k.id);
+  }
+  if (!isFinite(minX)) return null;
+  return { minX, maxX, minY, maxY };
+}
+
 function PuctTree() {
   const events = useJsonLines(`${DATA_BASE}/puct/tree_log.jsonl`);
   // maxRound from the data; default slider to the final round.
@@ -301,6 +323,10 @@ function PuctTree() {
   // Keep the slider value in sync when data finishes loading.
   useEffect(() => { setRound(maxRoundInData); }, [maxRoundInData]);
   const [hover, setHover] = useState(null);
+  // View transform (SVG viewBox). null = use default = fit-all.
+  const [view, setView] = useState(null);
+  const svgRef = useRef(null);
+  const dragRef = useRef(null);  // { startX, startY, startView }
 
   if (events === false) {
     return <div className="viz-panel"><p className="srl-note">Could not load PUCT tree log.</p></div>;
@@ -366,45 +392,140 @@ function PuctTree() {
         </span>
       </div>
       <div className="srl-puct-tree">
-        <svg
-          viewBox={`-10 -10 ${w + 20} ${h + 20}`}
-          preserveAspectRatio="xMidYMid meet"
-          style={{ width: '100%', height: 'auto', maxHeight: 460,
-                   background: '#fafbfc', borderRadius: 6 }}
-        >
-          {/* edges first so they sit under nodes */}
-          {edges.map((e) => {
-            const inLineage = lineage.has(e.pid) && lineage.has(e.cid);
+        <div className="srl-puct-svg-wrap">
+          {(() => {
+            // Default viewBox: fit the whole tree with 10px margin.
+            const defaultVB = { x: -10, y: -10, w: w + 20, h: h + 20 };
+            const vb = view || defaultVB;
+
+            // Convert client (screen) coords to SVG user-space coords. Used by
+            // wheel-zoom-around-cursor so the point under the mouse stays fixed.
+            const clientToSvg = (cx, cy) => {
+              const svg = svgRef.current;
+              if (!svg) return { x: 0, y: 0 };
+              const rect = svg.getBoundingClientRect();
+              const px = (cx - rect.left) / rect.width;
+              const py = (cy - rect.top) / rect.height;
+              return { x: vb.x + px * vb.w, y: vb.y + py * vb.h };
+            };
+
+            // Wheel handler: zoom in/out by factor 1.18 around cursor.
+            const handleWheel = (e) => {
+              e.preventDefault();
+              const factor = e.deltaY > 0 ? 1.18 : (1 / 1.18);
+              const c = clientToSvg(e.clientX, e.clientY);
+              const newW = Math.min(Math.max(vb.w * factor, 40), defaultVB.w * 4);
+              const newH = Math.min(Math.max(vb.h * factor, 40), defaultVB.h * 4);
+              // Keep the cursor's world-coords stable: solve for new x,y so
+              //   c.x = newX + (cx - left)/width * newW  =>  newX = c.x - px * newW
+              const rect = svgRef.current.getBoundingClientRect();
+              const px = (e.clientX - rect.left) / rect.width;
+              const py = (e.clientY - rect.top) / rect.height;
+              setView({
+                x: c.x - px * newW,
+                y: c.y - py * newH,
+                w: newW, h: newH,
+              });
+            };
+
+            // Drag-to-pan
+            const handleMouseDown = (e) => {
+              // Only start panning on the SVG background, not on a circle.
+              if (e.target.tagName === 'circle') return;
+              dragRef.current = { startX: e.clientX, startY: e.clientY, startView: vb };
+              e.preventDefault();
+            };
+            const handleMouseMove = (e) => {
+              const d = dragRef.current;
+              if (!d) return;
+              const rect = svgRef.current.getBoundingClientRect();
+              const dxScreen = e.clientX - d.startX;
+              const dyScreen = e.clientY - d.startY;
+              const dxWorld = dxScreen / rect.width * d.startView.w;
+              const dyWorld = dyScreen / rect.height * d.startView.h;
+              setView({
+                x: d.startView.x - dxWorld,
+                y: d.startView.y - dyWorld,
+                w: d.startView.w,
+                h: d.startView.h,
+              });
+            };
+            const handleMouseUp = () => { dragRef.current = null; };
+
+            // Click a node to focus on its subtree. Padding 40 in world units.
+            const focusNodeSubtree = (id) => {
+              const bnds = subtreeBounds(id, children, positions);
+              if (!bnds) return;
+              const pad = 30;
+              const fw = Math.max(bnds.maxX - bnds.minX + 2 * pad, 80);
+              const fh = Math.max(bnds.maxY - bnds.minY + 2 * pad, 80);
+              setView({ x: bnds.minX - pad, y: bnds.minY - pad, w: fw, h: fh });
+            };
+
             return (
-              <line
-                key={`${e.pid}-${e.cid}`}
-                x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-                stroke={inLineage ? '#0ea5e9' : '#d6dde6'}
-                strokeWidth={inLineage ? 2.2 : 0.9}
-                opacity={inLineage ? 0.95 : 0.7}
-              />
+              <svg
+                ref={svgRef}
+                viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
+                preserveAspectRatio="xMidYMid meet"
+                style={{
+                  width: '100%', height: 460,
+                  background: '#fafbfc', borderRadius: 6,
+                  cursor: dragRef.current ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              >
+                {/* edges first so they sit under nodes */}
+                {edges.map((e) => {
+                  const inLineage = lineage.has(e.pid) && lineage.has(e.cid);
+                  return (
+                    <line
+                      key={`${e.pid}-${e.cid}`}
+                      x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                      stroke={inLineage ? '#0ea5e9' : '#d6dde6'}
+                      strokeWidth={inLineage ? 2.2 : 0.9}
+                      opacity={inLineage ? 0.95 : 0.7}
+                    />
+                  );
+                })}
+                {/* nodes */}
+                {Array.from(positions.entries()).map(([id, p]) => {
+                  const s = byId.get(id);
+                  const isLineage = lineage.has(id);
+                  const isBest = bestNode && id === bestNode.id;
+                  return (
+                    <circle
+                      key={id}
+                      cx={p.x} cy={p.y}
+                      r={isBest ? 6.5 : (isLineage ? 5 : 4)}
+                      fill={rewardColor(s.value)}
+                      stroke={isBest ? '#0c4a6e' : (isLineage ? '#0ea5e9' : '#fff')}
+                      strokeWidth={isBest ? 2 : (isLineage ? 1.5 : 0.8)}
+                      onMouseEnter={() => setHover(id)}
+                      onMouseLeave={() => setHover(null)}
+                      onClick={(e) => { e.stopPropagation(); focusNodeSubtree(id); }}
+                      style={{ cursor: 'zoom-in' }}
+                    />
+                  );
+                })}
+              </svg>
             );
-          })}
-          {/* nodes */}
-          {Array.from(positions.entries()).map(([id, p]) => {
-            const s = byId.get(id);
-            const isLineage = lineage.has(id);
-            const isBest = bestNode && id === bestNode.id;
-            return (
-              <circle
-                key={id}
-                cx={p.x} cy={p.y}
-                r={isBest ? 6.5 : (isLineage ? 5 : 4)}
-                fill={rewardColor(s.value)}
-                stroke={isBest ? '#0c4a6e' : (isLineage ? '#0ea5e9' : '#fff')}
-                strokeWidth={isBest ? 2 : (isLineage ? 1.5 : 0.8)}
-                onMouseEnter={() => setHover(id)}
-                onMouseLeave={() => setHover(null)}
-                style={{ cursor: 'pointer' }}
-              />
-            );
-          })}
-        </svg>
+          })()}
+          <div className="srl-puct-svg-controls">
+            <button
+              type="button"
+              className="srl-puct-svg-btn"
+              onClick={() => setView(null)}
+              aria-label="Reset view"
+              title="Reset view"
+            >reset view</button>
+            <span className="srl-puct-svg-hint">drag · scroll to zoom · click a node to focus its subtree</span>
+          </div>
+        </div>
         <div className="srl-puct-info">
           <div className="srl-puct-info-h">
             {focusNode === bestNode ? 'Best so far (root → leaf path is highlighted)' : 'Hovered node'}
