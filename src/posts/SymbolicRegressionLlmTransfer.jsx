@@ -72,6 +72,11 @@ function useJsonLines(url) {
 
 /* ============================ Layer-1 transfer widget ============================ */
 const L1_ARM_ORDER = ['risk', 'best_of_n', 'entropic', 'evolution', 'greedy'];
+const TARGET_FORMULA = {
+  easy:   'f(x) = x^2 + 1',
+  medium: 'f(x) = x^2 + \\sin(x)',
+  harder: 'f(x) = x^3 - x + \\cos(2x)',
+};
 
 function Layer1Transfer() {
   const data = useJson(`${DATA_BASE}/layer1.json`);
@@ -106,6 +111,10 @@ function Layer1Transfer() {
           </div>
         </label>
         <span className="srl-note srl-tag-right">Qwen2.5-0.5B · GRPO + LoRA</span>
+      </div>
+      <div className="srl-l1-target">
+        <span className="srl-l1-target-label">target</span>
+        <Katex tex={TARGET_FORMULA[t]} />
       </div>
       <table className="srl-results">
         <thead>
