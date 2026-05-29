@@ -6,7 +6,7 @@ existing `risk + reasoning` and `best_of_n + reasoning` data on disk, and
 emits a publishable table that includes:
 
   - numeric-solved fraction (n/5)
-  - DSR-symbolic-recovered fraction (n/5)
+  - BFGS-snap-symbolic-recovered fraction (n/5)
   - strict-symbolic-recovered fraction (n/5)
   - mean best (over 5 seeds)
   - mean num_solved_at calls (for seeds that did solve)
@@ -174,7 +174,7 @@ def main():
     cells = _gather(bucket, target_sympy)
     print(f"\n=== PUCT 2x2 ablation on `{DEFAULT_TARGET}` ===\n")
     fmt = "{:<28} | {:>10} | {:>10} | {:>14} | {:>10} | {:>14}"
-    print(fmt.format("cell", "numeric", "DSR-sym", "STRICT-sym",
+    print(fmt.format("cell", "numeric", "BFGS-sym", "STRICT-sym",
                      "mean best", "mean solve calls"))
     print("-" * 100)
     for name, c in cells.items():

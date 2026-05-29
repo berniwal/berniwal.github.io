@@ -814,13 +814,13 @@ New formula for f(x):`}</pre>
           <tbody>
             <tr>
               <td><b>best-of-N</b> (no GRPO update)</td>
-              <td>0/5 num · 0/5 DSR-sym</td>
-              <td>1/5 num · 0/5 DSR-sym</td>
+              <td>0/5 num · 0/5 BFGS-sym</td>
+              <td>1/5 num · 0/5 BFGS-sym</td>
             </tr>
             <tr>
               <td><b>risk</b> (GRPO + quantile adv.)</td>
-              <td>0/5 num · 0/5 DSR-sym</td>
-              <td><b>4/5 num</b> · 1/5 DSR-sym*</td>
+              <td>0/5 num · 0/5 BFGS-sym</td>
+              <td><b>4/5 num</b> · 1/5 BFGS-sym*</td>
             </tr>
           </tbody>
         </table>
@@ -833,14 +833,26 @@ New formula for f(x):`}</pre>
           the policy commits to.
         </p>
         <p>
-          <strong>Second</strong>, and more honestly, the asterisk on that 1/5 DSR-symbolic
-          win is doing real work. The recovered seed-2 expression was{' '}
+          <strong>Second</strong>, and more honestly, the asterisk on that 1/5 BFGS-snap
+          symbolic win is doing real work. The recovered seed-2 expression was{' '}
           <code>x³ − x + sin(2x + π/2)</code>, which is mathematically{' '}
           <Katex tex="\equiv x^3 - x + \cos(2x)" /> — except the LLM also wrote a{' '}
-          <code>+ ε·x²</code> padding term that BFGS happened to zero out. The DSR snap
-          credits the recovery; a strict 3-term match would not. Across all four cells,{' '}
-          <strong>0/20 candidates clear the strict bar</strong>. The ceiling moved, but it
-          didn't break.
+          <code>+ ε·x²</code> padding term that BFGS happened to zero out. Two
+          recovery standards diverge here: <em>BFGS-snap symbolic</em> credits this
+          (BFGS fits the free coefficient to ε ≈ 0, then a tolerance-snap rounds the
+          zero-near-zero away before SymPy equivalence) — a <em>strict 3-term</em>{' '}
+          match doesn't. Across all four cells of this 2×2,{' '}
+          <strong>0/20 candidates clear the strict bar</strong>. The ceiling moved,
+          but it didn't break.
+        </p>
+        <p className="srl-caption">
+          <em>Notation we use throughout — <strong>BFGS-snap symbolic</strong>:
+          after BFGS-fitting any free constants in the candidate expression, snap
+          each fitted value to a nearby "simple" target (integer, half-integer,
+          π/2, ...) within tolerance 10<sup>−3</sup>, then check SymPy
+          equivalence. <strong>strict-symbolic</strong>: same SymPy check, but
+          also require the raw term-count to match the target's (no padding terms
+          with coefficients BFGS happened to zero out).</em>
         </p>
         <p className="srl-caption">
           <em>Five seeds, single target, single model. Read this as a direction-of-effect,
@@ -921,7 +933,7 @@ New formula for f(x):`}</pre>
             <tr>
               <th></th>
               <th>numeric</th>
-              <th>DSR-sym</th>
+              <th>BFGS-sym</th>
               <th>STRICT-sym</th>
               <th>mean best</th>
               <th>mean solve calls</th>
@@ -1029,7 +1041,7 @@ New formula for f(x):`}</pre>
         </p>
         <p>
           <strong>Reasoning helped, but didn't break the ceiling.</strong>{' '}
-          Qwen3-1.7B with a thinking budget got 4/5 numeric and 1/5 DSR-symbolic
+          Qwen3-1.7B with a thinking budget got 4/5 numeric and 1/5 BFGS-snap symbolic
           (snap-rescued); strict 3-term recovery stayed at 0/5. The model was clearly
           producing near-target shapes, just never <em>committing</em> to one and
           refining it.
