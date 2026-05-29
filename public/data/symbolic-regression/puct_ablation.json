@@ -1,0 +1,154 @@
+{
+  "target": "harder",
+  "cells": {
+    "puct + GRPO": {
+      "n": 5,
+      "complete": 5,
+      "numeric": 5,
+      "dsr_symbolic": 4,
+      "strict_symbolic": 4,
+      "mean_best": 0.984,
+      "mean_solve_calls": 211.2,
+      "per_seed": [
+        {
+          "seed": 0,
+          "best": 0.98,
+          "num_solved_at": 96,
+          "dsr": true,
+          "strict": true,
+          "best_expr": "(((-1.0000000145574655 * x) + (1.0000000001481357 * cos(((1.999999999685146 * x) + -7.443321867144684e-09)))) + (1.0000000079190616 * ((x * x) * x)))"
+        },
+        {
+          "seed": 1,
+          "best": 0.988,
+          "num_solved_at": 192,
+          "dsr": true,
+          "strict": true,
+          "best_expr": "((cos((2.0 * x)) + ((x * x) * x)) - x)"
+        },
+        {
+          "seed": 2,
+          "best": 0.98,
+          "num_solved_at": 160,
+          "dsr": true,
+          "strict": true,
+          "best_expr": "(((1.000000000039568 * sin(((1.9999999998695546 * x) + 1.5707963602582988))) + (((0.999999962045549 * x) * x) * x)) + (-0.9999999336386547 * x))"
+        },
+        {
+          "seed": 3,
+          "best": 0.984,
+          "num_solved_at": 368,
+          "dsr": false,
+          "strict": false,
+          "best_expr": "((((x * x) * x) - (1.0000000218436909 * x)) + sin(((2.0 * x) - 4.712388993054055)))"
+        },
+        {
+          "seed": 4,
+          "best": 0.988,
+          "num_solved_at": 240,
+          "dsr": true,
+          "strict": true,
+          "best_expr": "((((x * x) * x) - x) + cos((2.0 * x)))"
+        }
+      ]
+    },
+    "puct + lr=0 (untrained)": {
+      "n": 5,
+      "complete": 5,
+      "numeric": 4,
+      "dsr_symbolic": 2,
+      "strict_symbolic": 2,
+      "mean_best": 0.9835,
+      "mean_solve_calls": 616.0,
+      "per_seed": [
+        {
+          "seed": 0,
+          "best": 0.9844,
+          "num_solved_at": 1152,
+          "dsr": false,
+          "strict": false,
+          "best_expr": "((cos((2.0004808719871283 * x)) + (28.042004427012984 * x)) - (63.53259585890286 * sin((0.45715727161042585 * x))))"
+        },
+        {
+          "seed": 1,
+          "best": 0.9772,
+          "num_solved_at": null,
+          "dsr": false,
+          "strict": false,
+          "best_expr": "((((1.9366236251559357 * sin(((1.3584685245565677 * x) + 3.8678088079289132))) + 0.24817446217196246) * x) + 0.9958319741407913)"
+        },
+        {
+          "seed": 2,
+          "best": 0.9802,
+          "num_solved_at": 336,
+          "dsr": false,
+          "strict": false,
+          "best_expr": "(((1.164401406696359 * x) + (1.5963575526559168 * cos(((1.9992582794732843 * x) + 0.8940431782428541)))) + (0.09154358807877083 * sin((3.5698375678217875 * x))))"
+        },
+        {
+          "seed": 3,
+          "best": 0.988,
+          "num_solved_at": 800,
+          "dsr": true,
+          "strict": true,
+          "best_expr": "((((x * x) * x) - x) + cos((2.0 * x)))"
+        },
+        {
+          "seed": 4,
+          "best": 0.988,
+          "num_solved_at": 176,
+          "dsr": true,
+          "strict": true,
+          "best_expr": "((((x * x) * x) - x) + cos((2.0 * x)))"
+        }
+      ]
+    }
+  },
+  "per_seed_compare": [
+    {
+      "seed": 0,
+      "trained_num_solved_at": 96,
+      "notrain_num_solved_at": 1152,
+      "trained_best": 0.9799999996373323,
+      "notrain_best": 0.9843533983400541,
+      "trained_strict": true,
+      "notrain_strict": false
+    },
+    {
+      "seed": 1,
+      "trained_num_solved_at": 192,
+      "notrain_num_solved_at": null,
+      "trained_best": 0.988,
+      "notrain_best": 0.9771929245831037,
+      "trained_strict": true,
+      "notrain_strict": false
+    },
+    {
+      "seed": 2,
+      "trained_num_solved_at": 160,
+      "notrain_num_solved_at": 336,
+      "trained_best": 0.9799999992686865,
+      "notrain_best": 0.9801819379748361,
+      "trained_strict": true,
+      "notrain_strict": false
+    },
+    {
+      "seed": 3,
+      "trained_num_solved_at": 368,
+      "notrain_num_solved_at": 800,
+      "trained_best": 0.9839999937916379,
+      "notrain_best": 0.988,
+      "trained_strict": false,
+      "notrain_strict": true
+    },
+    {
+      "seed": 4,
+      "trained_num_solved_at": 240,
+      "notrain_num_solved_at": 176,
+      "trained_best": 0.988,
+      "notrain_best": 0.988,
+      "trained_strict": true,
+      "notrain_strict": true
+    }
+  ]
+}

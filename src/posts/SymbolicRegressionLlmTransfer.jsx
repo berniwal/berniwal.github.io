@@ -887,17 +887,104 @@ New formula for f(x):`}</pre>
         </p>
         <PuctTree />
         <p>
-          <em>Preliminary single-seed result (full 5-seed run in flight):</em> at round
-          30 of 80 the policy converged on <code>x³ − x + sin(2·x + π/2)</code> —
-          coefficients fit to within <Katex tex="\sim 10^{-8}" /> of their integer or{' '}
-          <Katex tex="\pi/2" /> values, mean-squared error{' '}
-          <Katex tex="\sim 10^{-20}" /> on the training data. After const-snap and SymPy
-          simplification this is <em>exactly</em> the target structure{' '}
-          <Katex tex="x^3 - x + \cos(2x)" /> in three raw terms, no padding term BFGS has
-          to zero out. <strong>This is the first strict 3-term symbolic recovery
-          anywhere in the arena</strong>, across every Layer-0 arm and every Layer-1 arm
-          we've tried before this section. Whether multiple seeds reproduce the result
-          is the question the 5-seed run is meant to answer.
+          The widget above is one full PUCT run on seed 0 — drag the slider to watch
+          the buffer grow. By round 6 the policy already proposes a candidate that
+          numerically solves the target; by round 22 it has the correct three-term
+          structure; by round 30 it has refined the coefficients to within{' '}
+          <Katex tex="\sim 10^{-8}" /> of their integer or <Katex tex="\pi/2" /> values
+          (mean-squared error <Katex tex="\sim 10^{-20}" /> on the training data).
+          After SymPy simplification this is <em>exactly</em>{' '}
+          <Katex tex="x^3 - x + \cos(2x)" /> — three raw terms, no padding term BFGS
+          has to zero out. The blue lineage in the widget traces back from this best
+          leaf to its initial-seed root: that's the actual path the search took.
+        </p>
+
+        <h3 className="reveal">How much of this is the tree search, how much is the training?</h3>
+        <p>
+          With one knob — <code>--lr 0</code> instead of <code>1e-5</code> — we run
+          the exact same PUCT setup with a <em>frozen</em> Qwen3-1.7B (no GRPO
+          updates). The buffer still grows, PUCT still selects, but the policy that
+          generates the rollouts never adapts. Five seeds per cell:
+        </p>
+        <table className="srl-results">
+          <caption><code>harder</code> · Qwen3-1.7B + reasoning · PUCT 4×4 · 5 seeds</caption>
+          <thead>
+            <tr>
+              <th></th>
+              <th>numeric</th>
+              <th>DSR-sym</th>
+              <th>STRICT-sym</th>
+              <th>mean best</th>
+              <th>mean solve calls</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>PUCT + lr=0</b> (no training)</td>
+              <td>4/5</td>
+              <td>2/5</td>
+              <td><b>2/5</b></td>
+              <td>0.984</td>
+              <td>616</td>
+            </tr>
+            <tr>
+              <td><b>PUCT + GRPO</b></td>
+              <td><b>5/5</b></td>
+              <td>4/5</td>
+              <td><b>4/5</b></td>
+              <td>0.984</td>
+              <td><b>211</b></td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Two findings stack. <strong>First, tree search alone — without any
+          training — already breaks the ceiling.</strong> The state-buffer plus
+          lineage-blocking machinery is enough to land strict-symbolic recovery on
+          2 of 5 seeds with a frozen policy. Every prior arm in the arena (across
+          Layer-0 RNN risk, Layer-1 LLM risk, evolution, best-of-N, reasoning +
+          GRPO without tree search) finished at 0/5 on this metric. That alone is
+          the missing piece.
+        </p>
+        <p>
+          <strong>Second, GRPO sharpens the search instead of replacing it.</strong>{' '}
+          Training pushes strict-symbolic to 4/5 and finds the answer{' '}
+          <em>much earlier</em> — mean solve at 211 verifier calls vs 616 untrained,
+          roughly 3× sooner. Seed by seed:
+        </p>
+        <table className="srl-results">
+          <caption>per-seed: when did the policy first numerically solve?</caption>
+          <thead>
+            <tr>
+              <th>seed</th>
+              <th>trained calls</th>
+              <th>untrained calls</th>
+              <th>GRPO speed-up</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>0</td><td><b>96</b></td><td>1152</td><td>+1056 calls (12×)</td></tr>
+            <tr><td>1</td><td><b>192</b></td><td>never solved</td><td>uniquely solved by GRPO</td></tr>
+            <tr><td>2</td><td><b>160</b></td><td>336</td><td>+176 calls (2.1×)</td></tr>
+            <tr><td>3</td><td><b>368</b></td><td>800</td><td>+432 calls (2.2×)</td></tr>
+            <tr><td>4</td><td>240</td><td><b>176</b></td><td>−64 calls (one outlier)</td></tr>
+          </tbody>
+        </table>
+        <p>
+          On 4 of 5 matched seeds, GRPO finds the solution substantially earlier; on
+          seed 1, only the trained policy finds it at all. Seed 4 is the one
+          exception — untrained wins by a thin 64-call margin and both finish at
+          identical <Katex tex="\text{best} = 0.988" />. The headline is the
+          combination: tree search supplies the structural exploration that nothing
+          else in the arena had, and GRPO converts the buffer's signal into a
+          faster, more reliable search.
+        </p>
+        <p className="srl-caption">
+          <em>Five seeds is still small N — the speed-ups are large enough that the
+          ranking would survive a few seed-permutations of the table, but read the
+          exact multipliers as rough magnitudes. The full per-round tree of every
+          run, plus the analysis script that produced this table, is in the repo at
+          <code>experiments/self-improvement-arena/analyze_puct_ablation.py</code>.</em>
         </p>
 
         <h2 className="reveal">Run it yourself</h2>
@@ -926,10 +1013,30 @@ New formula for f(x):`}</pre>
 
         <h2 className="reveal">Wrap-up</h2>
         <p>
-          The point of the two-layer split: the <em>objective</em> — how a batch of rewards
-          becomes a per-sample weight — is what carries the ranking. Swap the proposer's
-          architecture and the order largely holds. Swap the objective and it doesn't. That's
-          the knob worth tuning when you scale up to a real LLM.
+          The shape of the post tells the story.{' '}
+          <strong>The Layer-0 ranking transferred to the LLM</strong> — risk-seeking
+          on top, the rest in order — and so did its ceiling: numerical recovery on{' '}
+          <code>harder</code> was easy, exact symbolic recovery essentially impossible.
+        </p>
+        <p>
+          <strong>Reasoning helped, but didn't break the ceiling.</strong>{' '}
+          Qwen3-1.7B with a thinking budget got 4/5 numeric and 1/5 DSR-symbolic
+          (snap-rescued); strict 3-term recovery stayed at 0/5. The model was clearly
+          producing near-target shapes, just never <em>committing</em> to one and
+          refining it.
+        </p>
+        <p>
+          <strong>Tree search was the missing piece.</strong> Porting{' '}
+          TTT-Discover's PUCT-over-a-state-buffer — even with the policy frozen —
+          recovered the exact target on 2 of 5 seeds. Layer it with GRPO and the
+          rate climbs to 4 of 5, with the solution found roughly 3× sooner. The
+          two mechanisms are complementary: search supplies the structural
+          exploration, training accelerates the convergence.
+        </p>
+        <p>
+          The story arc of this two-post series wasn't planned — the Nguyen result
+          ended at one ceiling and reasoning bumped against another. PUCT was the
+          first thing that broke both.
         </p>
 
         <h2 className="reveal">References</h2>
